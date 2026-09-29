@@ -2,10 +2,13 @@
   "name": "gfinpay-app",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
-    "start": "next start --port 3000"
+    "start": "next start"
   },
   "dependencies": {
     "lucide-react": "^1.44.0",
