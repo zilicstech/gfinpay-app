@@ -14,6 +14,10 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  "origin",
+  "referer",
+  "access-control-request-method",
+  "access-control-request-headers",
 ]);
 
 type RouteContext = { params: Promise<{ path: string[] }> };
