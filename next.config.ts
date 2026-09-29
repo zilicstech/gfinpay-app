@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   async redirects() {
     return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.gfinpay.com" }],
+        destination: "https://gfinpay.com/:path*",
+        permanent: true,
+      },
       { source: "/analytics", destination: "/admin/analytics", permanent: true },
       { source: "/distributors", destination: "/admin/distributors", permanent: true },
       { source: "/retailers", destination: "/admin/retailers", permanent: true },

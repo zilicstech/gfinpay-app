@@ -5,7 +5,7 @@ export const SITE = {
   tagline: "Send money, pay bills, and give cash from the neighbourhood retailer",
   description:
     "gfinpay helps kirana retailers send money, pay BBPS bills, recharge mobile and DTH, top up FASTag, collect LIC premiums, give cash against UPI or Aadhaar, keep a wallet, and help customers take an FD card. Banks keep the deposits. Retailers run the counter.",
-  url: "https://www.gfinpay.com",
+  url: "https://gfinpay.com",
   email: "hello@gfinpay.com",
   partnerEmail: "partners@gfinpay.com",
   phone: "1800 890 4040",
