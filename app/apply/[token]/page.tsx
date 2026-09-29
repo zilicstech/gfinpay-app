@@ -11,7 +11,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
   if (!token) notFound();
 
   const status = await lookupApply(token);
-  if (status.status === 404 || status.body.error?.code === "LINK_NOT_FOUND") {
+  if (status.body.error?.code === "LINK_NOT_FOUND") {
     notFound();
   }
   if (status.body.data && status.body.data.active === false) {
@@ -22,12 +22,12 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
       />
     );
   }
-  if (status.body.error) {
+  if (status.body.error && status.status !== 404) {
     return <ApplyNotice title="Unable to open this link" body={status.body.error.message} />;
   }
 
   const started = await startApply(token);
-  if (started.status === 404 || started.body.error?.code === "LINK_NOT_FOUND") {
+  if (started.body.error?.code === "LINK_NOT_FOUND") {
     notFound();
   }
   if (started.body.error?.code === "LEAD_CLOSED") {
