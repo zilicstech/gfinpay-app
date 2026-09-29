@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.firebase
+.firebaserc
+apphosting.yaml
+firebase.json
+.env
+.env.*
+!.env.example
+*.md
+npm-debug.log*
+.DS_Store
+coverage
+*.tsbuildinfo

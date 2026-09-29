@@ -1,0 +1,8 @@
+User-Agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /agent/
+Disallow: /distributor/
+Disallow: /login
+
+Sitemap: https://www.gfinpay.com/sitemap.xml
