@@ -1,0 +1,17 @@
+# Firebase App Hosting (Next.js). Browser calls this app's domain at /api/...
+# Set API_PROXY_TARGET to the Cloud Run backend URL before API calls will succeed.
+# https://firebase.google.com/docs/app-hosting/configure
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+# Set this in the Firebase console (or here) to the Cloud Run API origin, with no trailing slash.
+# Example: https://fintech-svc-xxxxx.asia-south1.run.app
+# env:
+#   - variable: API_PROXY_TARGET
+#     value: https://YOUR_CLOUD_RUN_URL
+#     availability:
+#       - RUNTIME
