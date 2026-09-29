@@ -1,54 +1,60 @@
-"use client";
+import { notFound, redirect } from "next/navigation";
+import { ApplyHandoff } from "../ApplyHandoff";
+import { ApplyNotice } from "../ApplyNotice";
+import { lookupApply, startApply } from "@/lib/apply-api";
 
-import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
-import { API_BASE } from "@/lib/api-base";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-export default function ApplyPage() {
-  const { token } = useParams<{ token: string }>();
-  const [error, setError] = useState<string | null>(null);
-  const formRef = useRef<HTMLFormElement>(null);
-  const [payload, setPayload] = useState<{ url: string; encdata: string; method?: string } | null>(null);
+export default async function ApplyPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  if (!token) notFound();
 
-  useEffect(() => {
-    if (!token) return;
-    fetch(`${API_BASE}/api/v1/public/apply/${token}/start`, { method: "POST" })
-      .then(async (res) => {
-        const body = await res.json();
-        if (!res.ok || body.error) throw new Error(body.error?.message ?? "Could not start the application");
-        setPayload(body.data);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Something went wrong"));
-  }, [token]);
-
-  useEffect(() => {
-    if (!payload) return;
-    if (payload.method === "GET" || !payload.encdata) {
-      window.location.href = payload.url;
-      return;
-    }
-    if (formRef.current) formRef.current.submit();
-  }, [payload]);
-
-  if (error) {
+  const status = await lookupApply(token);
+  if (status.status === 404 || status.body.error?.code === "LINK_NOT_FOUND") {
+    notFound();
+  }
+  if (status.body.data && status.body.data.active === false) {
     return (
-      <div className="grid min-h-screen place-items-center bg-white px-4">
-        <p className="max-w-sm text-center text-sm text-rose-800">{error}</p>
-      </div>
+      <ApplyNotice
+        title="This link is no longer active"
+        body="The application has already been completed or closed. You can close this page."
+      />
+    );
+  }
+  if (status.body.error) {
+    return <ApplyNotice title="Unable to open this link" body={status.body.error.message} />;
+  }
+
+  const started = await startApply(token);
+  if (started.status === 404 || started.body.error?.code === "LINK_NOT_FOUND") {
+    notFound();
+  }
+  if (started.body.error?.code === "LEAD_CLOSED") {
+    return (
+      <ApplyNotice
+        title="This link is no longer active"
+        body="The application has already been completed or closed. You can close this page."
+      />
+    );
+  }
+  if (started.body.error || !started.body.data?.url) {
+    return (
+      <ApplyNotice
+        title="Unable to open this link"
+        body={started.body.error?.message ?? "The application could not be started. Please ask the retailer for a new link."}
+      />
     );
   }
 
+  const payload = started.body.data;
+  if (payload.method === "GET" || !payload.encdata) {
+    redirect(payload.url);
+  }
+
   return (
-    <div className="grid min-h-screen place-items-center bg-white px-4">
-      <div className="text-center">
-        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-        <p className="mt-4 text-sm text-navy-600">Opening your application…</p>
-      </div>
-      {payload && (
-        <form ref={formRef} method="post" action={payload.url} className="hidden">
-          <textarea name="encdata" readOnly defaultValue={payload.encdata} />
-        </form>
-      )}
-    </div>
+    <main className="grid min-h-screen place-items-center bg-white px-4">
+      <ApplyHandoff url={payload.url} encdata={payload.encdata} method={payload.method} />
+    </main>
   );
 }
