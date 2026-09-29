@@ -275,7 +275,7 @@ export function FdCardsConsole({ token }: { token: string | null }) {
   const providerOptions = providers
     .filter((provider) => {
       if (ruleModal === "new") return !rankedProviders.has(provider.code);
-      if (ruleModal && ruleModal !== "new") {
+      if (ruleModal) {
         return provider.code === ruleModal.preferred_provider || !rankedProviders.has(provider.code);
       }
       return true;

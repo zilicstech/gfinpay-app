@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { DataTable, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { productTitle } from "@/features/sales/CatalogShowcase";
@@ -37,7 +38,7 @@ export function SalesTable({
     <DataTable
       columns={columns}
       rows={rows.map((row) => {
-        const base = [
+        const base: ReactNode[] = [
           `${row.customer_name} · ${row.customer_mobile}`,
           productTitle(row.item_code ?? "", row.item_name),
           row.category_name,

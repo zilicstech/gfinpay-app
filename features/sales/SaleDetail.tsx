@@ -102,7 +102,8 @@ export function SaleDetail({
   }
 
   const open = !["REJECTED", "EXPIRED", "CONVERTED", "ACTIVATED"].includes(lead.state);
-  const showCustomerLink = lead.payment_link_url && (audience === "admin" || open);
+  const paymentLink = lead.payment_link_url ?? "";
+  const showCustomerLink = Boolean(paymentLink) && (audience === "admin" || open);
 
   return (
     <div className="space-y-5">
@@ -132,7 +133,7 @@ export function SaleDetail({
         footer={
           showCustomerLink && open ? (
             <div className="flex flex-col items-center gap-4 px-5 py-5 sm:flex-row sm:items-center sm:px-6">
-              <QrCode value={lead.payment_link_url} size={148} />
+              <QrCode value={paymentLink} size={148} />
               <div className="min-w-0 text-center sm:text-left">
                 <p className="text-xs font-semibold uppercase tracking-wide text-navy-400">Customer QR</p>
                 <p className="mt-1 text-sm text-navy-700">The customer scans this and finishes on their phone.</p>
