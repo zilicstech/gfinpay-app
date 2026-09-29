@@ -1,1 +1,0 @@
-(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[681],{3905:(e,s,a)=>{"use strict";a.r(s),a.d(s,{default:()=>r});var n=a(5155),t=a(3854);function r(){return(0,n.jsx)(t.j,{basePath:"/agent/customers",manage:!0})}},7503:(e,s,a)=>{Promise.resolve().then(a.bind(a,3905))}},e=>{e.O(0,[2619,7078,8933,415,6576,3854,8441,1255,7358],()=>e(e.s=7503)),_N_E=e.O()}]);

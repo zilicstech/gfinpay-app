@@ -11,6 +11,9 @@ out/
 .env.*
 !.env.example
 
+# local build caches
+.firebase/
+
 # TypeScript / tooling
 *.tsbuildinfo
 .turbo/
