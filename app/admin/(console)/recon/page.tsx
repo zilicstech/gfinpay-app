@@ -20,6 +20,8 @@ type Batch = {
   status: string;
   total_rows?: number;
   matched_rows?: number;
+  matched_count?: number;
+  unidentified_rows?: number;
   activated_count?: number;
   eligible_count?: number;
 };
@@ -66,18 +68,19 @@ export default function ReconPage() {
       <PageHeader
         eyebrow="Ops"
         title="Reconciliation"
-        description="Upload a weekly ZET, PaySprint, or GrowMore sales Excel. Open generated-link cards for that provider are marked activated and commission is posted to retailer and distributor earnings."
+        description="Upload the provider weekly Excel. ZET files are matched to sales by mobile and card (SBM/IOB); partner funnel steps update on each row. PaySprint and GrowMore parsers are not live yet."
         actions={<button className="btn-primary" onClick={() => setOpen(true)}>Add report</button>}
       />
       {rows.length === 0 ? (
         <EmptyState title="No reports yet" body="Add a weekly Excel when the provider sends sales." />
       ) : (
         <DataTable
-          columns={["Report type", "Date", "Activated", "Status", ""]}
+          columns={["Report type", "Date", "Rows", "Matched", "Status", ""]}
           rows={rows.map((r) => [
             r.provider,
             String(r.business_date).slice(0, 10),
-            `${r.matched_rows ?? r.activated_count ?? 0}/${r.total_rows ?? r.eligible_count ?? 0}`,
+            String(r.total_rows ?? r.eligible_count ?? 0),
+            `${r.matched_rows ?? r.matched_count ?? 0}${r.unidentified_rows ? ` · ${r.unidentified_rows} unidentified` : ""}`,
             <StatusPill key={r.id} value={r.status} />,
             <ViewLink key={`${r.id}-v`} href={`/admin/recon/${r.id}`} />,
           ])}
@@ -87,7 +90,7 @@ export default function ReconPage() {
       <FormModal
         open={open}
         title="Add report"
-        description="Select the provider and upload their weekly Excel. Open generated-link cards for that provider are marked activated and commission is paid."
+        description="Select the provider and upload their weekly Excel. ZET reconciles funnel steps and activates only when the MIS shows card activation."
         onClose={closeModal}
         onSubmit={create}
         submitLabel="Reconcile"

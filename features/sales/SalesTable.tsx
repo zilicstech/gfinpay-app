@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { DataTable, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { productTitle } from "@/features/sales/CatalogShowcase";
+import { partnerStatusLabel } from "@/lib/partner-status";
 
 export type SalesLead = {
   id: string;
@@ -13,6 +14,7 @@ export type SalesLead = {
   item_code?: string;
   category_name: string;
   state: string;
+  partner_status?: string;
   retailer_name?: string;
   payment_link_url?: string;
   link_opened_at?: string;
@@ -32,8 +34,8 @@ export function SalesTable({
     return <EmptyState title="No sales yet" body="A sale appears here after a retailer generates a link for an eligible product." />;
   }
   const columns = hideRetailer
-    ? ["Customer", "Product", "Category", "State", "Opened", ""]
-    : ["Customer", "Product", "Category", "Retailer", "State", "Opened", ""];
+    ? ["Customer", "Product", "Category", "Partner step", "State", "Opened", ""]
+    : ["Customer", "Product", "Category", "Retailer", "Partner step", "State", "Opened", ""];
   return (
     <DataTable
       columns={columns}
@@ -47,6 +49,7 @@ export function SalesTable({
           base.push(row.retailer_name ?? "—");
         }
         base.push(
+          partnerStatusLabel(row.partner_status),
           <StatusPill key={`${row.id}-st`} value={row.state} />,
           row.link_opened_at ? "Yes" : "Not yet",
           <Link key={`${row.id}-v`} href={`${detailBase}/${row.id}`} className="text-sm font-semibold text-brand-700">View</Link>,

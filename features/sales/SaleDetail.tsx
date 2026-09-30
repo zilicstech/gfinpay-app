@@ -6,6 +6,7 @@ import { Copy, Share2 } from "lucide-react";
 import { when } from "@/lib/format";
 import { EntityHero, RecordFacts, entityPrimaryActionClass } from "@/features/console/EntityChrome";
 import { productTitle } from "@/features/sales/CatalogShowcase";
+import { partnerStatusLabel } from "@/lib/partner-status";
 import { QrCode } from "@/components/ui/QrCode";
 import { Modal } from "@/components/ui/primitives";
 
@@ -50,6 +51,8 @@ export type SaleLead = {
   rail?: string;
   external_product?: string;
   state: string;
+  partner_status?: string;
+  partner_status_at?: string;
   budget?: number;
   provider_refid?: string;
   payment_link_url?: string;
@@ -144,6 +147,8 @@ export function SaleDetail({
       />
       <RecordFacts
         rows={[
+          { label: "Lifecycle", value: lead.state.replaceAll("_", " ") },
+          { label: "Partner status", value: partnerStatusLabel(lead.partner_status) },
           { label: "Provider", value: lead.provider ?? "—" },
           { label: "Rail", value: lead.rail?.replaceAll("_", " ") ?? "—" },
           { label: "Bank", value: lead.product_key ?? "—" },
