@@ -71,6 +71,7 @@ export function DeskCustomersPage({ basePath }: { basePath: "/agent/customers" |
         body: JSON.stringify({
           fullName: draft.fullName.trim(),
           mobile: draft.mobile,
+          email: draft.email || null,
           city: draft.city.trim(),
           state: draft.state,
           pincode: draft.pincode,

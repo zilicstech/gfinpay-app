@@ -44,6 +44,7 @@ export const INDIAN_STATES = [
 export type CustomerDraft = {
   mobile: string;
   fullName: string;
+  email: string;
   city: string;
   state: string;
   pincode: string;
@@ -52,6 +53,7 @@ export type CustomerDraft = {
 export const emptyCustomerDraft = (): CustomerDraft => ({
   mobile: "",
   fullName: "",
+  email: "",
   city: "",
   state: "",
   pincode: "",
@@ -85,6 +87,16 @@ export function CustomerFields({
           autoComplete="name"
           value={value.fullName}
           onChange={(e) => onChange({ ...value, fullName: e.target.value })}
+        />
+      </Field>
+      <Field label="Customer email">
+        <input
+          className="field"
+          type="email"
+          autoComplete="email"
+          placeholder="Needed for credit card, loan, and savings links"
+          value={value.email}
+          onChange={(e) => onChange({ ...value, email: e.target.value.trim() })}
         />
       </Field>
       <Field label="City">

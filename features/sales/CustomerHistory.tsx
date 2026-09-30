@@ -25,6 +25,7 @@ type Customer = {
   id: string;
   full_name: string;
   mobile: string;
+  email?: string;
   city?: string;
   state?: string;
   pincode?: string;
@@ -129,6 +130,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
     setDraft({
       mobile: customer.mobile,
       fullName: customer.full_name,
+      email: customer.email ?? "",
       city: customer.city ?? "",
       state: customer.state ?? "",
       pincode: customer.pincode ?? "",
@@ -149,6 +151,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
         body: JSON.stringify({
           fullName: draft.fullName.trim(),
           mobile: draft.mobile,
+          email: draft.email || null,
           city: draft.city.trim(),
           state: draft.state,
           pincode: draft.pincode,
@@ -220,6 +223,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
                   <Copy className={`h-3.5 w-3.5 ${copied ? "text-emerald-300" : ""}`} />
                 </button>
               </p>
+              {customer.email && <p className="mt-1 text-sm text-white/70">{customer.email}</p>}
               <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
                 <MapPin className="h-3.5 w-3.5" />
                 {place || "Location not set"}
