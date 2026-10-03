@@ -27,6 +27,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/overview": LayoutDashboard,
   "/admin/distributors": Users,
   "/admin/retailers": Store,
+  "/admin/vendors": Store,
   "/admin/customers": UserRound,
   "/admin/onboarding": Users,
   "/admin/users": Users,

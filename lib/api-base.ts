@@ -4,3 +4,12 @@
  * Set `NEXT_PUBLIC_API_BASE_URL` only when the browser should call the API host directly.
  */
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+
+/** Public pages (vendor desk, apply links): same-origin proxy in dev unless NEXT_PUBLIC_API_BASE_URL is set. */
+export function browserApiPath(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (API_BASE) {
+    return `${API_BASE}${normalized}`;
+  }
+  return normalized;
+}

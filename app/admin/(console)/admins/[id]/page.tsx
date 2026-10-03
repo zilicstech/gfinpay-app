@@ -133,7 +133,7 @@ export default function AdminDetailPage() {
         ]}
         manageActions={manageActions}
         stats={[
-          { label: "Email", value: user.email ?? "—" },
+          { label: "GFIN code", value: user.code ?? "—" },
           { label: "Hub", value: user.hub_name ?? "—" },
           { label: "Distributors", value: distributors.length },
         ]}

@@ -31,6 +31,23 @@ type ReconRow = {
   lead_id?: string;
 };
 
+type StatusCountBreakdown = { total: number; internal: number; vendor: number };
+
+function statusCountBreakdown(value: unknown): StatusCountBreakdown {
+  if (value && typeof value === "object" && "total" in value) {
+    const row = value as Record<string, unknown>;
+    return {
+      total: Number(row.total ?? 0),
+      internal: Number(row.internal ?? 0),
+      vendor: Number(row.vendor ?? 0),
+    };
+  }
+  if (typeof value === "number") {
+    return { total: value, internal: 0, vendor: 0 };
+  }
+  return { total: 0, internal: 0, vendor: 0 };
+}
+
 type Batch = {
   id: string;
   provider: string;
@@ -42,7 +59,7 @@ type Batch = {
   unidentified_rows?: number;
   activated_count?: number;
   eligible_count?: number;
-  status_counts?: Record<string, number>;
+  status_counts?: Record<string, number | StatusCountBreakdown>;
   started_at?: string;
   mismatches?: Mismatch[];
   rows?: ReconRow[];
@@ -122,11 +139,16 @@ export default function ReconDetailPage() {
       />
       {statusCounts.length > 0 ? (
         <DataTable
-          columns={["Partner status", "Rows"]}
-          rows={statusCounts.map(([status, count]) => [
-            partnerStatusLabel(status),
-            String(count),
-          ])}
+          columns={["Partner status", "Total", "Network", "Vendor"]}
+          rows={statusCounts.map(([status, count]) => {
+            const breakdown = statusCountBreakdown(count);
+            return [
+              partnerStatusLabel(status),
+              String(breakdown.total),
+              String(breakdown.internal),
+              String(breakdown.vendor),
+            ];
+          })}
         />
       ) : null}
       {!batch.rows?.length ? (

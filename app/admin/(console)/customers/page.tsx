@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Shield, Store, Users } from "lucide-react";
+import { Briefcase, Search, Shield, Store, Users } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -17,6 +17,7 @@ type Customer = {
   state?: string;
   pincode?: string;
   retailer_name?: string;
+  vendor_name?: string;
   ekyc_status?: string;
   created_by?: string;
   created_by_code?: string;
@@ -46,6 +47,12 @@ const CREATED_BY_MARK: Record<string, { label: string; Icon: typeof Store; chip:
     Icon: Store,
     chip: "bg-navy-950 text-white",
     disc: "bg-white/15 text-emerald-300",
+  },
+  VENDOR: {
+    label: "Vendor",
+    Icon: Briefcase,
+    chip: "bg-amber-900 text-amber-100",
+    disc: "bg-amber-200 text-amber-950",
   },
 };
 
@@ -99,7 +106,7 @@ export default function AdminCustomersPage() {
       <PageHeader
         eyebrow="Network"
         title="Customers"
-        description="Everyone added by distributors, retailers, or admins. Open a row for the customer record."
+        description="Customers from distributors, retailers, admins, and vendor field teams. Open a row for the full record."
       />
       {error && <Alert tone="error">{error}</Alert>}
       <label className="relative block max-w-md">
@@ -119,7 +126,7 @@ export default function AdminCustomersPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           title={searching ? "No customer with this number" : "No customers yet"}
-          body={searching ? "Try another mobile." : "They appear when a distributor, retailer, or admin adds someone."}
+          body={searching ? "Try another mobile." : "They appear when someone is added from a desk or vendor employee link."}
         />
       ) : (
         <DataTable
@@ -136,7 +143,7 @@ export default function AdminCustomersPage() {
               role={c.created_by}
             />,
             c.created_by_code ?? "—",
-            c.retailer_name ?? "—",
+            c.created_by === "VENDOR" ? (c.vendor_name ?? "Vendor") : (c.retailer_name ?? "—"),
             <EkycBadge key={`${c.id}-kyc`} status={c.ekyc_status} />,
             c.created_at ? when(c.created_at) : "—",
             <ViewLink key={`${c.id}-v`} href={`/admin/customers/${c.id}`} />,
