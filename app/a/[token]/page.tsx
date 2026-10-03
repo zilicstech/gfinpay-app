@@ -159,7 +159,7 @@ export default function VendorEmployeeDeskPage() {
   return (
     <main className="min-h-screen bg-white px-4 py-10">
       <div className="mx-auto max-w-md space-y-6">
-        <Logo className="h-8" />
+        <Logo height={32} />
         <div>
           <p className="text-sm text-navy-600">{data.vendor_name}</p>
           <h1 className="font-display text-2xl text-navy-950">Customer application link</h1>
