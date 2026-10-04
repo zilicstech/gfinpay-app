@@ -2,7 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Copy, Check } from "lucide-react";
+import {
+  Building2,
+  Check,
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  Lock,
+  MapPin,
+  Phone,
+  Send,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  User,
+} from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { browserApiPath } from "@/lib/api-base";
 import { Modal } from "@/components/ui/primitives";
@@ -30,7 +44,7 @@ function customerShareMessage(
   return [
     `Dear ${name},`,
     ``,
-    `Thank you for choosing gfinpay. Please complete your ${productName} application using the secure link below. You can finish on your phone at your convenience.`,
+    `Thank you for choosing Gfinpay. Please complete your ${productName} application using the secure link below. You can finish on your phone at your convenience.`,
     ``,
     url,
     ``,
@@ -140,144 +154,233 @@ export default function VendorEmployeeDeskPage() {
     }
   }
 
+  function shareWhatsApp() {
+    if (!shareText) return;
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    window.open(waUrl, "_blank");
+  }
+
   if (error && !data) {
     return (
-      <main className="grid min-h-screen place-items-center px-4">
-        <p className="text-navy-700">{error}</p>
+      <main className="grid min-h-screen place-items-center bg-slate-50 px-4">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-lg max-w-sm">
+          <p className="font-display text-lg font-bold text-navy-950">Invalid Link</p>
+          <p className="mt-2 text-sm text-slate-500">{error}</p>
+        </div>
       </main>
     );
   }
 
   if (!data) {
     return (
-      <main className="grid min-h-screen place-items-center">
-        <div className="h-12 w-48 animate-pulse rounded bg-[#f5f5f5]" />
+      <main className="grid min-h-screen place-items-center bg-slate-50">
+        <div className="h-14 w-48 animate-pulse rounded-2xl bg-slate-200" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-10">
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 sm:py-12">
       <div className="mx-auto max-w-md space-y-6">
-        <Logo height={32} />
-        <div>
-          <p className="text-sm text-navy-600">{data.vendor_name}</p>
-          <h1 className="font-display text-2xl text-navy-950">Customer application link</h1>
-          <p className="text-sm text-navy-600">
-            {data.employee_name}
-            {data.employee_gfin_code ? ` · ${data.employee_gfin_code}` : ""}
-          </p>
-          <p className="mt-2 text-xs text-navy-500">
-            Enter the customer details, pick a card, then generate a link to share with them on WhatsApp or SMS.
-          </p>
+        {/* Header Branding */}
+        <div className="flex items-center justify-between">
+          <Logo compact />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Affiliate Portal</span>
+          </span>
         </div>
 
-        <form className="space-y-4" onSubmit={generateLink}>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-navy-600">Customer name</span>
-            <input
-              className="field mt-1"
-              required
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              autoComplete="name"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-navy-600">Mobile</span>
-            <input
-              className="field mt-1 tracking-widest"
-              required
-              inputMode="numeric"
-              maxLength={10}
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              autoComplete="tel"
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-navy-600">City</span>
-              <input
-                className="field mt-1"
-                required
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-navy-600">State</span>
-              <input
-                className="field mt-1"
-                required
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-              />
-            </label>
+        {/* Affiliate Info Card */}
+        <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-card space-y-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Corporate Vendor</p>
+              <h1 className="font-display text-xl font-extrabold text-navy-950">{data.vendor_name}</h1>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <Building2 className="h-5 w-5" />
+            </div>
           </div>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-navy-600">Pincode (optional)</span>
-            <input
-              className="field mt-1 tracking-widest"
-              inputMode="numeric"
-              maxLength={6}
-              value={pincode}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-navy-600">Card</span>
-            <select
-              className="field mt-1"
-              required
-              value={catalogItemId}
-              onChange={(e) => setCatalogItemId(e.target.value)}
-            >
-              <option value="" disabled>
-                Select a card
-              </option>
-              {data.products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            className="btn-primary w-full"
-            disabled={submitting || !catalogItemId}
-          >
-            {submitting ? "Generating…" : "Generate link"}
-          </button>
-        </form>
 
-        {error ? <p className="text-sm text-rose-700">{error}</p> : null}
+          <div className="rounded-2xl bg-slate-50 p-3.5 border border-slate-100 flex items-center justify-between text-xs">
+            <div>
+              <span className="text-slate-400">Field Executive: </span>
+              <strong className="text-navy-950">{data.employee_name}</strong>
+            </div>
+            {data.employee_gfin_code && (
+              <span className="rounded-md bg-white border border-slate-200 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-700">
+                {data.employee_gfin_code}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Form Card */}
+        <div className="rounded-[2.5rem] border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xl space-y-6">
+          <div>
+            <h2 className="font-display text-lg font-bold text-navy-950">Generate Customer Link</h2>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              Enter customer details and choose a financial product. We will generate a secure onboarding link you can share directly.
+            </p>
+          </div>
+
+          <form className="space-y-4" onSubmit={generateLink}>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Customer Full Name</span>
+              </label>
+              <input
+                className="field"
+                required
+                placeholder="e.g. Ramesh Kumar"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                autoComplete="name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+                <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                <span>10-Digit Mobile Number</span>
+              </label>
+              <input
+                className="field tracking-widest font-mono font-medium"
+                required
+                placeholder="9876543210"
+                inputMode="numeric"
+                maxLength={10}
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                autoComplete="tel"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>City</span>
+                </label>
+                <input
+                  className="field"
+                  required
+                  placeholder="City"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <span>State</span>
+                </label>
+                <input
+                  className="field"
+                  required
+                  placeholder="State"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <span>Pincode (Optional)</span>
+              </label>
+              <input
+                className="field tracking-widest font-mono"
+                placeholder="6-digit pincode"
+                inputMode="numeric"
+                maxLength={6}
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Select Banking Product</span>
+              </label>
+              <select
+                className="field"
+                required
+                value={catalogItemId}
+                onChange={(e) => setCatalogItemId(e.target.value)}
+              >
+                <option value="" disabled>
+                  Select a product
+                </option>
+                {data.products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary w-full shadow-emerald-500/30 !py-3.5 mt-2"
+              disabled={submitting || !catalogItemId || mobile.length !== 10}
+            >
+              {submitting ? "Generating Link…" : "Generate Customer Link"}
+            </button>
+          </form>
+
+          {error ? (
+            <p className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-center text-xs font-semibold text-rose-700">
+              {error}
+            </p>
+          ) : null}
+        </div>
       </div>
 
+      {/* Share Modal */}
       <Modal
         open={shareModalOpen}
-        title="Share with customer"
-        description={generatedLabel ? `${generatedLabel} · ${firstName(customerName)}` : "Copy the message or link for WhatsApp or SMS."}
+        title="Share with Customer"
+        description={generatedLabel ? `${generatedLabel} for ${firstName(customerName)}` : "Copy message or send directly via WhatsApp."}
       >
-        <textarea
-          className="min-h-56 w-full resize-y rounded-xl border border-navy-900/10 bg-[#f5f5f5] px-3 py-3 text-sm leading-relaxed text-navy-900"
-          value={shareText}
-          onChange={(e) => setShareText(e.target.value)}
-          aria-label="Message to share with customer"
-        />
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <button type="button" className="btn-secondary" onClick={() => setShareModalOpen(false)}>
-            Close
-          </button>
-          <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={copyLinkOnly}>
-            {copiedLink ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-            {copiedLink ? "Link copied" : "Copy link only"}
-          </button>
-          <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={copyMessage}>
-            {copiedMessage ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-            {copiedMessage ? "Message copied" : "Copy full message"}
-          </button>
+        <div className="space-y-4">
+          <textarea
+            className="min-h-48 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs font-mono leading-relaxed text-navy-950 focus:outline-none"
+            value={shareText}
+            onChange={(e) => setShareText(e.target.value)}
+            aria-label="Message to share with customer"
+          />
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              className="btn-primary flex-1 inline-flex items-center justify-center gap-2 !bg-[#25D366] hover:!bg-[#20ba59] shadow-lg shadow-green-500/20"
+              onClick={shareWhatsApp}
+            >
+              <Send className="h-4 w-4" />
+              <span>Share on WhatsApp</span>
+            </button>
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center justify-center gap-2"
+              onClick={copyLinkOnly}
+            >
+              {copiedLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              <span>{copiedLink ? "Link Copied" : "Copy Link"}</span>
+            </button>
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button
+              type="button"
+              className="btn-ghost text-xs"
+              onClick={() => setShareModalOpen(false)}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
     </main>

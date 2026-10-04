@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   description: SITE.description,
   applicationName: SITE.name,
   keywords: [
-    "gfinpay",
+    "Gfinpay",
     "GATEWAYLINE FINTECH",
     "Business Correspondent",
     "AePS",

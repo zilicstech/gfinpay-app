@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { BadgeCheck, Building2, Copy, Plus, Store } from "lucide-react";
+import { BadgeCheck, Building2, Copy, Phone, Plus, Store } from "lucide-react";
 import { EkycBadge } from "@/features/sales/EkycBadge";
 import { AgentEkycModal, agentEkycVerified, agentKycStatus } from "@/features/admin/AgentEkycModal";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
@@ -201,92 +201,119 @@ export function AdminDistributorDetail() {
   ];
 
   return (
-    <div className="space-y-5">
-      <Link href="/admin/distributors" className="text-sm font-semibold text-navy-700 underline">
-        All distributors
-      </Link>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between">
+        <Link href="/admin/distributors" className="text-sm font-semibold text-slate-600 hover:text-navy-950 inline-flex items-center gap-1.5">
+          ← Back to All Distributors
+        </Link>
+      </div>
       <Flash message={flash.message} error={flash.error} />
 
-      <section className="rounded-3xl border border-black/10 bg-white">
-        <div className="relative rounded-t-3xl bg-black px-5 py-6 text-white sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-300 text-lg font-semibold text-black">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5">
+        <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 sm:px-10 sm:py-10 text-white">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col sm:flex-row items-start justify-between gap-6">
+            <div className="flex min-w-0 items-start gap-5">
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-navy-950 shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20">
                 {initials(user.full_name)}
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="font-display text-3xl tracking-tight">{user.full_name}</h1>
+              <div className="min-w-0 mt-0.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">{user.full_name}</h1>
                   <StatusPill value={user.status} />
-                  <span className="[&_span]:ring-white/20">
-                    <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+                  <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                  <span className="font-mono text-emerald-300 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
+                    {user.code ?? "—"}
+                  </span>
+                  <span className="flex items-center gap-1 font-mono text-slate-300">
+                    <Phone className="h-3 w-3 text-slate-400" />
+                    {maskMobile(user.mobile)}
+                    <button
+                      type="button"
+                      className="rounded p-0.5 text-slate-400 hover:text-white"
+                      title="Copy Mobile"
+                      onClick={copyMobile}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    {copied && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <Building2 className="h-3.5 w-3.5 text-emerald-400" />
+                    {hubLine || "No hub assigned"}
                   </span>
                 </div>
-                <p className="mt-1 font-mono text-sm tracking-widest text-emerald-300/90">{user.code ?? "—"}</p>
-                <p className="mt-1 flex items-center gap-2 font-mono text-sm tracking-widest text-white/80">
-                  <span>{maskMobile(user.mobile)}</span>
-                  <button
-                    type="button"
-                    className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
-                    aria-label={copied ? "Mobile copied" : "Copy mobile"}
-                    onClick={copyMobile}
-                  >
-                    <Copy className={`h-3.5 w-3.5 ${copied ? "text-emerald-300" : ""}`} />
-                  </button>
-                </p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-                  <Building2 className="h-3.5 w-3.5" />
-                  {hubLine || "No hub assigned"}
-                </p>
-                <p className="mt-1 text-xs text-white/50">
+
+                <p className="mt-2 text-xs text-slate-400">
                   Appointed {when(user.created_at)} · by {createdByLabel(user.created_by_name, user.created_by_code)}
                 </p>
               </div>
             </div>
+
             <ManageMenu actions={manageActions} variant="onDark" />
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
+
+          <div className="relative z-10 mt-6 flex flex-wrap gap-3 pt-6 border-t border-white/10">
             <button
               type="button"
-              className={primaryActionClass}
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 transition-colors disabled:opacity-50"
               disabled={user.status !== "ACTIVE"}
               onClick={() => setModal("retailer")}
             >
-              <Plus className="h-4 w-4" /> Add retailer
+              <Plus className="h-4 w-4" /> Add Retailer Outlet
             </button>
             {!ekycVerified && (
-              <button type="button" className={primaryActionClass} onClick={() => setEkycOpen(true)}>
-                <BadgeCheck className="h-4 w-4" /> Do eKYC
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-md hover:bg-white/20 transition-colors"
+                onClick={() => setEkycOpen(true)}
+              >
+                <BadgeCheck className="h-4 w-4 text-emerald-400" /> Complete eKYC
               </button>
             )}
           </div>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-black/10 rounded-b-3xl">
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Available float</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.wallet?.availableBalance)}</p>
+
+        {/* Float Stats Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Float</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.wallet?.availableBalance)}</p>
+            <p className="mt-0.5 text-xs text-emerald-600">Disbursable to retailers</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">On hold</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.wallet?.holdBalance)}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">On Hold</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-700">{inr(user.wallet?.holdBalance)}</p>
+            <p className="mt-0.5 text-xs text-slate-400">In-flight transactions</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Retailers</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{user.retailers?.length ?? 0}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Retail Network</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{user.retailers?.length ?? 0} Outlets</p>
+            <p className="mt-0.5 text-xs text-slate-400">In assigned territory</p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex gap-2">
+      {/* Tabs & Table */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
           {(["retailers", "customers", "transactions"] as const).map((key) => (
             <button
               key={key}
               type="button"
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${tab === key ? "bg-black text-emerald-300" : "bg-[#f5f5f5] text-navy-700"}`}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                tab === key
+                  ? "bg-navy-950 text-white shadow-sm"
+                  : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
+              }`}
               onClick={() => setTab(key)}
             >
-              {key === "retailers" ? "Retailers" : key === "customers" ? "Customers" : "Transactions"}
+              {key === "retailers" ? "Downline Retailers" : key === "customers" ? "Customers Book" : "Ledger Transactions"}
             </button>
           ))}
         </div>
@@ -602,95 +629,135 @@ export function AdminRetailerDetail() {
   ];
 
   return (
-    <div className="space-y-5">
-      <Link href="/admin/retailers" className="text-sm font-semibold text-navy-700 underline">
-        All retailers
-      </Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Link href="/admin/retailers" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors">
+          ← Back to Retailers Directory
+        </Link>
+        <span className="text-xs text-slate-400 font-mono">ID: {user.id}</span>
+      </div>
+
       <Flash message={flash.message} error={flash.error} />
 
-      <section className="rounded-3xl border border-black/10 bg-white">
-        <div className="relative rounded-t-3xl bg-black px-5 py-6 text-white sm:px-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-300 text-lg font-semibold text-black">
-              {initials(user.full_name)}
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-display text-3xl tracking-tight">{user.full_name}</h1>
-                <StatusPill value={user.status} />
-                <span className="[&_span]:ring-white/20">
-                  <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
-                </span>
+      {/* Main Luxury Hero Card */}
+      <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-100/60">
+        <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 text-white sm:px-10 sm:py-10">
+          {/* Subtle Ambient Glow */}
+          <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
+            <div className="flex items-start gap-5">
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-navy-950 shadow-lg shadow-emerald-500/20">
+                {initials(user.full_name)}
               </div>
-              <p className="mt-1 font-mono text-sm tracking-widest text-emerald-300/90">{user.code ?? "—"}</p>
-              <p className="mt-1 flex items-center gap-2 font-mono text-sm tracking-widest text-white/80">
-                <span>{maskMobile(user.mobile)}</span>
-                <button
-                  type="button"
-                  className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
-                  aria-label={copied ? "Mobile copied" : "Copy mobile"}
-                  onClick={copyMobile}
-                >
-                  <Copy className={`h-3.5 w-3.5 ${copied ? "text-emerald-300" : ""}`} />
-                </button>
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-                <Store className="h-3.5 w-3.5" />
-                {shopLine}
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-                <Building2 className="h-3.5 w-3.5" />
-                {user.parent_name ? (
-                  <Link href={`/admin/distributors/${user.parent_id}`} className="underline decoration-white/30 hover:decoration-white">
-                    {user.parent_name}
-                  </Link>
-                ) : (
-                  "No distributor"
-                )}
-                {user.hub_name ? ` · ${user.hub_name}` : ""}
-              </p>
-              <p className="mt-1 text-xs text-white/50">
-                Onboarded {when(user.created_at)} · by {createdByLabel(user.created_by_name, user.created_by_code)}
-              </p>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{user.full_name}</h1>
+                  <StatusPill value={user.status} />
+                  <span className="[&_span]:ring-white/20">
+                    <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-300">
+                  <span className="font-mono text-emerald-400 font-bold tracking-widest">{user.code ?? "—"}</span>
+                  <span className="text-slate-500">·</span>
+                  <span className="flex items-center gap-1.5 font-mono">
+                    {maskMobile(user.mobile)}
+                    <button
+                      type="button"
+                      className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                      aria-label={copied ? "Mobile copied" : "Copy mobile"}
+                      onClick={copyMobile}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    {copied && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
+                  </span>
+                  <span className="text-slate-500">·</span>
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <Store className="h-3.5 w-3.5 text-emerald-400" />
+                    {shopLine}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                    {user.parent_name ? (
+                      <Link href={`/admin/distributors/${user.parent_id}`} className="text-emerald-400/90 underline hover:text-emerald-300 font-medium">
+                        {user.parent_name}
+                      </Link>
+                    ) : (
+                      "Direct Outlet (No Distributor)"
+                    )}
+                    {user.hub_name ? ` · ${user.hub_name}` : ""}
+                  </span>
+                  <span className="text-slate-600">·</span>
+                  <span>Onboarded {when(user.created_at)} by {createdByLabel(user.created_by_name, user.created_by_code)}</span>
+                </div>
+              </div>
             </div>
-            </div>
+
             <ManageMenu actions={manageActions} variant="onDark" />
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
+
+          <div className="relative z-10 mt-6 flex flex-wrap gap-3 pt-6 border-t border-white/10">
             {!ekycVerified && (
-              <button type="button" className={primaryActionClass} onClick={() => setEkycOpen(true)}>
-                <BadgeCheck className="h-4 w-4" /> Do eKYC
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 transition-colors"
+                onClick={() => setEkycOpen(true)}
+              >
+                <BadgeCheck className="h-4 w-4" /> Complete Outlet eKYC
               </button>
             )}
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-md hover:bg-white/20 transition-colors"
+              onClick={() => setModal("adjust")}
+            >
+              Adjust Till Balance
+            </button>
           </div>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-black/10 rounded-b-3xl">
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Available till</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.wallet?.availableBalance)}</p>
+
+        {/* Float Stats Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Till Float</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.wallet?.availableBalance)}</p>
+            <p className="mt-0.5 text-xs text-emerald-600">Active counter balance</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">On hold</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.wallet?.holdBalance)}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">On Hold</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-700">{inr(user.wallet?.holdBalance)}</p>
+            <p className="mt-0.5 text-xs text-slate-400">In-flight transactions</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Commission earned</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.commissionEarned)}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Commissions</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.commissionEarned)}</p>
+            <p className="mt-0.5 text-xs text-slate-400">Lifetime earned revenue</p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex gap-2">
+      {/* Tabs & Table */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
           {(["sales", "customers", "transactions"] as const).map((key) => (
             <button
               key={key}
               type="button"
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${tab === key ? "bg-black text-emerald-300" : "bg-[#f5f5f5] text-navy-700"}`}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                tab === key
+                  ? "bg-navy-950 text-white shadow-sm"
+                  : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
+              }`}
               onClick={() => setTab(key)}
             >
-              {key === "sales" ? "Sales" : key === "customers" ? "Customers" : "Transactions"}
+              {key === "sales" ? "Sales Pipeline" : key === "customers" ? "Customer Directory" : "Counter Transactions"}
             </button>
           ))}
         </div>
@@ -698,7 +765,7 @@ export function AdminRetailerDetail() {
           salesError ? (
             <Alert tone="error">{salesError}</Alert>
           ) : salesLoading ? (
-            <div className="card h-32 animate-pulse bg-[#f5f5f5]" />
+            <div className="card h-32 animate-pulse bg-slate-50" />
           ) : (
             <SalesTable rows={sales} detailBase="/admin/sales" hideRetailer />
           )
@@ -706,7 +773,7 @@ export function AdminRetailerDetail() {
           customersError ? (
             <Alert tone="error">{customersError}</Alert>
           ) : customersLoading ? (
-            <div className="card h-32 animate-pulse bg-[#f5f5f5]" />
+            <div className="card h-32 animate-pulse bg-slate-50" />
           ) : customers.length === 0 ? (
             <EmptyState title="No customers yet" body="Customers appear here when this retailer adds them at the desk." />
           ) : (

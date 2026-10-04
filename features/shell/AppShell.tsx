@@ -174,26 +174,30 @@ export function AppShell({
           onClick={() => setMobileOpen(false)}
         />
       )}
-      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[260px] flex-col border-r border-navy-900/10 bg-white shadow-xl transition-transform duration-200 md:top-0 ${
+      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[260px] flex-col border-r border-slate-200/80 bg-white shadow-xl transition-transform duration-200 md:top-0 ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       } ${collapsed ? "md:w-[72px] md:translate-x-0 md:shadow-none" : "md:w-[260px] md:translate-x-0 md:shadow-none"}`}>
-        <div className={`flex h-16 items-center px-4 ${collapsed ? "md:justify-center md:px-2" : ""}`}>
-          <p className={`min-w-0 truncate text-xs font-medium text-navy-500 ${collapsed ? "md:hidden" : ""}`}>{title}</p>
+        <div className={`flex h-16 shrink-0 items-center border-b border-slate-200/80 px-4 transition-all duration-200 ${
+          collapsed ? "md:justify-center md:px-2" : ""
+        }`}>
+          <p className={`min-w-0 truncate text-xs font-bold uppercase tracking-wider text-slate-400 ${collapsed ? "md:hidden" : ""}`}>
+            {title}
+          </p>
         </div>
-        <nav className={`flex-1 space-y-0.5 overflow-y-auto px-3 pb-4 ${collapsed ? "md:px-2" : "md:px-3"}`}>
+        <nav className={`flex-1 space-y-0.5 overflow-y-auto px-3 py-4 ${collapsed ? "md:px-2" : "md:px-3"}`}>
           {nav.map((item) => {
             const Icon = ICONS[item.href] ?? LayoutDashboard;
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`));
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
                   collapsed ? "md:justify-center md:gap-0 md:px-0" : ""
-                } ${active ? "bg-black text-emerald-300" : "text-navy-700 hover:bg-[#f5f5f5]"}`}
+                } ${active ? "bg-gradient-to-r from-navy-950 via-slate-900 to-navy-900 text-white shadow-md shadow-navy-950/20 font-semibold" : "text-slate-600 hover:bg-slate-100/80 hover:text-navy-950"}`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className={`h-4 w-4 shrink-0 ${active ? "text-emerald-400" : "text-slate-400"}`} />
                 <span className={`truncate ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
               </Link>
             );
@@ -201,21 +205,22 @@ export function AppShell({
         </nav>
       </aside>
 
-      <header className="sticky top-0 z-50 border-b border-navy-900/10 bg-white">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-md shadow-2xs">
         <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-8">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={toggleSidebar}
-              className="-mr-1 grid h-12 w-12 place-items-center rounded-xl text-navy-700 hover:bg-[#f5f5f5]"
+              className="grid h-10 w-10 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-navy-950 transition-colors"
               aria-label="Toggle menu"
-              title="Toggle menu"
+              title="Toggle sidebar"
             >
               <PanelLeftOpen className={openIconClass} />
               <PanelLeftClose className={closeIconClass} />
             </button>
-            <Logo height={48} />
+            <Logo height={42} href={homeFor(user.userType)} />
           </div>
+
           <AccountMenu
             name={user.fullName}
             code={user.code}
@@ -261,44 +266,54 @@ function AccountMenu({
     <div className="relative ml-auto" ref={ref}>
       <button
         type="button"
-        className="inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-[#f5f5f5]"
+        className="inline-flex items-center gap-2.5 rounded-full p-1 sm:pl-1 sm:pr-2.5 hover:bg-slate-100/80 transition-all border border-transparent hover:border-slate-200/80"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`${name}, ${role}`}
       >
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-black text-xs font-semibold text-emerald-300">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-navy-950 text-xs font-bold text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs">
           {initials}
         </span>
         <span className="hidden text-left md:block">
           <span className="block max-w-[12rem] truncate text-sm font-semibold text-navy-950">{name}</span>
-          <span className="block text-[11px] text-navy-500">{role}</span>
+          <span className="block text-[11px] text-slate-500 font-medium">{role}</span>
         </span>
-        <ChevronDown className={`h-4 w-4 text-navy-500 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-navy-900/10 bg-white p-1.5 shadow-lg" role="menu">
-          <p className="truncate px-3 py-2 text-xs text-navy-500">
-            {name}
-            {displayCode ? <span className="mt-0.5 block font-mono tracking-wide text-navy-800">{displayCode}</span> : null}
-            <span className="mt-0.5 block">{role}</span>
-          </p>
-          <Link
-            href={profileHref}
-            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-navy-800 hover:bg-[#f5f5f5]"
-            onClick={() => setOpen(false)}
-            role="menuitem"
-          >
-            <UserRound className="h-4 w-4" /> My profile
-          </Link>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-800 hover:bg-rose-50"
-            onClick={onLogout}
-            role="menuitem"
-          >
-            <LogOut className="h-4 w-4" /> Log out
-          </button>
+        <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-2xl p-2 shadow-xl ring-1 ring-black/5 z-50 animate-in fade-in zoom-in-95 duration-100" role="menu">
+          <div className="px-3 py-2.5 border-b border-slate-100">
+            <p className="text-sm font-bold text-navy-950 truncate">{name}</p>
+            {displayCode && (
+              <p className="mt-1 font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md inline-block">
+                {displayCode}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-slate-500 font-medium">{role}</p>
+          </div>
+          <div className="py-1">
+            <Link
+              href={profileHref}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-navy-800 hover:bg-slate-100/70 hover:text-navy-950 transition-colors"
+              onClick={() => setOpen(false)}
+              role="menuitem"
+            >
+              <UserRound className="h-4 w-4 text-slate-500" />
+              <span>My Profile</span>
+            </Link>
+          </div>
+          <div className="pt-1 border-t border-slate-100">
+            <button
+              type="button"
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50/80 hover:text-rose-700 transition-colors"
+              onClick={onLogout}
+              role="menuitem"
+            >
+              <LogOut className="h-4 w-4 text-rose-500" />
+              <span>Log Out</span>
+            </button>
+          </div>
         </div>
       )}
     </div>

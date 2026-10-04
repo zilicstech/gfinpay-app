@@ -1,16 +1,14 @@
 "use client";
 
-import { HeroKirana } from "@/components/illustrations/HomeArt";
 import { SignInScreen } from "@/features/auth/SignInScreen";
 
 export default function LoginPage() {
   return (
     <SignInScreen
-      title="Sign in"
-      subtitle="Use your mobile number or your GFIN user code."
-      panelTitle="Sign in and open your desk."
-      panelBody="Admins, distributors, and retailers use this same login. There is no public signup."
-      panel={<HeroKirana />}
+      title="Retailer Login"
+      subtitle="Sign in with your mobile number or GFIN user code to open your desk."
+      panelTitle="Turn your shop into a Digital Bank & ATM"
+      panelBody="Offer money transfers, bill payments, cash withdrawals, and credit cards directly from your counter."
     />
   );
 }

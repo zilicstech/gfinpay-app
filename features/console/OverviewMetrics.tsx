@@ -14,12 +14,15 @@ import {
   type TrendRange,
 } from "@/features/admin/TrendCharts";
 
+export type { SalesTrendPoint } from "@/features/admin/TrendCharts";
+
 export type NetworkCounts = {
   hubs?: number;
   distributors?: number;
   distributors_active?: number;
   retailers?: number;
   retailers_active?: number;
+  vendors?: number;
   customers?: number;
 };
 

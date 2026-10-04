@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { SlidersHorizontal } from "lucide-react";
+import { ArrowRight, SlidersHorizontal } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -174,68 +174,154 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Reports"
-        title="Reports"
-        description="Choose a report and date range to generate it. After that you can filter the rows."
-        actions={
-          result ? (
-            <button className="btn-secondary inline-flex items-center gap-2" type="button" onClick={openFilters}>
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
-            </button>
-          ) : undefined
-        }
-      />
-
-      <form className="card flex flex-wrap items-end gap-3" onSubmit={generate}>
-        <div className="w-[17.5rem]">
-          <SelectField
-            label="Report type"
-            required
-            value={reportType}
-            onChange={setReportType}
-            options={types.map((t) => ({ value: t.type, label: t.label }))}
-          />
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
+            Platform Audit
+          </span>
+          <h1 className="mt-2 font-display text-3xl sm:text-4xl font-bold tracking-tight text-navy-950">
+            MIS Reports & Extracts
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Generate granular ledger and sales audit logs across hubs, distributors, and banking partners.
+          </p>
         </div>
-        <DateRangePicker from={from} to={to} onChange={(nextFrom, nextTo) => { setFrom(nextFrom); setTo(nextTo); }} />
-        <button className="btn-primary" type="submit" disabled={!from || !to}>
-          Generate report
-        </button>
-      </form>
+
+        {result ? (
+          <button
+            className="btn-secondary inline-flex items-center gap-2 rounded-2xl"
+            type="button"
+            onClick={openFilters}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filter Rows ({rows.length})
+          </button>
+        ) : null}
+      </div>
+
+      {/* Generator Form Card */}
+      <div className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-4">
+        <h3 className="font-display text-lg font-bold text-navy-950">Report Query Parameters</h3>
+        <form className="flex flex-wrap items-end gap-3 pt-1" onSubmit={generate}>
+          <div className="w-full sm:w-[17.5rem]">
+            <SelectField
+              label="Report Type"
+              required
+              value={reportType}
+              onChange={setReportType}
+              options={types.map((t) => ({ value: t.type, label: t.label }))}
+            />
+          </div>
+          <DateRangePicker from={from} to={to} onChange={(nextFrom, nextTo) => { setFrom(nextFrom); setTo(nextTo); }} />
+          <button className="btn-primary" type="submit" disabled={!from || !to}>
+            Generate Report
+          </button>
+        </form>
+      </div>
 
       <Flash message={flash.message} error={flash.error} />
 
+      {/* KPI Summary when result is available */}
+      {result && result.reportType === "SALES" && rows.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Rows</span>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{rows.length}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Matching active filters</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Unique Outlets</span>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">
+              {new Set(rows.map((r) => r.retailer_user_id).filter(Boolean)).size} Outlets
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Participating in window</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Unique Customers</span>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">
+              {new Set(rows.map((r) => r.customer_name).filter(Boolean)).size} Customers
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Dispatched to</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Activated</span>
+            <p className="mt-1 font-display text-2xl font-bold text-emerald-700">
+              {rows.filter((r) => r.state === "CONVERTED" || r.state === "ACTIVATED").length} Issued
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Fully converted</p>
+          </div>
+        </div>
+      )}
+
       {!result && (
-        <EmptyState title="No report yet" body="Select a report type and date range, then generate." />
+        <EmptyState title="No report generated yet" body="Select a report type and date range above, then click Generate Report." />
       )}
 
       {result && result.reportType === "SALES" && (
         rows.length === 0 ? (
-          <EmptyState title="No sales in this view" body="Widen the date range or clear a filter." />
+          <EmptyState title="No sales found in this window" body="Widen the date range or clear some of your active filters." />
         ) : (
-          <DataTable
-            columns={["When", "Type", "Product", "Provider", "Status", "Customer", "Retailer", "Distributor", "Hub", ""]}
-            rows={rows.map((row) => [
-              when(row.created_at),
-              row.sale_type_name ?? row.sale_type,
-              productTitle(row.item_code ?? "", row.item_name),
-              row.sale_provider,
-              <StatusPill key={`${row.id}-st`} value={row.state} />,
-              row.customer_name,
-              row.retailer_name ?? "—",
-              row.distributor_name ?? "—",
-              row.hub_name ?? "—",
-              <Link key={`${row.id}-v`} href={`/admin/sales/${row.id}`} className="text-sm font-semibold text-brand-700">
-                View
-              </Link>,
-            ])}
-          />
+          <div className="overflow-x-auto rounded-[2.5rem] border border-slate-200/80 bg-white shadow-sm">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
+                <tr>
+                  <th className="px-6 py-4">When</th>
+                  <th className="px-6 py-4">Product & Provider</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Customer</th>
+                  <th className="px-6 py-4">Outlet Counter</th>
+                  <th className="px-6 py-4">Hub Territory</th>
+                  <th className="px-6 py-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((row) => (
+                  <tr key={row.id} className="transition-colors hover:bg-slate-50/60 group">
+                    <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
+                      {when(row.created_at)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-semibold text-navy-950 text-sm">
+                          {productTitle(row.item_code ?? "", row.item_name)}
+                        </p>
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          {row.sale_provider} • {row.sale_type_name ?? row.sale_type}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusPill value={row.state} />
+                    </td>
+                    <td className="px-6 py-4 font-medium text-navy-950 text-sm">
+                      {row.customer_name}
+                    </td>
+                    <td className="px-6 py-4 text-xs font-medium text-slate-700">
+                      {row.retailer_name ?? "—"}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-600">
+                      {row.hub_name ?? "—"}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        href={`/admin/sales/${row.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors"
+                      >
+                        Details
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )
       )}
 
       {result && result.reportType !== "SALES" && (
-        <EmptyState title="Report not available" body="This report type does not have a viewer yet." />
+        <EmptyState title="Report viewer unavailable" body="This specific report type is currently processing in batch mode." />
       )}
 
       <FormModal

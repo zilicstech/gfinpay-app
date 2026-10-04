@@ -2,20 +2,44 @@ import { ServiceLayout, serviceMeta } from "@/features/marketing/ServiceLayout";
 
 export const metadata = serviceMeta(
   "/services/domestic-money-transfer",
-  "Send money",
-  "Take cash at the retailer counter and send it to any bank account in India. OTP and ID required. Limit ₹5,000 per send.",
+  "Money Transfer (DMT)",
+  "Instant money remittance to any bank in India over IMPS and NEFT directly from your retailer counter.",
 );
 
 export default function Page() {
   return (
     <ServiceLayout
-      kicker="Send money"
-      title="Cash at the counter. Money in their bank."
+      kicker="Money Transfer (DMT)"
+      title="Transfer Customer Cash to Any Bank Account Instantly"
       art="dmt"
-      lead="Customer gives you cash. You send it by IMPS or NEFT. You need their mobile, an official ID, and an OTP on every send. Maximum ₹5,000 at a time, ₹25,000 in a month."
+      commission="0.50% Margin (Flat ₹25 to ₹75 per transfer)"
+      lead="Customer gives cash. You send money instantly to any bank account in India over IMPS 24x7. Real-time name verification ensures 100% correct account transfers."
+      partners={[
+        "State Bank of India",
+        "HDFC Bank",
+        "ICICI Bank",
+        "Punjab National Bank",
+        "Bank of Baroda",
+        "Kotak Mahindra Bank",
+        "Canara Bank",
+        "Union Bank",
+      ]}
+      steps={[
+        { step: "01", title: "Enter Mobile & Account", desc: "Customer provides phone number and recipient account number + IFSC." },
+        { step: "02", title: "Verify Account Holder Name", desc: "Penny-drop validation verifies recipient name before sending." },
+        { step: "03", title: "Instant Transfer & Commission", desc: "Money transfers in 5 seconds via IMPS & commission enters your wallet." },
+      ]}
     >
-      <p>Register the customer, add the bank account, then send. Your wallet balance is held first. When the bank confirms, you get a receipt and your commission.</p>
-      <p>Full Aadhaar is never stored — only last 4 digits of the ID.</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="font-bold text-navy-950 text-sm">24x7 Instant IMPS</p>
+          <p className="text-xs text-slate-500 mt-1">Works on Sundays and bank holidays. Instant delivery confirmation SMS to sender.</p>
+        </div>
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <p className="font-bold text-navy-950 text-sm">₹25,000 Monthly Limit</p>
+          <p className="text-xs text-slate-500 mt-1">Automatic RBI monthly ceiling tracking per customer. Zero legal hassle for shopkeeper.</p>
+        </div>
+      </div>
     </ServiceLayout>
   );
 }

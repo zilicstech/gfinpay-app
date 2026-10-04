@@ -108,86 +108,120 @@ export function DistributorRetailerDetail() {
   const ekycVerified = agentEkycVerified(user);
 
   return (
-    <div className="space-y-5">
-      <Link href="/distributor/agents" className="text-sm font-semibold text-navy-700 underline">
-        All retailers
-      </Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Link href="/distributor/agents" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors">
+          ← Back to Retailers Directory
+        </Link>
+        <span className="text-xs text-slate-400 font-mono">Outlet ID: {user.id}</span>
+      </div>
+
       <Flash message={flash.message} error={flash.error} />
 
-      <section className="rounded-3xl border border-black/10 bg-white">
-        <div className="relative rounded-t-3xl bg-black px-5 py-6 text-white sm:px-6">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-300 text-lg font-semibold text-black">
-              {initials(user.full_name)}
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-display text-3xl tracking-tight">{user.full_name}</h1>
-                <StatusPill value={user.status} />
-                <span className="[&_span]:ring-white/20">
-                  <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
-                </span>
+      {/* Main Luxury Hero Card */}
+      <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-100/60">
+        <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 text-white sm:px-10 sm:py-10">
+          {/* Subtle Ambient Glow */}
+          <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
+            <div className="flex items-start gap-5">
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-navy-950 shadow-lg shadow-emerald-500/20">
+                {initials(user.full_name)}
               </div>
-              <p className="mt-1 font-mono text-sm tracking-widest text-emerald-300/90">{user.code ?? "—"}</p>
-              <p className="mt-1 flex items-center gap-2 font-mono text-sm tracking-widest text-white/80">
-                <span>{maskMobile(user.mobile)}</span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{user.full_name}</h1>
+                  <StatusPill value={user.status} />
+                  <span className="[&_span]:ring-white/20">
+                    <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-300">
+                  <span className="font-mono text-emerald-400 font-bold tracking-widest">{user.code ?? "—"}</span>
+                  <span className="text-slate-500">·</span>
+                  <span className="flex items-center gap-1.5 font-mono">
+                    {maskMobile(user.mobile)}
+                    <button
+                      type="button"
+                      className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                      aria-label={copied ? "Mobile copied" : "Copy mobile"}
+                      onClick={copyMobile}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    {copied && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
+                  </span>
+                  <span className="text-slate-500">·</span>
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <Store className="h-3.5 w-3.5 text-emerald-400" />
+                    {shopLine}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                    {user.parent_name ?? "Your network territory"}
+                    {user.hub_name ? ` · ${user.hub_name}` : ""}
+                  </span>
+                  <span className="text-slate-600">·</span>
+                  <span>Onboarded {when(user.created_at)} by {createdByLabel(user.created_by_name, user.created_by_code)}</span>
+                </div>
+              </div>
+            </div>
+
+            {!ekycVerified && (
+              <div className="relative z-10 shrink-0">
                 <button
                   type="button"
-                  className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
-                  aria-label={copied ? "Mobile copied" : "Copy mobile"}
-                  onClick={copyMobile}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 transition-colors"
+                  onClick={() => setEkycOpen(true)}
                 >
-                  <Copy className={`h-3.5 w-3.5 ${copied ? "text-emerald-300" : ""}`} />
+                  <BadgeCheck className="h-4 w-4" /> Complete Outlet eKYC
                 </button>
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-                <Store className="h-3.5 w-3.5" />
-                {shopLine}
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-                <Building2 className="h-3.5 w-3.5" />
-                {user.parent_name ?? "Your network"}
-                {user.hub_name ? ` · ${user.hub_name}` : ""}
-              </p>
-              <p className="mt-1 text-xs text-white/50">
-                Onboarded {when(user.created_at)} · by {createdByLabel(user.created_by_name, user.created_by_code)}
-              </p>
-            </div>
+              </div>
+            )}
           </div>
-          {!ekycVerified && (
-            <div className="mt-5 flex flex-wrap gap-2">
-              <button type="button" className={primaryActionClass} onClick={() => setEkycOpen(true)}>
-                <BadgeCheck className="h-4 w-4" /> Do eKYC
-              </button>
-            </div>
-          )}
         </div>
-        <div className="grid grid-cols-3 divide-x divide-black/10 rounded-b-3xl">
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Available till</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.wallet?.availableBalance)}</p>
+
+        {/* Float Stats Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Till Float</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.wallet?.availableBalance)}</p>
+            <p className="mt-0.5 text-xs text-emerald-600">Current active counter liquidity</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">On hold</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.wallet?.holdBalance)}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">On Hold</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-700">{inr(user.wallet?.holdBalance)}</p>
+            <p className="mt-0.5 text-xs text-slate-400">In-flight transactions</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Commission earned</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(user.commissionEarned)}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Commissions Generated</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.commissionEarned)}</p>
+            <p className="mt-0.5 text-xs text-slate-400">Retailer earned revenue</p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex gap-2">
+      {/* Tabs & Table */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
           {(["sales", "customers", "transactions"] as const).map((key) => (
             <button
               key={key}
               type="button"
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${tab === key ? "bg-black text-emerald-300" : "bg-[#f5f5f5] text-navy-700"}`}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                tab === key
+                  ? "bg-navy-950 text-white shadow-sm"
+                  : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
+              }`}
               onClick={() => setTab(key)}
             >
-              {key === "sales" ? "Sales" : key === "customers" ? "Customers" : "Transactions"}
+              {key === "sales" ? "Sales Pipeline" : key === "customers" ? "Customer Directory" : "Counter Transactions"}
             </button>
           ))}
         </div>
@@ -195,7 +229,7 @@ export function DistributorRetailerDetail() {
           salesError ? (
             <Alert tone="error">{salesError}</Alert>
           ) : salesLoading ? (
-            <div className="card h-32 animate-pulse bg-[#f5f5f5]" />
+            <div className="card h-32 animate-pulse bg-slate-50" />
           ) : (
             <SalesTable rows={sales} detailBase="/distributor/sales" hideRetailer />
           )
@@ -203,7 +237,7 @@ export function DistributorRetailerDetail() {
           customersError ? (
             <Alert tone="error">{customersError}</Alert>
           ) : customersLoading ? (
-            <div className="card h-32 animate-pulse bg-[#f5f5f5]" />
+            <div className="card h-32 animate-pulse bg-slate-50" />
           ) : customers.length === 0 ? (
             <EmptyState title="No customers yet" body="Customers appear here when this retailer adds them at the desk." />
           ) : (

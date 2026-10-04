@@ -1,39 +1,54 @@
 import type { ReactNode } from "react";
 
-const styles = {
-  HOLD: "bg-amber-50 text-amber-900 ring-amber-200",
-  PENDING: "bg-sky-50 text-sky-900 ring-sky-200",
-  SUCCESS: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  FAILED: "bg-rose-50 text-rose-800 ring-rose-200",
-  INITIATED: "bg-slate-100 text-navy-700 ring-slate-200",
-  ACTIVE: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  LIVE: "bg-brand-50 text-brand-700 ring-brand-200",
-  SUSPENDED: "bg-amber-50 text-amber-900 ring-amber-200",
-  TERMINATED: "bg-rose-50 text-rose-800 ring-rose-200",
-  PENDING_KYC: "bg-sky-50 text-sky-900 ring-sky-200",
-  FROZEN: "bg-rose-50 text-rose-800 ring-rose-200",
-  VERIFIED: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  UNVERIFIED: "bg-amber-50 text-amber-900 ring-amber-200",
-  NOT_STARTED: "bg-amber-50 text-amber-900 ring-amber-200",
-  REJECTED: "bg-rose-50 text-rose-800 ring-rose-200",
-  IN_PROGRESS: "bg-sky-50 text-sky-900 ring-sky-200",
-  DISABLED: "bg-slate-100 text-navy-600 ring-slate-200",
-  COMPLETED: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  ACTIVATED: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  LINK_CREATED: "bg-sky-50 text-sky-900 ring-sky-200",
-  OPENED: "bg-sky-50 text-sky-900 ring-sky-200",
-  CONVERTED: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  RETAILER: "bg-[#f5f5f5] text-navy-800 ring-navy-900/10",
-  DISTRIBUTOR: "bg-brand-50 text-brand-800 ring-brand-200",
-  ADMIN: "bg-navy-950 text-brand-400 ring-navy-800",
-  MASTER_DISTRIBUTOR: "bg-brand-50 text-brand-800 ring-brand-200",
-  SUPER_ADMIN: "bg-navy-950 text-brand-400 ring-navy-800",
-  CREDIT: "bg-emerald-50 text-emerald-900 ring-emerald-200",
-  DEBIT: "bg-rose-50 text-rose-800 ring-rose-200",
-} as const;
+type BadgeStyle = {
+  container: string;
+  dot?: string;
+  ping?: boolean;
+};
+
+const badgeStyles: Record<string, BadgeStyle> = {
+  // Success / Active
+  SUCCESS: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: true },
+  ACTIVE: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: true },
+  LIVE: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: true },
+  VERIFIED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+  COMPLETED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+  ACTIVATED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+  CONVERTED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+  CREDIT: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+
+  // Pending / In progress
+  PENDING: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  PENDING_KYC: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  IN_PROGRESS: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: true },
+  OPENED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
+  LINK_CREATED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
+  INITIATED: { container: "bg-slate-100 text-slate-800 ring-slate-300", dot: "bg-slate-400", ping: false },
+  HOLD: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: false },
+
+  // Danger / Terminated / Failed
+  FAILED: { container: "bg-rose-50 text-rose-800 ring-rose-500/25", dot: "bg-rose-500", ping: false },
+  TERMINATED: { container: "bg-rose-50 text-rose-800 ring-rose-500/25", dot: "bg-rose-500", ping: false },
+  REJECTED: { container: "bg-rose-50 text-rose-800 ring-rose-500/25", dot: "bg-rose-500", ping: false },
+  FROZEN: { container: "bg-rose-50 text-rose-800 ring-rose-500/25", dot: "bg-rose-500", ping: false },
+  DEBIT: { container: "bg-rose-50 text-rose-800 ring-rose-500/25", dot: "bg-rose-500", ping: false },
+
+  // Inactive / Suspended / Neutral
+  SUSPENDED: { container: "bg-amber-50/80 text-amber-900 ring-amber-300", dot: "bg-amber-400", ping: false },
+  UNVERIFIED: { container: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400", ping: false },
+  NOT_STARTED: { container: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400", ping: false },
+  DISABLED: { container: "bg-slate-100 text-slate-600 ring-slate-200", dot: "bg-slate-400", ping: false },
+
+  // Role Chips
+  ADMIN: { container: "bg-slate-900 text-amber-300 ring-slate-800", dot: "bg-amber-400", ping: false },
+  SUPER_ADMIN: { container: "bg-slate-900 text-emerald-300 ring-slate-800", dot: "bg-emerald-400", ping: false },
+  DISTRIBUTOR: { container: "bg-emerald-950 text-emerald-300 ring-emerald-800/40", dot: "bg-emerald-400", ping: false },
+  MASTER_DISTRIBUTOR: { container: "bg-emerald-950 text-emerald-300 ring-emerald-800/40", dot: "bg-emerald-400", ping: false },
+  RETAILER: { container: "bg-indigo-950 text-indigo-300 ring-indigo-800/40", dot: "bg-indigo-400", ping: false },
+};
 
 /** Active step / tab / chip — matches header avatar (black + emerald). */
-export const activeTillClass = "bg-black text-emerald-300";
+export const activeTillClass = "bg-black text-emerald-300 shadow-sm";
 
 export function StatusPill({
   value,
@@ -44,28 +59,40 @@ export function StatusPill({
   label?: string;
   pulse?: boolean;
 }) {
-  const key = value as keyof typeof styles;
+  const normalizedKey = value.toUpperCase();
+  const config = badgeStyles[normalizedKey] ?? {
+    container: "bg-slate-100 text-slate-700 ring-slate-200",
+    dot: "bg-slate-400",
+    ping: false,
+  };
+  const shouldPulse = pulse ?? config.ping;
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${
-        styles[key] ?? "bg-[#f5f5f5] text-navy-700 ring-navy-900/10"
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset ${config.container}`}
     >
-      {pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />}
-      {label ?? value.replaceAll("_", " ")}
+      {config.dot && (
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          {shouldPulse && (
+            <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${config.dot}`} />
+          )}
+          <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${config.dot}`} />
+        </span>
+      )}
+      <span>{label ?? value.replaceAll("_", " ")}</span>
     </span>
   );
 }
 
 export function AccentTile({
   children,
-  className = "h-10 w-10 rounded-xl",
+  className = "h-12 w-12 rounded-2xl",
 }: {
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <span className={`grid place-items-center bg-black text-emerald-300 ${className}`}>
+    <span className={`grid place-items-center bg-gradient-to-br from-indigo-500 to-emerald-500 text-white shadow-lg shadow-emerald-500/20 ${className}`}>
       {children}
     </span>
   );
@@ -83,15 +110,16 @@ export function StatCard({
   icon?: ReactNode;
 }) {
   return (
-    <div className="card">
-      <div className="flex items-start justify-between gap-3">
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-emerald-500/30 group">
+      <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-indigo-500/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="relative z-10 flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm text-navy-600">{label}</p>
+          <p className="text-sm font-semibold text-slate-500">{label}</p>
           <p className="mt-2 font-display text-3xl tracking-tight text-navy-950">{value}</p>
-          {hint && <p className="mt-1 text-xs text-navy-500">{hint}</p>}
+          {hint && <p className="mt-1.5 text-[11px] font-medium text-emerald-600 bg-emerald-50 inline-block px-2 py-0.5 rounded-full">{hint}</p>}
         </div>
         {icon && (
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-black text-emerald-300">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-50 text-emerald-600 ring-1 ring-inset ring-slate-100 transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white group-hover:ring-emerald-500 group-hover:[&_*]:!text-white group-hover:[&_svg]:!text-white">
             {icon}
           </div>
         )}
@@ -112,13 +140,13 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b border-slate-200/60 pb-6">
       <div>
-        {eyebrow && <p className="text-sm font-medium text-brand-700">{eyebrow}</p>}
-        <h1 className="mt-1 font-display text-2xl tracking-tight text-navy-950 sm:text-3xl">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-navy-600">{description}</p>}
+        {eyebrow && <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 inline-block px-2 py-1 rounded-md">{eyebrow}</p>}
+        <h1 className="font-display text-3xl tracking-tight text-navy-950 sm:text-4xl">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
     </div>
   );
 }
@@ -195,32 +223,32 @@ export function DataTable({
   if (rows.length === 0) return null;
   return (
     <>
-      <div className="space-y-2 md:hidden">
+      <div className="space-y-4 md:hidden">
         {rows.map((cells, i) => (
-          <div key={i} className="rounded-2xl border border-navy-900/10 bg-white p-4">
+          <div key={i} className="card p-5">
             {cells.map((cell, j) => (
-              <div key={j} className={`flex items-start justify-between gap-3 ${j > 0 ? "mt-2 border-t border-navy-900/5 pt-2" : ""}`}>
-                <span className="text-[11px] font-medium uppercase tracking-wide text-navy-400">{columns[j]}</span>
+              <div key={j} className={`flex items-start justify-between gap-4 ${j > 0 ? "mt-3 border-t border-slate-100 pt-3" : ""}`}>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{columns[j]}</span>
                 <span className="text-right text-sm font-medium text-navy-900">{cell}</span>
               </div>
             ))}
           </div>
         ))}
       </div>
-      <div className="hidden overflow-hidden rounded-2xl border border-navy-900/10 bg-white md:block">
+      <div className="hidden overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm md:block">
         <table className="w-full text-left text-sm">
-          <thead className="bg-[#f5f5f5] text-xs font-semibold text-navy-600">
+          <thead className="bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
             <tr>
               {columns.map((c, i) => (
-                <th key={`${i}-${c}`} className="px-4 py-3">{c}</th>
+                <th key={`${i}-${c}`} className="px-6 py-4">{c}</th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {rows.map((cells, i) => (
-              <tr key={i} className="border-t border-navy-900/5">
+              <tr key={i} className="transition-colors hover:bg-slate-50/50 group">
                 {cells.map((cell, j) => (
-                  <td key={j} className="px-4 py-3 align-middle text-navy-800">{cell}</td>
+                  <td key={j} className="px-6 py-4 align-middle text-navy-800 font-medium group-hover:text-navy-950 transition-colors">{cell}</td>
                 ))}
               </tr>
             ))}

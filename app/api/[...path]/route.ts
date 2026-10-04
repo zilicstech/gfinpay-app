@@ -70,9 +70,9 @@ async function proxy(request: NextRequest, path: string[]) {
   return new NextResponse(upstream.body, { status: upstream.status, headers: responseHeaders });
 }
 
-async function handle(request: NextRequest, context: RouteContext) {
+async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
-  return proxy(request, path);
+  return proxy(request, path ?? []);
 }
 
 export const GET = handle;

@@ -209,41 +209,44 @@ export function EntityHero({
           : "grid-cols-3";
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-black/10 bg-white">
-      <div className="relative bg-black px-5 py-6 text-white sm:px-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-300 text-lg font-semibold text-black">
+    <section className="relative overflow-hidden rounded-[2.5rem] bg-white shadow-sm border border-slate-200/80">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-500/20 via-indigo-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="relative bg-navy-950 px-6 py-10 sm:px-10 overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row items-start justify-between gap-6">
+          <div className="flex min-w-0 items-start gap-6">
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-white shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20">
               {mark}
             </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-display text-3xl tracking-tight">{title}</h1>
+            <div className="min-w-0 mt-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="font-display text-4xl tracking-tight text-white">{title}</h1>
                 {status ? <StatusPill value={status} /> : null}
                 {badges}
               </div>
               {code ? (
-                <p className="mt-1 font-mono text-sm tracking-widest text-emerald-300/90">{code}</p>
+                <p className="mt-2 font-mono text-sm tracking-widest text-emerald-400/90 bg-emerald-500/10 inline-block px-2 py-0.5 rounded">{code}</p>
               ) : null}
-              {lines?.map((line, i) => (
-                <div key={i} className="mt-1">
-                  {line}
-                </div>
-              ))}
+              <div className="mt-3 space-y-1">
+                {lines?.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
             </div>
           </div>
           {manageActions && manageActions.length > 0 ? (
             <ManageMenu actions={manageActions} variant="onDark" />
           ) : null}
         </div>
-        {primaryActions ? <div className="mt-5 flex flex-wrap gap-2">{primaryActions}</div> : null}
+        {primaryActions ? <div className="relative z-10 mt-8 flex flex-wrap gap-3">{primaryActions}</div> : null}
       </div>
       {footer ? footer : stats && stats.length > 0 ? (
-        <div className={`grid divide-x divide-black/10 ${statCols}`}>
+        <div className={`grid divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white ${statCols}`}>
           {stats.map((s) => (
-            <div key={s.label} className="px-4 py-4 sm:px-6">
-              <p className="text-xs font-medium text-navy-500">{s.label}</p>
-              <p className="mt-1 break-words font-display text-2xl text-navy-950">{s.value}</p>
+            <div key={s.label} className="px-6 py-6 transition-colors hover:bg-slate-50/50">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{s.label}</p>
+              <p className="mt-2 break-words font-display text-3xl text-navy-950">{s.value}</p>
             </div>
           ))}
         </div>
@@ -262,13 +265,15 @@ export function EntityTabs<T extends string>({
   items: { key: T; label: string }[];
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/50 backdrop-blur-sm w-fit">
       {items.map((item) => (
         <button
           key={item.key}
           type="button"
-          className={`rounded-full px-4 py-2 text-sm font-semibold ${
-            value === item.key ? "bg-black text-emerald-300" : "bg-[#f5f5f5] text-navy-700"
+          className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-all duration-200 ${
+            value === item.key 
+              ? "bg-white text-navy-950 shadow-sm ring-1 ring-slate-200/50" 
+              : "text-slate-500 hover:text-navy-700 hover:bg-slate-200/50"
           }`}
           onClick={() => onChange(item.key)}
         >
@@ -281,15 +286,15 @@ export function EntityTabs<T extends string>({
 
 export function RecordFacts({ rows }: { rows: { label: string; value: ReactNode }[] }) {
   return (
-    <section className="overflow-hidden rounded-3xl border border-black/10 bg-white">
-      <div className="border-b border-black/10 px-5 py-4 sm:px-6">
-        <h2 className="font-display text-xl text-navy-950">Record</h2>
+    <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+      <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-5">
+        <h2 className="font-display text-xl font-bold text-navy-950">Record Details</h2>
       </div>
-      <dl className="divide-y divide-black/5">
+      <dl className="divide-y divide-slate-100">
         {rows.map((row) => (
-          <div key={row.label} className="grid gap-1 px-5 py-3 sm:grid-cols-[11rem_1fr] sm:items-baseline sm:px-6">
-            <dt className="text-xs font-medium text-navy-500">{row.label}</dt>
-            <dd className="break-all text-sm font-medium text-navy-950">{row.value ?? "—"}</dd>
+          <div key={row.label} className="grid gap-2 px-6 py-4 sm:grid-cols-[14rem_1fr] sm:items-center hover:bg-slate-50/50 transition-colors">
+            <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{row.label}</dt>
+            <dd className="break-all text-sm font-semibold text-navy-900">{row.value ?? "—"}</dd>
           </div>
         ))}
       </dl>

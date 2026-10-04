@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "gfinpay",
-    short_name: "gfinpay",
+    name: "Gfinpay",
+    short_name: "Gfinpay",
     description: "Assisted digital banking for retailers, distributors, and enterprises",
     start_url: "/login",
     display: "standalone",

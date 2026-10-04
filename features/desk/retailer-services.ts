@@ -75,12 +75,12 @@ export type QuickTile = {
 };
 
 export const QUICK_TILES: QuickTile[] = [
-  { code: "DMT", href: "/agent/dmt", label: "Send money", hint: "Coming soon" },
-  { code: "BBPS", href: "/agent/bbps", label: "Pay a bill", hint: "Coming soon" },
-  { code: "UPI_CASHOUT", href: "/agent/cash-out/upi", label: "Give cash", hint: "Coming soon" },
-  { code: "AEPS", href: "/agent/aeps", label: "AePS cash out", hint: "Coming soon" },
-  { code: "LEAD_GEN", href: "/agent/catalog", label: "Sell a product", hint: "Leads & journeys", needsLeadGen: true },
-  { code: "FD_MODULE", href: "/agent/customers", label: "FD cards", hint: "Secured card leads", needsFd: true },
+  { code: "DMT", href: "/agent/dmt", label: "Send money", hint: "Instant IMPS / NEFT" },
+  { code: "BBPS", href: "/agent/bbps", label: "Pay a bill", hint: "Electricity, Fastag, DTH" },
+  { code: "UPI_CASHOUT", href: "/agent/cash-out/upi", label: "Give cash", hint: "Dynamic QR Cashout" },
+  { code: "AEPS", href: "/agent/aeps", label: "AePS cash out", hint: "Biometric Withdrawal" },
+  { code: "LEAD_GEN", href: "/agent/catalog", label: "Sell a product", hint: "Cards, Loans & Accounts", needsLeadGen: true },
+  { code: "FD_MODULE", href: "/agent/customers", label: "FD cards", hint: "Secured Credit Cards", needsFd: true },
 ];
 
 export function filterQuickTiles(codes: Set<string>, fdProviders: FdProviderRow[]): QuickTile[] {
@@ -102,9 +102,9 @@ export function filterQuickTiles(codes: Set<string>, fdProviders: FdProviderRow[
 
 export function buildMoreItems(codes: Set<string>, fdProviders: FdProviderRow[]) {
   const items: { href: string; label: string; hint: string }[] = [];
-  if (codes.has("BBPS")) items.push({ href: "/agent/bbps", label: "Bill pay", hint: "Coming soon" });
-  if (codes.has("UPI_CASHOUT")) items.push({ href: "/agent/cash-out/upi", label: "UPI to cash", hint: "Coming soon" });
-  if (codes.has("AEPS")) items.push({ href: "/agent/aeps", label: "AePS cash out", hint: "Coming soon" });
+  if (codes.has("BBPS")) items.push({ href: "/agent/bbps", label: "Bill pay", hint: "Fetch and pay BBPS bills" });
+  if (codes.has("UPI_CASHOUT")) items.push({ href: "/agent/cash-out/upi", label: "UPI to cash", hint: "Dynamic QR Cashout" });
+  if (codes.has("AEPS")) items.push({ href: "/agent/aeps", label: "AePS cash out", hint: "Biometric Withdrawal" });
   items.push(
     { href: "/agent/customers", label: "Customers", hint: "People you added and their history" },
     { href: "/agent/catalog", label: "Catalog", hint: "Services you can sell" },

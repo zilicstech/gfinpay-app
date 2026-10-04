@@ -53,7 +53,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-white px-4">
+    <main className="grid min-h-screen place-items-center bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4">
       <ApplyHandoff url={payload.url} encdata={payload.encdata} method={payload.method} />
     </main>
   );

@@ -22,11 +22,11 @@ function whatsappHref(mobile: string, text: string) {
 
 function customerShareText(lead: SaleLead, product: string) {
   const name = firstName(lead.customer_name);
-  const signOff = lead.retailer_name?.trim() || "gfinpay";
+  const signOff = lead.retailer_name?.trim() || "Gfinpay";
   return [
     `Dear ${name},`,
     ``,
-    `Thank you for choosing gfinpay. Please complete your ${product} application using the secure link below. The process can be finished on your phone at your convenience.`,
+    `Thank you for choosing Gfinpay. Please complete your ${product} application using the secure link below. The process can be finished on your phone at your convenience.`,
     ``,
     lead.payment_link_url ?? "",
     ``,

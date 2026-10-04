@@ -3,9 +3,23 @@
 import { FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { BadgeCheck, Copy, CreditCard, LayoutGrid, MapPin, MoreVertical, Pencil } from "lucide-react";
+import { 
+  BadgeCheck, 
+  Copy, 
+  CreditCard, 
+  LayoutGrid, 
+  MapPin, 
+  MoreVertical, 
+  Pencil,
+  Phone,
+  Mail,
+  User,
+  ShoppingBag,
+  Receipt,
+  ArrowRight
+} from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
-import { inr, when } from "@/lib/format";
+import { inr, maskMobile, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { Alert, DataTable, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { EkycBadge } from "@/features/sales/EkycBadge";
@@ -15,9 +29,6 @@ import { AddProductModal } from "@/features/sales/AddProductModal";
 import { SellFdCardModal } from "@/features/sales/SellFdCardModal";
 import { productTitle } from "@/features/sales/CatalogShowcase";
 import { EkycComingSoonModal } from "@/features/ekyc/EkycComingSoonModal";
-
-const primaryActionClass =
-  "inline-flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-200";
 
 type Service = { id: string; item_code?: string; item_name: string; category_name: string; state: string; budget?: number; created_at?: string; link_opened_at?: string };
 type Txn = { id: string; txn_type: string; state: string; amount: number; created_at?: string };
@@ -68,10 +79,10 @@ function CardOverflowMenu({
   if (items.length === 0) return null;
 
   return (
-    <div className="absolute right-4 top-4 sm:right-6 sm:top-6" ref={ref}>
+    <div className="absolute right-4 top-4 sm:right-6 sm:top-6 z-20" ref={ref}>
       <button
         type="button"
-        className="grid h-10 w-10 place-items-center rounded-full text-white/80 ring-1 ring-white/20 transition hover:bg-white/10 hover:text-white"
+        className="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 text-white/80 ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white"
         aria-label="More actions"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -79,18 +90,18 @@ function CardOverflowMenu({
         <MoreVertical className="h-5 w-5" />
       </button>
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-navy-900/10 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-xl">
           {items.map((item) => (
             <button
               key={item.label}
               type="button"
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-navy-800 hover:bg-[#f5f5f5]"
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-xs font-bold text-navy-950 hover:bg-slate-50 transition-colors"
               onClick={() => {
                 setOpen(false);
                 item.onClick();
               }}
             >
-              <span className="text-navy-500">{item.icon}</span>
+              <span className="text-slate-500">{item.icon}</span>
               {item.label}
             </button>
           ))}
@@ -173,7 +184,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
   }
 
   if (error) return <Alert tone="error">{error}</Alert>;
-  if (!customer) return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
+  if (!customer) return <div className="card h-64 animate-pulse bg-slate-50" />;
 
   const volume = customer.transactions.reduce((sum, txn) => sum + Number(txn.amount ?? 0), 0);
   const place = [customer.city, customer.state].filter(Boolean).join(", ");
@@ -188,117 +199,169 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
   const canManage = manage && customer.desk_manageable !== false;
 
   return (
-    <div className="space-y-5">
-      <Link href={basePath} className="text-sm font-semibold text-navy-700 underline">All customers</Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Link href={basePath} className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors">
+          ← Back to Customers Book
+        </Link>
+        <span className="text-xs text-slate-400 font-mono">CID: {customer.id}</span>
+      </div>
 
-      <section className="overflow-hidden rounded-3xl border border-black/10 bg-white">
-        <div className="relative bg-black px-5 py-6 text-white sm:px-6">
+      {/* Main Luxury Customer Hero */}
+      <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-100/60">
+        <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 text-white sm:px-10 sm:py-10">
+          <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+
           {canManage && (
             <CardOverflowMenu
               items={[
                 ...(!ekycVerified
-                  ? [{ label: "Do eKYC", onClick: () => setEkycOpen(true), icon: <BadgeCheck className="h-4 w-4" /> }]
+                  ? [{ label: "Complete eKYC", onClick: () => setEkycOpen(true), icon: <BadgeCheck className="h-4 w-4 text-emerald-500" /> }]
                   : []),
-                { label: "Edit details", onClick: startEdit, icon: <Pencil className="h-4 w-4" /> },
+                { label: "Edit Profile", onClick: startEdit, icon: <Pencil className="h-4 w-4" /> },
               ]}
             />
           )}
-          <div className="flex items-start gap-4 pr-10">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-300 text-lg font-semibold text-black">
-              {initials(customer.full_name)}
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="font-display text-3xl tracking-tight">{customer.full_name}</h1>
-                <EkycBadge status={customer.ekyc_status} />
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6 pr-12">
+            <div className="flex items-start gap-5">
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-black text-navy-950 shadow-lg shadow-emerald-500/20">
+                {initials(customer.full_name)}
               </div>
-              <p className="mt-1 flex items-center gap-2 font-mono text-sm tracking-widest text-white/80">
-                <span>{customer.mobile}</span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                    {customer.full_name}
+                  </h1>
+                  <EkycBadge status={customer.ekyc_status} />
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-300">
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <Phone className="h-3 w-3 text-slate-400" />
+                    {customer.mobile}
+                    <button
+                      type="button"
+                      className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                      aria-label={copied ? "Mobile copied" : "Copy mobile"}
+                      onClick={copyMobile}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    {copied && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
+                  </span>
+                  {customer.email && (
+                    <>
+                      <span className="text-slate-500">·</span>
+                      <span className="flex items-center gap-1 text-slate-300">
+                        <Mail className="h-3.5 w-3.5 text-slate-400" />
+                        {customer.email}
+                      </span>
+                    </>
+                  )}
+                  <span className="text-slate-500">·</span>
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <MapPin className="h-3.5 w-3.5 text-emerald-400" />
+                    {place || "Location not set"}
+                    {customer.pincode ? ` · ${customer.pincode}` : ""}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                  {customer.retailer_name && <span>Sourced via: {customer.retailer_name} · </span>}
+                  <span>Added {when(customer.created_at)}</span>
+                </div>
+              </div>
+            </div>
+
+            {canManage && (
+              <div className="relative z-10 flex flex-wrap gap-2 mt-4 md:mt-0">
                 <button
                   type="button"
-                  className="rounded-md p-1 text-white/60 transition hover:bg-white/10 hover:text-white"
-                  aria-label={copied ? "Phone number copied" : "Copy phone number"}
-                  onClick={copyMobile}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-xs font-bold text-navy-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 transition-colors"
+                  onClick={() => setAddOpen(true)}
                 >
-                  <Copy className={`h-3.5 w-3.5 ${copied ? "text-emerald-300" : ""}`} />
+                  {sellFd ? <CreditCard className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                  {sellFd ? "Sell FD Card" : "Add Service Lead"}
                 </button>
-              </p>
-              {customer.email && <p className="mt-1 text-sm text-white/70">{customer.email}</p>}
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-white/70">
-                <MapPin className="h-3.5 w-3.5" />
-                {place || "Location not set"}
-                {customer.pincode ? ` · ${customer.pincode}` : ""}
-              </p>
-            </div>
+              </div>
+            )}
           </div>
-          {canManage ? (
-            <div className="mt-5 flex flex-wrap gap-2">
-              <button type="button" className={primaryActionClass} onClick={() => setAddOpen(true)}>
-                {sellFd ? <CreditCard className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-                {sellFd ? "Sell FD Card" : "Add Product"}
-              </button>
-            </div>
-          ) : null}
         </div>
 
-        <div className="grid grid-cols-3 divide-x divide-black/10">
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Products</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{customer.services.length}</p>
+        {/* Activity Summary Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Products Subscribed</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{customer.services.length}</p>
+            <p className="mt-0.5 text-xs text-slate-500">Active product applications</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Transactions</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{customer.transactions.length}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Counter Transactions</p>
+            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{customer.transactions.length}</p>
+            <p className="mt-0.5 text-xs text-slate-500">Total counter payments</p>
           </div>
-          <div className="px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-navy-500">Volume</p>
-            <p className="mt-1 font-display text-2xl text-navy-950">{inr(volume)}</p>
+          <div className="p-6 transition-colors hover:bg-slate-50/50">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Cumulative Volume</p>
+            <p className="mt-1 font-display text-2xl font-bold text-emerald-600">{inr(volume)}</p>
+            <p className="mt-0.5 text-xs text-slate-500">Lifetime value transacted</p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-          <div className="flex gap-2">
-            {(["products", "transactions"] as const).map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={`rounded-full px-4 py-2 text-sm font-semibold ${tab === key ? "bg-black text-emerald-300" : "bg-[#f5f5f5] text-navy-700"}`}
-                onClick={() => setTab(key)}
-              >
-                {key === "products" ? "Products" : "Transactions"}
-              </button>
-            ))}
-          </div>
-          {tab === "products" ? (
-            customer.services.length === 0 ? (
-              <EmptyState title="No products yet" body="Products you start for this customer show up here with their status." />
-            ) : (
+      {/* Tabs & Table */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
+          {(["products", "transactions"] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                tab === key
+                  ? "bg-navy-950 text-white shadow-sm"
+                  : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
+              }`}
+              onClick={() => setTab(key)}
+            >
+              {key === "products" ? "Product Applications" : "Counter Transactions"}
+            </button>
+          ))}
+        </div>
+
+        {tab === "products" ? (
+          customer.services.length === 0 ? (
+            <EmptyState title="No products initiated yet" body="Products you start for this customer will appear here with live pipeline progress." />
+          ) : (
+            <div className="rounded-3xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
               <DataTable
-                columns={["Product", "Category", "Status", "Opened", "When", ""]}
+                columns={["Product", "Category", "Pipeline Status", "Opened", "When", ""]}
                 rows={customer.services.map((s) => [
-                  productTitle(s.item_code ?? "", s.item_name),
+                  <span key={s.id} className="font-bold text-navy-950">{productTitle(s.item_code ?? "", s.item_name)}</span>,
                   s.category_name,
                   <StatusPill key={`${s.id}-state`} value={s.state} />,
-                  s.link_opened_at ? "Yes" : "Not yet",
+                  s.link_opened_at ? <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Opened</span> : <span className="text-xs text-slate-400">Not opened</span>,
                   when(s.created_at),
                   <ViewLink key={`${s.id}-view`} href={`${salesBase}/${s.id}`} />,
                 ])}
               />
-            )
-          ) : customer.transactions.length === 0 ? (
-            <EmptyState title="No transactions yet" body="Completed transactions for this customer will show up here." />
-          ) : (
+            </div>
+          )
+        ) : customer.transactions.length === 0 ? (
+          <EmptyState title="No transactions recorded yet" body="Completed desk transactions for this customer will appear here." />
+        ) : (
+          <div className="rounded-3xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
             <DataTable
-              columns={["When", "Type", "State", "Amount"]}
+              columns={["When", "Rail / Service", "State", "Amount"]}
               rows={customer.transactions.map((t) => [
                 when(t.created_at),
-                t.txn_type.replaceAll("_", " "),
-                <StatusPill key={t.id} value={t.state} />,
-                inr(t.amount),
+                <span key={t.id} className="font-bold text-navy-950">{t.txn_type.replaceAll("_", " ")}</span>,
+                <StatusPill key={`${t.id}-pill`} value={t.state} />,
+                <span key={`${t.id}-amt`} className="font-mono font-bold text-navy-950">{inr(t.amount)}</span>,
               ])}
             />
-          )}
+          </div>
+        )}
       </section>
 
       {canManage && id && (sellFd ? (
@@ -323,11 +386,11 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
       {draft && (
         <FormModal
           open={editing}
-          title="Edit customer"
-          description="Update the details on this record."
+          title="Edit customer details"
+          description="Update customer demographic and contact information."
           onClose={() => setEditing(false)}
           onSubmit={save}
-          submitLabel={busy ? "Saving…" : "Save changes"}
+          submitLabel={busy ? "Saving…" : "Save Changes"}
           submitDisabled={busy || !ready}
         >
           {formError && <Alert tone="error">{formError}</Alert>}

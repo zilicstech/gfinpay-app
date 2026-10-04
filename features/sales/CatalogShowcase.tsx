@@ -233,7 +233,7 @@ export function FdBankCard({ card, action }: { card: FdBankFace; action?: ReactN
       <div className={`pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-gradient-to-br to-transparent blur-2xl sm:h-36 sm:w-36 ${card.shine}`} />
       <div className="relative flex items-start justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 sm:text-[11px]">gfinpay</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 sm:text-[11px]">Gfinpay</p>
           <p className="mt-0.5 font-display text-xl tracking-tight sm:mt-1 sm:text-2xl">{card.mark}</p>
         </div>
         <div className="grid h-8 w-10 shrink-0 place-items-center rounded-md bg-gradient-to-br from-amber-100 to-amber-400 shadow-inner sm:h-9 sm:w-12">

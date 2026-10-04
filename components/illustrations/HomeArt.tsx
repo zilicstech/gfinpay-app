@@ -1,14 +1,14 @@
 const files = {
-  dmt: "/illustrations/service-dmt.png?v=3dt",
-  aeps: "/illustrations/service-aeps.png?v=3dt",
-  upi: "/illustrations/service-upi.png?v=3dt",
+  dmt: "/illustrations/shop_dmt.jpg",
+  aeps: "/illustrations/shop_aeps.jpg",
+  upi: "/illustrations/shop_upi.jpg?v=upi2",
   wallet: "/illustrations/service-wallet.png?v=3dt",
-  cards: "/illustrations/service-cards.png?v=3dt",
+  cards: "/illustrations/shop_cards.jpg?v=sbm1",
   network: "/illustrations/service-network.png?v=3dt",
-  bbps: "/illustrations/service-bbps.png?v=ps2",
-  recharge: "/illustrations/service-recharge.png?v=ps2",
-  fastag: "/illustrations/service-fastag.png?v=ps2",
-  lic: "/illustrations/service-lic.png?v=ps2",
+  bbps: "/illustrations/shop_bbps.jpg",
+  recharge: "/illustrations/shop_recharge.jpg?v=rc2",
+  fastag: "/illustrations/shop_fastag.jpg",
+  lic: "/illustrations/shop_lic.jpg",
 } as const;
 
 function Frame({
@@ -19,11 +19,11 @@ function Frame({
   label?: string;
 }) {
   return (
-    <div className="pf-art relative">
+    <div className="relative w-full h-full">
       <img
         src={src}
         alt={label ?? ""}
-        className="pf-float h-auto w-full select-none bg-transparent object-contain"
+        className="h-full w-full select-none bg-transparent object-cover"
         draggable={false}
       />
     </div>
@@ -33,8 +33,8 @@ function Frame({
 export function HeroKirana() {
   return (
     <Frame
-      src="/illustrations/hero-kirana.png?v=3dt"
-      label="gfinpay digital services — bill payments, transfers, and financial products"
+      src="/illustrations/hero-kirana.jpg?v=3dt"
+      label="Gfinpay digital services — bill payments, transfers, and financial products"
     />
   );
 }

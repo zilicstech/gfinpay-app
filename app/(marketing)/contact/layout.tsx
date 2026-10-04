@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { seo } from "@/lib/seo";
 
 export const metadata: Metadata = seo({
-  title: "Contact gfinpay",
-  description: "Partner with gfinpay for BC networks, DMT, AePS and BaaS last-mile distribution.",
+  title: "Contact Gfinpay",
+  description: "Partner with Gfinpay for BC networks, DMT, AePS and BaaS last-mile distribution.",
   path: "/contact",
 });
 
