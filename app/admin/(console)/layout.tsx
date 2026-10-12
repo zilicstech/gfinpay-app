@@ -9,9 +9,12 @@ const SUPER_NAV = [
   { href: "/admin/analytics", label: "Overview" },
   { href: "/admin/distributors", label: "Distributors" },
   { href: "/admin/retailers", label: "Retailers" },
+  { href: "/admin/inquiries", label: "Inquiries" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/admins", label: "Admins" },
+  { href: "/admin/auditors", label: "Auditors" },
+  { href: "/admin/finance", label: "Finance" },
   { href: "/admin/sales", label: "Sales" },
   { href: "/admin/recon", label: "Recon" },
   { href: "/admin/reports", label: "Reports" },
@@ -21,11 +24,13 @@ const SUPER_NAV = [
 ];
 
 const HUB_NAV = [
-  { href: "/admin/overview", label: "Overview" },
+  { href: "/admin/analytics", label: "Overview" },
   { href: "/admin/distributors", label: "Distributors" },
   { href: "/admin/retailers", label: "Retailers" },
+  { href: "/admin/inquiries", label: "Inquiries" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/finance", label: "Finance" },
   { href: "/admin/transactions", label: "Transactions" },
   { href: "/admin/sales", label: "Sales" },
   { href: "/admin/earnings", label: "Earnings" },
@@ -33,8 +38,8 @@ const HUB_NAV = [
 
 const SUPER_ONLY = [
   "/admin/admins",
+  "/admin/auditors",
   "/admin/settings",
-  "/admin/analytics",
   "/admin/recon",
   "/admin/reports",
 ];
@@ -43,17 +48,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const userType = useSession((s) => s.user?.userType);
   const pathname = usePathname();
   const router = useRouter();
-  const nav = userType === "ADMIN" ? HUB_NAV : SUPER_NAV;
+  const nav = userType === "HUBADMIN" ? HUB_NAV : SUPER_NAV;
 
   useEffect(() => {
-    if (userType !== "ADMIN") return;
+    if (userType !== "HUBADMIN") return;
     if (SUPER_ONLY.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-      router.replace("/admin/overview");
+      router.replace("/admin/analytics");
     }
   }, [pathname, router, userType]);
 
   return (
-    <AppShell title="Admin" allowedTypes={["SUPER_ADMIN", "ADMIN"]} loginHref="/login" nav={nav}>
+    <AppShell title="Admin" allowedTypes={["SUPER_ADMIN", "ADMIN", "HUBADMIN"]} nav={nav}>
       {children}
     </AppShell>
   );

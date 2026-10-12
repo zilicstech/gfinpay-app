@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Lexend } from "next/font/google";
 import { SITE } from "@/lib/site";
 import { GlobalLoader } from "@/components/ui/GlobalLoader";
+import { SessionGuard } from "@/features/shell/SessionGuard";
 import "./globals.css";
 
 const lexend = Lexend({
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-IN" className={lexend.variable}>
       <body className="font-sans">
         {children}
+        <SessionGuard />
         <GlobalLoader />
       </body>
     </html>

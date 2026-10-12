@@ -5,25 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   ArrowRight, 
+  BadgeCheck,
   Building2, 
-  CheckCircle2, 
-  Clock, 
   Copy, 
-  MapPin, 
-  Phone, 
   Plus, 
   Search, 
-  ShieldAlert, 
-  ShieldCheck, 
-  Store, 
+  ShieldAlert,
   Users 
 } from "lucide-react";
 import { api, openDetails } from "@/lib/api-client";
-import { createdByLabel, maskMobile, when } from "@/lib/format";
+import { when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
-import { DataTable, EmptyState, PageHeader, StatCard, StatusPill } from "@/components/ui/primitives";
-import { Flash, FormModal, SelectField, ViewLink, useFlash } from "@/features/admin/AdminChrome";
-import { EkycBadge } from "@/features/sales/EkycBadge";
+import { EmptyState, StatusPill } from "@/components/ui/primitives";
+import { Flash, FormModal, SelectField, useFlash } from "@/features/admin/AdminChrome";
 import { emptyRetailerDraft, RetailerOnboardFields, retailerDraftReady, type RetailerDraft } from "@/features/admin/retailer-form";
 import type { UserRow } from "@/features/admin/types";
 
@@ -38,8 +32,8 @@ export default function RetailersPage() {
 
   // Filter state
   const [query, setQuery] = useState("");
-  const [statusTab, setStatusTab] = useState<"ALL" | "ACTIVE" | "PENDING_KYC" | "SUSPENDED">("ALL");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [statusTab, setStatusTab] = useState<"ALL" | "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED" | "ACTIVE" | "SUSPENDED">("ALL");
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Modal state
   const [open, setOpen] = useState(false);
@@ -69,8 +63,8 @@ export default function RetailersPage() {
 
   function copy(text: string) {
     navigator.clipboard.writeText(text);
-    setCopiedId(text);
-    setTimeout(() => setCopiedId(null), 1800);
+    setCopiedCode(text);
+    setTimeout(() => setCopiedCode(null), 1800);
   }
 
   async function create(e: FormEvent) {
@@ -83,8 +77,8 @@ export default function RetailersPage() {
         body: JSON.stringify({
           fullName: draft.fullName.trim(),
           mobile: draft.mobile,
+          email: draft.email.trim(),
           password: draft.password,
-          email: `${draft.mobile}@gfinpay.com`,
           distributorId,
           city: draft.city.trim(),
           state: draft.state,
@@ -97,20 +91,9 @@ export default function RetailersPage() {
     }
   }
 
-  // Summary Metrics
-  const metrics = useMemo(() => {
-    const total = retailers.length;
-    const active = retailers.filter((r) => r.status === "ACTIVE").length;
-    const verifiedKyc = retailers.filter((r) => r.kyc_status === "VERIFIED").length;
-    const pendingKyc = retailers.filter((r) => r.kyc_status !== "VERIFIED").length;
-    return { total, active, verifiedKyc, pendingKyc };
-  }, [retailers]);
-
   const filteredRetailers = useMemo(() => {
     return retailers.filter((r) => {
-      if (statusTab === "ACTIVE" && r.status !== "ACTIVE") return false;
-      if (statusTab === "PENDING_KYC" && r.kyc_status === "VERIFIED") return false;
-      if (statusTab === "SUSPENDED" && r.status !== "SUSPENDED") return false;
+      if (statusTab !== "ALL" && r.status !== statusTab) return false;
 
       if (query) {
         const q = query.toLowerCase();
@@ -135,10 +118,10 @@ export default function RetailersPage() {
             Distribution Network
           </span>
           <h1 className="mt-2 font-display text-3xl sm:text-4xl font-bold tracking-tight text-navy-950">
-            Retailer Outlets
+            Retailers
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Manage point-of-sale BC merchants, KYC compliance, wallet floats, and distributor mapping.
+            Create retailer profiles, then submit an activation payment for finance review before the outlet can go live.
           </p>
         </div>
 
@@ -148,36 +131,8 @@ export default function RetailersPage() {
           disabled={distributors.length === 0}
         >
           <Plus className="h-4 w-4" />
-          Onboard New Retailer
+          New Retailer
         </button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Outlets"
-          value={String(metrics.total)}
-          hint="Enrolled BC counters"
-          icon={<Store className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Active Counters"
-          value={String(metrics.active)}
-          hint="Operating in field"
-          icon={<CheckCircle2 className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Verified eKYC"
-          value={String(metrics.verifiedKyc)}
-          hint="Compliant with RBI norms"
-          icon={<ShieldCheck className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Pending Review"
-          value={String(metrics.pendingKyc)}
-          hint="Requires verification"
-          icon={<Clock className="h-5 w-5" />}
-        />
       </div>
 
       <Flash message={flash.message} error={flash.error} />
@@ -187,24 +142,31 @@ export default function RetailersPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1">
             {([
-              ["ALL", "All Outlets"],
-              ["ACTIVE", "Active Only"],
-              ["PENDING_KYC", "Pending KYC"],
+              ["ALL", "All"],
+              ["PENDING", "Pending"],
+              ["SUBMITTED", "Submitted"],
+              ["APPROVED", "Approved"],
+              ["REJECTED", "Rejected"],
+              ["ACTIVE", "Active"],
               ["SUSPENDED", "Suspended"],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setStatusTab(key)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  statusTab === key
-                    ? "bg-navy-950 text-white shadow-xs"
-                    : "text-slate-600 hover:text-navy-950"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            ] as const).map(([key, label]) => {
+              const isActive = statusTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setStatusTab(key)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-navy-950 text-white shadow-xs"
+                      : "text-slate-600 hover:text-navy-950"
+                  }`}
+                >
+                  {label}
+                  {isActive && ` (${filteredRetailers.length})`}
+                </button>
+              );
+            })}
           </div>
 
           <div className="relative min-w-[18rem]">
@@ -229,81 +191,121 @@ export default function RetailersPage() {
         ) : filteredRetailers.length === 0 ? (
           <EmptyState
             title="No retailers found"
-            body={query || statusTab !== "ALL" ? "Try clearing search filters." : "Onboard a retailer under a distributor to populate this network list."}
+            body={query || statusTab !== "ALL" ? "Try clearing search filters." : "Create a retailer profile under a distributor. Activation happens after payment is verified."}
           />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
                 <tr>
-                  <th className="px-6 py-4">Outlet Merchant</th>
-                  <th className="px-6 py-4">Parent Distributor</th>
-                  <th className="px-6 py-4">Hub Geography</th>
-                  <th className="px-6 py-4">Contact</th>
-                  <th className="px-6 py-4">eKYC</th>
+                  <th className="px-6 py-4">Retailer</th>
+                  <th className="px-6 py-4">Distributor</th>
+                  <th className="px-6 py-4">Hub</th>
+                  <th className="px-6 py-4">Created By</th>
+                  <th className="px-6 py-4">Created On</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRetailers.map((u) => (
-                  <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-50 text-indigo-700 font-bold text-sm shrink-0 ring-1 ring-indigo-200/60">
-                          {u.full_name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-navy-950 text-sm">{u.full_name}</p>
-                          <div className="mt-0.5 flex items-center gap-1.5">
-                            <span className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                              {u.code ?? "—"}
+                {filteredRetailers.map((u) => {
+                  const isVerified = (u.kyc_status ?? "").toUpperCase() === "VERIFIED";
+                  return (
+                    <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
+                      {/* 1. Retailer */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-start gap-2.5">
+                          {isVerified ? (
+                            <span
+                              className="mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-500/25 shrink-0"
+                              title="eKYC Verified"
+                            >
+                              <BadgeCheck className="h-4 w-4" />
                             </span>
-                            {u.code && (
-                              <button
-                                type="button"
-                                onClick={() => copy(u.code!)}
-                                className="text-slate-400 hover:text-slate-700"
-                                title="Copy Code"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </button>
-                            )}
-                            {copiedId === u.code && (
-                              <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
-                            )}
+                          ) : (
+                            <span
+                              className="mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-500/25 shrink-0"
+                              title="eKYC Unverified"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                            </span>
+                          )}
+                          <div>
+                            <p className="font-semibold text-navy-950 text-sm">{u.full_name}</p>
+                            <div className="mt-0.5 flex items-center gap-1.5">
+                              <span className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {u.code ?? "—"}
+                              </span>
+                              {u.code && (
+                                <button
+                                  type="button"
+                                  onClick={() => copy(u.code!)}
+                                  className="text-slate-400 hover:text-slate-700"
+                                  title="Copy Code"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </button>
+                              )}
+                              {copiedCode === u.code && (
+                                <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <span className="font-medium text-navy-900 text-xs sm:text-sm">
-                          {u.parent_name ?? "—"}
-                        </span>
-                      </div>
-                    </td>
+                      </td>
+
+                    {/* 2. Distributor */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <span className="text-xs text-slate-600 font-medium">
-                          {u.hub_name ?? "Default Hub"}
+                        <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        {u.parent_id ? (
+                          <Link
+                            href={`/admin/distributors/${u.parent_id}`}
+                            className="text-xs font-semibold text-navy-900 hover:text-emerald-600 transition-colors"
+                          >
+                            {u.parent_name ?? "—"}
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-semibold text-navy-900">
+                            {u.parent_name ?? "—"}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* 3. Hub */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <span className="text-xs font-semibold text-navy-900">
+                          {u.hub_name ?? "Unassigned Hub"}
                         </span>
                       </div>
                     </td>
+
+                    {/* 4. Created By */}
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 font-mono text-xs text-slate-600">
-                        <Phone className="h-3 w-3 text-slate-400" />
-                        {maskMobile(u.mobile)}
+                      <div className="text-xs">
+                        <p className="font-medium text-slate-800">
+                          {u.created_by_name || u.created_by || "Platform Admin"}
+                        </p>
+                        {u.created_by_code && (
+                          <span className="font-mono text-[10px] text-slate-400">{u.created_by_code}</span>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <EkycBadge status={u.kyc_status} />
+
+                    {/* 5. Created On */}
+                    <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
+                      {u.created_at ? when(u.created_at) : "—"}
                     </td>
+
+                    {/* 6. Status */}
                     <td className="px-6 py-4">
                       <StatusPill value={u.status} />
                     </td>
+
+                    {/* 7. Action */}
                     <td className="px-6 py-4 text-right">
                       <Link
                         href={`/admin/retailers/${u.id}`}
@@ -314,8 +316,9 @@ export default function RetailersPage() {
                       </Link>
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                );
+              })}
+            </tbody>
             </table>
           </div>
         )}
@@ -324,11 +327,11 @@ export default function RetailersPage() {
       {/* Onboarding Modal */}
       <FormModal
         open={open}
-        title="Onboard New Retailer"
-        description="Place a retailer under an authorized master distributor. Live services activate upon credentials assignment."
+        title="Create retailer profile"
+        description="This only creates the profile. An activation payment must be submitted and verified before the outlet can sign in to the desk."
         onClose={() => setOpen(false)}
         onSubmit={create}
-        submitLabel="Create Outlet & Proceed"
+        submitLabel="Create profile"
         submitDisabled={!retailerDraftReady(draft) || !distributorId}
       >
         <SelectField

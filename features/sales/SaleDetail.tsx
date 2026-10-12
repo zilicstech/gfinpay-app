@@ -74,8 +74,8 @@ export function SaleDetail({
   backHref: string;
   backLabel: string;
   lead: SaleLead;
-  /** Retailer/distributor desks hide customer link tools once the sale is closed (e.g. activated). */
-  audience?: "desk" | "admin";
+  /** Retailer desks hide customer link tools once the sale is closed. A view audience never shares the link. */
+  audience?: "desk" | "admin" | "view";
   extraActions?: ReactNode;
   extraFacts?: { label: string; value: ReactNode }[];
 }) {
@@ -104,9 +104,9 @@ export function SaleDetail({
     setTimeout(() => setShareCopied(false), 1600);
   }
 
-  const open = !["REJECTED", "EXPIRED", "CONVERTED", "ACTIVATED"].includes(lead.state);
+  const open = !["REJECTED", "EXPIRED", "FAILED", "CONVERTED", "ACTIVATED"].includes(lead.state);
   const paymentLink = lead.payment_link_url ?? "";
-  const showCustomerLink = Boolean(paymentLink) && (audience === "admin" || open);
+  const showCustomerLink = audience !== "view" && Boolean(paymentLink) && (audience === "admin" || open);
 
   return (
     <div className="space-y-5">

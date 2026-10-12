@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       { source: "/analytics", destination: "/admin/analytics", permanent: true },
+      { source: "/admin/overview", destination: "/admin/analytics", permanent: true },
       { source: "/distributors", destination: "/admin/distributors", permanent: true },
       { source: "/retailers", destination: "/admin/retailers", permanent: true },
       { source: "/commissions", destination: "/admin/analytics", permanent: true },

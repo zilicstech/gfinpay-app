@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import {
+  ArrowLeft,
   Building2,
   Check,
   CheckCircle2,
@@ -20,6 +22,7 @@ import {
 import { Logo } from "@/components/brand/Logo";
 import { browserApiPath } from "@/lib/api-base";
 import { Modal } from "@/components/ui/primitives";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type Product = { id: string; name: string; product_key?: string; code?: string };
 type AffiliatePublic = {
@@ -161,11 +164,37 @@ export default function VendorEmployeeDeskPage() {
   }
 
   if (error && !data) {
+    const isInactive = error.toLowerCase().includes("not active") || error.toLowerCase().includes("inactive");
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-50 px-4">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-lg max-w-sm">
-          <p className="font-display text-lg font-bold text-navy-950">Invalid Link</p>
-          <p className="mt-2 text-sm text-slate-500">{error}</p>
+      <main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-16">
+        <div className="w-full max-w-md text-center space-y-5 rounded-3xl border border-slate-200/90 bg-white p-8 shadow-xl">
+          <Logo compact />
+          <div
+            className={`inline-flex rounded-full px-3.5 py-1 text-xs font-bold ${
+              isInactive
+                ? "bg-amber-50 border border-amber-200 text-amber-800"
+                : "bg-rose-50 border border-rose-200 text-rose-700"
+            }`}
+          >
+            {isInactive ? "Link Inactive" : "Link Unavailable"}
+          </div>
+          <h1 className="font-display text-2xl font-bold text-navy-950">
+            {isInactive ? "This URL is not active" : "Link Unavailable"}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            {isInactive
+              ? "The vendor agency associated with this field desk has been deactivated. All employee desk URLs for this agency are currently inactive."
+              : error}
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/"
+              className="btn-secondary !py-2.5 !px-5 text-xs font-bold inline-flex items-center gap-1.5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Return to Homepage</span>
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -305,21 +334,13 @@ export default function VendorEmployeeDeskPage() {
                 <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
                 <span>Select Banking Product</span>
               </label>
-              <select
-                className="field"
+              <CustomSelect
                 required
                 value={catalogItemId}
-                onChange={(e) => setCatalogItemId(e.target.value)}
-              >
-                <option value="" disabled>
-                  Select a product
-                </option>
-                {data.products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setCatalogItemId}
+                placeholder="Select a banking product"
+                options={data.products.map((p) => ({ value: p.id, label: p.name }))}
+              />
             </div>
 
             <button

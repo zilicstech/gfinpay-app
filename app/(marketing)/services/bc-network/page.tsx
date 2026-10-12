@@ -3,17 +3,16 @@ import { ServiceLayout, serviceMeta } from "@/features/marketing/ServiceLayout";
 export const metadata = serviceMeta(
   "/services/bc-network",
   "Retailer & Distributor Network",
-  "Tiered Business Correspondent hierarchy with automated commission splits and verified KYC onboarding.",
+  "Tiered Business Correspondent hierarchy with automated real-time settlement and verified KYC onboarding.",
 );
 
 export default function Page() {
   return (
     <ServiceLayout
       kicker="BC Distribution Network"
-      title="Build Your Retailer Network & Earn on Every Transaction"
+      title="Build & Scale Your Retailer Network Across Districts"
       art="network"
-      commission="Automated Distributor Commission Split (Passive Income)"
-      lead="Appoint Kirana stores and retailers across your city, district, or state. Every time your retailer sends money or pays a bill, distributor commission credits directly to your account in real-time."
+      lead="Appoint Kirana stores and retailers across your city, district, or state. Oversee transactions, allocate float, and monitor real-time network volume from a unified distributor console."
       partners={[
         "RBI BC Guidelines",
         "Aadhaar Biometric e-KYC",
@@ -24,13 +23,13 @@ export default function Page() {
       steps={[
         { step: "01", title: "Onboard Retailers", desc: "Onboard Kirana stores with verified Aadhaar & PAN KYC." },
         { step: "02", title: "Transfer Float Balance", desc: "Transfer operational balance to your retailers in seconds." },
-        { step: "03", title: "Earn Network Commissions", desc: "Earn passive margin on every transaction across your entire network." },
+        { step: "03", title: "Monitor Network Operations", desc: "Track live transaction volume, settle float, and grow your regional distribution." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <p className="font-bold text-navy-950 text-sm">Automated Split Engine</p>
-          <p className="text-xs text-slate-500 mt-1">Zero manual bookkeeping. The platform splits retailer and distributor commission automatically at the exact millisecond of bank settlement.</p>
+          <p className="font-bold text-navy-950 text-sm">Automated Settlement Engine</p>
+          <p className="text-xs text-slate-500 mt-1">Zero manual bookkeeping. The platform reconciles transactions and ledger settlements automatically at the exact millisecond of bank switch confirmation.</p>
         </div>
         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
           <p className="font-bold text-navy-950 text-sm">Real-Time Network Monitoring</p>

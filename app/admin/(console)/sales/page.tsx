@@ -1,21 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { 
-  ArrowUpRight, 
-  BarChart2, 
-  CheckCircle2, 
-  Clock, 
-  CreditCard, 
-  Layers, 
-  Percent, 
-  Search, 
-  TrendingUp, 
-  Users 
-} from "lucide-react";
+import { Search } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { useSession } from "@/stores/session.store";
-import { Alert, PageHeader, StatCard } from "@/components/ui/primitives";
+import { Alert, EmptyState } from "@/components/ui/primitives";
 import { SalesTable, type SalesLead } from "@/features/sales/SalesTable";
 
 export default function AdminSalesPage() {
@@ -26,8 +15,7 @@ export default function AdminSalesPage() {
 
   // Filters
   const [query, setQuery] = useState("");
-  const [channelFilter, setChannelFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusTab, setStatusTab] = useState<"ALL" | "CONVERTED" | "IN_PROGRESS" | "RETAILER" | "VENDOR">("ALL");
 
   useEffect(() => {
     if (!token) return;
@@ -38,18 +26,21 @@ export default function AdminSalesPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const metrics = useMemo(() => {
-    const total = rows.length;
-    const opened = rows.filter((r) => r.link_opened_at).length;
+  const counts = useMemo(() => {
     const converted = rows.filter((r) => r.state === "CONVERTED" || r.state === "ACTIVATED").length;
-    const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-    return { total, opened, converted, rate };
+    const inProgress = rows.filter((r) => ["IN_PROGRESS", "SUBMITTED", "OPENED", "INITIATED"].includes(r.state)).length;
+    const retailer = rows.filter((r) => r.sale_channel !== "EXTERNAL").length;
+    const vendor = rows.filter((r) => r.sale_channel === "EXTERNAL").length;
+    return { converted, inProgress, retailer, vendor };
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      if (channelFilter !== "ALL" && r.sale_channel !== channelFilter) return false;
-      if (statusFilter !== "ALL" && r.state !== statusFilter) return false;
+      if (statusTab === "CONVERTED" && !(r.state === "CONVERTED" || r.state === "ACTIVATED")) return false;
+      if (statusTab === "IN_PROGRESS" && !["IN_PROGRESS", "SUBMITTED", "OPENED", "INITIATED"].includes(r.state)) return false;
+      if (statusTab === "RETAILER" && r.sale_channel === "EXTERNAL") return false;
+      if (statusTab === "VENDOR" && r.sale_channel !== "EXTERNAL") return false;
+
       if (query) {
         const q = query.toLowerCase();
         return (
@@ -58,12 +49,16 @@ export default function AdminSalesPage() {
           (r.customer_name && r.customer_name.toLowerCase().includes(q)) ||
           (r.customer_mobile && r.customer_mobile.includes(q)) ||
           (r.retailer_name && r.retailer_name.toLowerCase().includes(q)) ||
-          (r.distributor_name && r.distributor_name.toLowerCase().includes(q))
+          (r.retailer_code && r.retailer_code.toLowerCase().includes(q)) ||
+          (r.distributor_name && r.distributor_name.toLowerCase().includes(q)) ||
+          (r.distributor_code && r.distributor_code.toLowerCase().includes(q)) ||
+          (r.sale_provider && r.sale_provider.toLowerCase().includes(q)) ||
+          (r.partner_status && r.partner_status.toLowerCase().includes(q))
         );
       }
       return true;
     });
-  }, [rows, channelFilter, statusFilter, query]);
+  }, [rows, statusTab, query]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -82,58 +77,36 @@ export default function AdminSalesPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Leads Initiated"
-          value={String(metrics.total)}
-          hint="Across all product lines"
-          icon={<Layers className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Application Links Opened"
-          value={String(metrics.opened)}
-          hint="Customers viewing funnel"
-          icon={<ArrowUpRight className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Converted & Activated"
-          value={String(metrics.converted)}
-          hint="Card / Account issued"
-          icon={<CheckCircle2 className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Conversion Velocity"
-          value={`${metrics.rate}%`}
-          hint="End-to-end pull through"
-          icon={<TrendingUp className="h-5 w-5" />}
-        />
-      </div>
-
       {error && <Alert tone="error">{error}</Alert>}
 
-      {/* Control Bar & Table */}
+      {/* Filter and Control Bar */}
       <div className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 shadow-sm space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1">
             {([
-              ["ALL", "All Channels"],
-              ["INTERNAL", "Network Retailers"],
-              ["EXTERNAL", "Vendor Field"],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setChannelFilter(key)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  channelFilter === key
-                    ? "bg-navy-950 text-white shadow-xs"
-                    : "text-slate-600 hover:text-navy-950"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+              ["ALL", "All Leads", rows.length],
+              ["CONVERTED", "Converted", counts.converted],
+              ["IN_PROGRESS", "In Progress", counts.inProgress],
+              ["RETAILER", "Retail Outlets", counts.retailer],
+              ["VENDOR", "Vendor Field", counts.vendor],
+            ] as const).map(([key, label, count]) => {
+              const isActive = statusTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setStatusTab(key)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-navy-950 text-white shadow-xs"
+                      : "text-slate-600 hover:text-navy-950"
+                  }`}
+                >
+                  {label}
+                  {` (${count})`}
+                </button>
+              );
+            })}
           </div>
 
           <div className="relative min-w-[18rem]">
@@ -142,20 +115,30 @@ export default function AdminSalesPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by Product, Customer, Store..."
+              placeholder="Search by Product, Customer, Partner, Store..."
               className="field !pl-10 !py-2 text-xs w-full"
             />
           </div>
         </div>
 
+        {/* Master Table */}
         {loading ? (
           <div className="space-y-3 py-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
             ))}
           </div>
+        ) : filteredRows.length === 0 ? (
+          <EmptyState
+            title="No sales leads found"
+            body={
+              query || statusTab !== "ALL"
+                ? "Try clearing search filters."
+                : "Sales leads will appear here when applications are initiated."
+            }
+          />
         ) : (
-          <SalesTable rows={filteredRows} detailBase="/admin/sales" showChannel />
+          <SalesTable rows={filteredRows} detailBase="/admin/sales" showChannel hideCustomer showHub />
         )}
       </div>
     </div>

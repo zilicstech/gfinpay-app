@@ -25,7 +25,6 @@ export function ServiceLayout({
   kicker,
   lead,
   art,
-  commission,
   steps,
   highlights,
   partners,
@@ -35,7 +34,6 @@ export function ServiceLayout({
   kicker: string;
   lead: string;
   art?: "dmt" | "aeps" | "upi" | "wallet" | "cards" | "network" | "ledger" | "bbps" | "recharge" | "fastag" | "lic";
-  commission?: string;
   steps?: Array<{ step: string; title: string; desc: string }>;
   highlights?: Array<string>;
   partners?: Array<string>;
@@ -44,7 +42,7 @@ export function ServiceLayout({
   const defaultSteps = steps || [
     { step: "01", title: "Customer Walk-in", desc: "Customer brings cash, bill CA number, or mobile." },
     { step: "02", title: "1-Click Pay", desc: "Enter amount on your phone & confirm transaction." },
-    { step: "03", title: "Instant Profit", desc: "Direct commission added to your wallet in 5 seconds." },
+    { step: "03", title: "Instant Receipt", desc: "Customer gets instant receipt slip and real-time confirmation." },
   ];
 
   return (
@@ -79,18 +77,18 @@ export function ServiceLayout({
                 {lead}
               </p>
 
-              {/* High-Impact Commission Card */}
+              {/* Service Highlights Card */}
               <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 sm:p-5 shadow-xs">
                 <div className="flex items-center gap-3">
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25">
-                    <Coins className="h-6 w-6" />
+                    <Zap className="h-6 w-6" />
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                      Retailer Commission
+                      Switch Rail Guarantee
                     </p>
-                    <p className="font-display text-xl sm:text-2xl font-black text-emerald-950">
-                      {commission || "Instant ₹5 - ₹75 Commission on Every Transaction"}
+                    <p className="font-display text-lg sm:text-xl font-bold text-emerald-950">
+                      Instant T+0 Settlement · Official Bank Switch Rails
                     </p>
                   </div>
                 </div>
@@ -224,7 +222,7 @@ export function ServiceLayout({
         {/* Bottom Fast Action Banner */}
         <div className="mt-12 rounded-3xl bg-navy-950 p-6 sm:p-10 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
           <div>
-            <h3 className="font-display text-xl sm:text-2xl font-bold">Start earning today</h3>
+            <h3 className="font-display text-xl sm:text-2xl font-bold">Start serving customers today</h3>
             <p className="text-xs sm:text-sm text-slate-300 mt-1">
               No machine required. Just login on your phone or laptop and start serving customers.
             </p>

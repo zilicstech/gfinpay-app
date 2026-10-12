@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { FormEvent, ReactNode, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Alert, Field, Modal } from "@/components/ui/primitives";
-import { ApiClientError } from "@/lib/api-client";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+import { formatApiError } from "@/lib/api-client";
 
 export function ViewLink({ href }: { href: string }) {
   return (
@@ -49,7 +51,7 @@ export function Flash({ message, error }: { message?: string | null; error?: str
 }
 
 export function errorMessage(err: unknown, fallback: string) {
-  return err instanceof ApiClientError ? err.error.message : fallback;
+  return formatApiError(err, fallback);
 }
 
 export function useFlash() {
@@ -105,6 +107,7 @@ export function TextField({
   type = "text",
   required,
   inputMode,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -112,10 +115,36 @@ export function TextField({
   type?: string;
   required?: boolean;
   inputMode?: "numeric" | "text" | "email" | "tel";
+  placeholder?: string;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
+  const effectiveType = isPassword ? (showPassword ? "text" : "password") : type;
+
   return (
     <Field label={label}>
-      <input className="field" type={type} required={required} inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} />
+      <div className="relative">
+        <input
+          className={`field ${isPassword ? "!pr-10" : ""}`}
+          type={effectiveType}
+          required={required}
+          inputMode={inputMode}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+            onClick={() => setShowPassword(!showPassword)}
+            tabIndex={-1}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </Field>
   );
 }
@@ -126,7 +155,7 @@ export function SelectField({
   onChange,
   options,
   required,
-  placeholder = "Select",
+  placeholder = "Select an option",
 }: {
   label: string;
   value: string;
@@ -137,12 +166,13 @@ export function SelectField({
 }) {
   return (
     <Field label={label}>
-      <select className="field" required={required} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{placeholder}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+      <CustomSelect
+        value={value}
+        onChange={onChange}
+        options={options}
+        required={required}
+        placeholder={placeholder}
+      />
     </Field>
   );
 }
@@ -168,11 +198,17 @@ export function FormModal({
 }) {
   return (
     <Modal open={open} title={title} description={description} onClose={onClose}>
-      <form className="space-y-3" onSubmit={onSubmit}>
-        {children}
-        <div className="flex justify-end gap-2 pt-2">
-          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={submitDisabled}>{submitLabel}</button>
+      <form className="flex flex-col min-h-0" onSubmit={onSubmit}>
+        <div className="space-y-3 pb-2">
+          {children}
+        </div>
+        <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 pb-1 mt-2 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn-primary" disabled={submitDisabled}>
+            {submitLabel}
+          </button>
         </div>
       </form>
     </Modal>

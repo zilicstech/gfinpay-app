@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { 
   Building2, 
   Copy, 
+  Eye,
+  EyeOff,
   KeyRound, 
   Lock, 
   Mail, 
@@ -14,18 +16,23 @@ import {
   User as UserIcon,
   CheckCircle2
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { api, formatApiError } from "@/lib/api-client";
-import { mapMeProfile, useSession, type MeProfile } from "@/stores/session.store";
+import { logoutSession } from "@/lib/auth-client";
+import { homePathFor, mapMeProfile, useSession, type MeProfile } from "@/stores/session.store";
 import { Alert, StatusPill } from "@/components/ui/primitives";
 import { maskMobile } from "@/lib/format";
 
 export function ProfileForm() {
+  const router = useRouter();
   const { token, user, setProfile } = useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [shop, setShop] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,7 +89,12 @@ export function ProfileForm() {
       });
       setCurrentPassword("");
       setNewPassword("");
-      setOk("Password updated successfully.");
+      // The API revoked every session for this account, so there is nothing left to stay signed in with.
+      setOk("Password updated. Signing you out — please sign in with your new password.");
+      window.setTimeout(async () => {
+        await logoutSession();
+        router.replace(homePathFor());
+      }, 1500);
     } catch (err) {
       setError(formatApiError(err, "Could not change password"));
     } finally {
@@ -298,13 +310,22 @@ export function ProfileForm() {
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
-                    type="password"
+                    type={showCurrent ? "text" : "password"}
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-semibold text-navy-950 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-semibold text-navy-950 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                     placeholder="Enter current password"
                   />
+                  <button
+                    type="button"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    onClick={() => setShowCurrent(!showCurrent)}
+                    tabIndex={-1}
+                    aria-label={showCurrent ? "Hide password" : "Show password"}
+                  >
+                    {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -315,14 +336,23 @@ export function ProfileForm() {
                 <div className="relative">
                   <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
-                    type="password"
+                    type={showNew ? "text" : "password"}
                     required
                     minLength={8}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-semibold text-navy-950 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                    className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-semibold text-navy-950 placeholder-slate-400 transition-colors focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                     placeholder="At least 8 characters"
                   />
+                  <button
+                    type="button"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    onClick={() => setShowNew(!showNew)}
+                    tabIndex={-1}
+                    aria-label={showNew ? "Hide password" : "Show password"}
+                  >
+                    {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-slate-400">
                   Minimum 8 characters with a mix of numbers & symbols recommended.

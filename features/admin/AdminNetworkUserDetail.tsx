@@ -3,9 +3,29 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { BadgeCheck, Building2, Copy, Phone, Plus, Store } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BadgeCheck,
+  RefreshCw,
+  Building2,
+  Clock,
+  Copy,
+  KeyRound,
+  Lock,
+  MapPin,
+  Phone,
+  Plus,
+  Send,
+  Store,
+  Unlock,
+  User,
+  UserPlus,
+  Users,
+  UserX,
+  Wallet,
+} from "lucide-react";
 import { EkycBadge } from "@/features/sales/EkycBadge";
-import { AgentEkycModal, agentEkycVerified, agentKycStatus } from "@/features/admin/AgentEkycModal";
+import { AgentEkycModal, AgentEkycStatusModal, agentEkycLinkOpened, agentEkycVerified, agentKycStatus } from "@/features/admin/AgentEkycModal";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { inr, maskMobile, when, createdByLabel } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -15,6 +35,8 @@ import { emptyRetailerDraft, RetailerOnboardFields, retailerDraftReady, type Ret
 import { retailerLocationFromKyc, retailerLocationLine } from "@/features/admin/retailer-location";
 import { ManageMenu, type ManageAction } from "@/features/console/EntityChrome";
 import { SalesTable, type SalesLead } from "@/features/sales/SalesTable";
+import { ActivationRequestModal } from "@/features/finance/ActivationRequestModal";
+import { RetailerRequestsPanel } from "@/features/finance/RetailerRequestsPanel";
 import type { Hub, UserDetail, UserRow } from "@/features/admin/types";
 
 type RetailerCustomer = {
@@ -33,20 +55,9 @@ type RetailerCustomer = {
 const primaryActionClass =
   "inline-flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-200";
 
-function initials(name: string) {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
-}
-
 type DistributorModal = "hub" | "password" | "adjust" | "freeze" | "inactivate" | "retailer" | null;
 
-type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | null;
+type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "activation" | null;
 
 export function AdminDistributorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +79,7 @@ export function AdminDistributorDetail() {
   const [customersError, setCustomersError] = useState<string | null>(null);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [ekycOpen, setEkycOpen] = useState(false);
 
   async function load() {
@@ -156,8 +168,8 @@ export function AdminDistributorDetail() {
         body: JSON.stringify({
           fullName: retailerDraft.fullName.trim(),
           mobile: retailerDraft.mobile,
+          email: retailerDraft.email.trim(),
           password: retailerDraft.password,
-          email: `${retailerDraft.mobile}@gfinpay.com`,
           distributorId: id,
           city: retailerDraft.city.trim(),
           state: retailerDraft.state,
@@ -187,150 +199,220 @@ export function AdminDistributorDetail() {
     setTimeout(() => setCopied(false), 1600);
   }
 
+  async function copyCode() {
+    if (!user?.code) return;
+    await navigator.clipboard.writeText(user.code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1600);
+  }
+
   if (loadError) return <Alert tone="error">{loadError}</Alert>;
   if (!user) return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
 
   const hubLine = [user.hub_name, user.hub_code ? `(${user.hub_code})` : ""].filter(Boolean).join(" ");
   const ekycVerified = agentEkycVerified(user);
+  const isFrozen = user.wallet?.status === "FROZEN";
   const manageActions: ManageAction[] = [
-    { label: "Change hub", onClick: () => setModal("hub") },
-    { label: "Adjust wallet", onClick: () => setModal("adjust") },
-    { label: "Freeze wallet", onClick: () => setModal("freeze") },
-    ...(user.status === "ACTIVE" ? [{ label: "Inactivate", onClick: () => setModal("inactivate") }] : []),
-    { label: "Reset password", onClick: () => setModal("password") },
+    {
+      label: "New Retailer",
+      icon: <UserPlus className="h-4 w-4" />,
+      onClick: () => setModal("retailer"),
+    },
+    ...(!ekycVerified
+      ? [
+          {
+            label: "Complete eKYC",
+            icon: <BadgeCheck className="h-4 w-4" />,
+            onClick: () => setEkycOpen(true),
+          },
+        ]
+      : []),
+    {
+      label: "Change hub",
+      icon: <Building2 className="h-4 w-4" />,
+      onClick: () => setModal("hub"),
+    },
+    {
+      label: "Adjust wallet",
+      icon: <Wallet className="h-4 w-4" />,
+      onClick: () => setModal("adjust"),
+    },
+    {
+      label: isFrozen ? "Unfreeze wallet" : "Freeze wallet",
+      icon: isFrozen ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />,
+      onClick: () => setModal("freeze"),
+    },
+    ...(user.status === "ACTIVE"
+      ? [
+          {
+            label: "Inactivate",
+            icon: <UserX className="h-4 w-4" />,
+            onClick: () => setModal("inactivate"),
+            tone: "danger" as const,
+          },
+        ]
+      : []),
+    {
+      label: "Reset password",
+      icon: <KeyRound className="h-4 w-4" />,
+      onClick: () => setModal("password"),
+    },
   ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <Link href="/admin/distributors" className="text-sm font-semibold text-slate-600 hover:text-navy-950 inline-flex items-center gap-1.5">
-          ← Back to All Distributors
+      {/* Top Navigation */}
+      <div>
+        <Link
+          href="/admin/distributors"
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors"
+        >
+          ← Back to Distributors
         </Link>
       </div>
+
       <Flash message={flash.message} error={flash.error} />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5">
-        <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 sm:px-10 sm:py-10 text-white">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Simplified Profile Card with Manage Button on the Top Right */}
+      <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col sm:flex-row items-start justify-between gap-6">
-            <div className="flex min-w-0 items-start gap-5">
-              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-navy-950 shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20">
-                {initials(user.full_name)}
-              </div>
-              <div className="min-w-0 mt-0.5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white">{user.full_name}</h1>
-                  <StatusPill value={user.status} />
-                  <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                  <span className="font-mono text-emerald-300 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
-                    {user.code ?? "—"}
-                  </span>
-                  <span className="flex items-center gap-1 font-mono text-slate-300">
-                    <Phone className="h-3 w-3 text-slate-400" />
-                    {maskMobile(user.mobile)}
-                    <button
-                      type="button"
-                      className="rounded p-0.5 text-slate-400 hover:text-white"
-                      title="Copy Mobile"
-                      onClick={copyMobile}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                    {copied && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
-                  </span>
-                  <span className="flex items-center gap-1 text-slate-300">
-                    <Building2 className="h-3.5 w-3.5 text-emerald-400" />
-                    {hubLine || "No hub assigned"}
-                  </span>
-                </div>
-
-                <p className="mt-2 text-xs text-slate-400">
-                  Appointed {when(user.created_at)} · by {createdByLabel(user.created_by_name, user.created_by_code)}
-                </p>
-              </div>
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div className="space-y-3 min-w-0 pr-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-emerald-400 font-bold tracking-wider text-xs uppercase">
+                Master Distributor
+              </span>
+              <span className="text-slate-600">·</span>
+              <StatusPill value={user.status} />
+              <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
             </div>
 
-            <ManageMenu actions={manageActions} variant="onDark" />
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-tight">
+                {user.full_name}
+              </h1>
+            </div>
+
+            {/* Hub Territory Row */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-300">
+              <Building2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span className="font-medium text-slate-200">{hubLine || "Unassigned Hub"}</span>
+            </div>
+
+            {/* Row 1: GFINCODE & PHONE with copy */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {user.code && (
+                <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                  <span>{user.code}</span>
+                  <button
+                    type="button"
+                    className="text-emerald-400/70 hover:text-emerald-300 transition-colors"
+                    title="Copy GFIN Code"
+                    onClick={copyCode}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                  {copiedCode && <span className="text-[10px] text-emerald-400 font-bold ml-0.5">Copied!</span>}
+                </span>
+              )}
+
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-300 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
+                <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                <span>{maskMobile(user.mobile)}</span>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:text-white transition-colors"
+                  title="Copy Mobile"
+                  onClick={copyMobile}
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+                {copied && <span className="text-[10px] text-emerald-400 font-bold ml-0.5">Copied!</span>}
+              </span>
+            </div>
+
+            {/* Row 2: Time and User who created it */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 pt-0.5">
+              <span className="inline-flex items-center gap-1.5 text-slate-300">
+                <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span>{when(user.created_at)}</span>
+              </span>
+              <span className="text-slate-600">·</span>
+              <span className="inline-flex items-center gap-1.5 text-slate-300">
+                <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span>
+                  Created by{" "}
+                  <span className="font-medium text-white">
+                    {user.created_by_name || user.created_by || "Platform Admin"}
+                  </span>
+                  {user.created_by_code && (
+                    <span className="font-mono text-[10px] text-slate-400 ml-1">({user.created_by_code})</span>
+                  )}
+                </span>
+              </span>
+            </div>
           </div>
 
-          <div className="relative z-10 mt-6 flex flex-wrap gap-3 pt-6 border-t border-white/10">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 transition-colors disabled:opacity-50"
-              disabled={user.status !== "ACTIVE"}
-              onClick={() => setModal("retailer")}
-            >
-              <Plus className="h-4 w-4" /> Add Retailer Outlet
-            </button>
-            {!ekycVerified && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-md hover:bg-white/20 transition-colors"
-                onClick={() => setEkycOpen(true)}
-              >
-                <BadgeCheck className="h-4 w-4 text-emerald-400" /> Complete eKYC
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Float Stats Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
-          <div className="p-6 transition-colors hover:bg-slate-50/50">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Float</p>
-            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.wallet?.availableBalance)}</p>
-            <p className="mt-0.5 text-xs text-emerald-600">Disbursable to retailers</p>
-          </div>
-          <div className="p-6 transition-colors hover:bg-slate-50/50">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">On Hold</p>
-            <p className="mt-1 font-display text-2xl font-bold text-slate-700">{inr(user.wallet?.holdBalance)}</p>
-            <p className="mt-0.5 text-xs text-slate-400">In-flight transactions</p>
-          </div>
-          <div className="p-6 transition-colors hover:bg-slate-50/50">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Retail Network</p>
-            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{user.retailers?.length ?? 0} Outlets</p>
-            <p className="mt-0.5 text-xs text-slate-400">In assigned territory</p>
+          <div className="shrink-0">
+            <ManageMenu actions={manageActions} variant="onDark" compactOnMobile />
           </div>
         </div>
       </section>
 
+
+
       {/* Tabs & Table */}
       <section className="space-y-4">
-        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
-          {(["retailers", "customers", "transactions"] as const).map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === key
-                  ? "bg-navy-950 text-white shadow-sm"
-                  : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
-              }`}
-              onClick={() => setTab(key)}
-            >
-              {key === "retailers" ? "Downline Retailers" : key === "customers" ? "Customers Book" : "Ledger Transactions"}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1 w-fit">
+          {(["retailers", "customers", "transactions"] as const).map((key) => {
+            const isActive = tab === key;
+            const count =
+              key === "retailers"
+                ? user.retailers?.length ?? 0
+                : key === "customers"
+                ? customers.length
+                : user.recentTransactions?.length ?? 0;
+            const label =
+              key === "retailers"
+                ? "Retailers"
+                : key === "customers"
+                ? "Customers"
+                : "Transactions";
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                  isActive
+                    ? "bg-navy-950 text-white shadow-xs"
+                    : "text-slate-600 hover:text-navy-950"
+                }`}
+                onClick={() => setTab(key)}
+              >
+                {label}
+                {isActive && ` (${count})`}
+              </button>
+            );
+          })}
         </div>
+
         {tab === "retailers" ? (
           !user.retailers?.length ? (
             <EmptyState title="No retailers yet" body="Add a retailer to place under this distributor." />
           ) : (
             <DataTable
-              columns={["Retailer", "Code", "Location", "Mobile", "eKYC", "Status", ""]}
+              columns={["Retailer", "Code", "Location", "Mobile", "eKYC", "Status", "Action"]}
               rows={user.retailers.map((r) => [
-                r.full_name,
-                r.code ?? "—",
+                <span key={`${r.id}-name`} className="font-semibold text-navy-950">{r.full_name}</span>,
+                <span key={`${r.id}-code`} className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                  {r.code ?? "—"}
+                </span>,
                 retailerLocationLine({
                   city: r.city ?? r.retailer_city,
                   state: r.state ?? r.retailer_state,
                   pincode: r.pincode ?? r.retailer_pincode,
-                }),
+                }) || "—",
                 maskMobile(r.mobile),
                 <EkycBadge key={`${r.id}-kyc`} status={r.kyc_status} />,
                 <StatusPill key={r.id} value={r.status} />,
@@ -342,19 +424,18 @@ export function AdminDistributorDetail() {
           customersError ? (
             <Alert tone="error">{customersError}</Alert>
           ) : customersLoading ? (
-            <div className="card h-32 animate-pulse bg-[#f5f5f5]" />
+            <div className="card h-32 animate-pulse bg-slate-100" />
           ) : customers.length === 0 ? (
             <EmptyState title="No customers yet" body="Customers appear when this distributor or their retailers add them at the desk." />
           ) : (
             <DataTable
-              columns={["Name", "Mobile", "City", "Retailer", "Created by", "Code", "eKYC", "Added"]}
+              columns={["Customer", "Mobile", "Location", "Retailer", "Created By", "eKYC", "Created On"]}
               rows={customers.map((c) => [
-                c.full_name,
+                <span key={`${c.id}-name`} className="font-semibold text-navy-950">{c.full_name}</span>,
                 maskMobile(c.mobile),
                 [c.city, c.state].filter(Boolean).join(", ") || "—",
                 c.retailer_name ?? "—",
                 c.created_by ?? "—",
-                c.created_by_code ?? "—",
                 <EkycBadge key={`${c.id}-kyc`} status={c.ekyc_status} />,
                 c.created_at ? when(c.created_at) : "—",
               ])}
@@ -364,7 +445,7 @@ export function AdminDistributorDetail() {
           <EmptyState title="No transactions yet" body="Ledger activity for this distributor appears here." />
         ) : (
           <DataTable
-            columns={["When", "Type", "State", "Amount", ""]}
+            columns={["When", "Type", "Status", "Amount", "Action"]}
             rows={user.recentTransactions.map((t) => [
               when(t.created_at),
               t.txn_type.replaceAll("_", " "),
@@ -381,9 +462,11 @@ export function AdminDistributorDetail() {
           open={ekycOpen}
           userId={id}
           userName={user.full_name}
-          mobile={user.mobile}
+          userType={user.user_type}
+          email={user.email}
           token={token}
           onClose={() => setEkycOpen(false)}
+          onVerified={() => { load().catch(() => undefined); }}
         />
       )}
 
@@ -497,7 +580,9 @@ export function AdminRetailerDetail() {
   const [direction, setDirection] = useState("CREDIT");
   const [narration, setNarration] = useState("");
   const [modal, setModal] = useState<RetailerModal>(null);
-  const [tab, setTab] = useState<"sales" | "customers" | "transactions">("sales");
+  const [tab, setTab] = useState<"sales" | "customers" | "transactions" | "requests">("sales");
+  const [requestCount, setRequestCount] = useState(0);
+  const [requestTick, setRequestTick] = useState(0);
   const [sales, setSales] = useState<SalesLead[]>([]);
   const [salesError, setSalesError] = useState<string | null>(null);
   const [salesLoading, setSalesLoading] = useState(false);
@@ -505,7 +590,9 @@ export function AdminRetailerDetail() {
   const [customersError, setCustomersError] = useState<string | null>(null);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [ekycOpen, setEkycOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   async function load() {
     const [u, d] = await Promise.all([
@@ -610,6 +697,13 @@ export function AdminRetailerDetail() {
     setTimeout(() => setCopied(false), 1600);
   }
 
+  async function copyCode() {
+    if (!user?.code) return;
+    await navigator.clipboard.writeText(user.code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1600);
+  }
+
   if (loadError) return <Alert tone="error">{loadError}</Alert>;
   if (!user) return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
 
@@ -620,152 +714,240 @@ export function AdminRetailerDetail() {
   };
   const shopLine = retailerLocationLine(location);
   const ekycVerified = agentEkycVerified(user);
+  const ekycLinkOpened = agentEkycLinkOpened(user);
+  const isFrozen = user.wallet?.status === "FROZEN";
   const manageActions: ManageAction[] = [
-    { label: "Transfer distributor", onClick: () => setModal("transfer") },
-    { label: "Adjust wallet", onClick: () => setModal("adjust") },
-    { label: "Freeze wallet", onClick: () => setModal("freeze") },
-    ...(user.status === "ACTIVE" ? [{ label: "Inactivate", onClick: () => setModal("inactivate") }] : []),
-    { label: "Reset password", onClick: () => setModal("password") },
+    ...(!ekycVerified
+      ? [
+          {
+            label: ekycLinkOpened ? "Check status" : "Do eKYC",
+            icon: ekycLinkOpened ? <RefreshCw className="h-4 w-4" /> : <BadgeCheck className="h-4 w-4" />,
+            onClick: () => (ekycLinkOpened ? setStatusOpen(true) : setEkycOpen(true)),
+          },
+        ]
+      : []),
+    {
+      label: "Transfer distributor",
+      icon: <ArrowLeftRight className="h-4 w-4" />,
+      onClick: () => setModal("transfer"),
+    },
+    {
+      label: "Adjust wallet",
+      icon: <Wallet className="h-4 w-4" />,
+      onClick: () => setModal("adjust"),
+    },
+    {
+      label: isFrozen ? "Unfreeze wallet" : "Freeze wallet",
+      icon: isFrozen ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />,
+      onClick: () => setModal("freeze"),
+    },
+    ...(user.status === "PENDING" || user.status === "REJECTED"
+      ? [
+          {
+            label: "Request Activation",
+            icon: <Send className="h-4 w-4" />,
+            onClick: () => setModal("activation"),
+          },
+        ]
+      : []),
+    ...(user.status === "ACTIVE"
+      ? [
+          {
+            label: "Inactivate",
+            icon: <UserX className="h-4 w-4" />,
+            onClick: () => setModal("inactivate"),
+            tone: "danger" as const,
+          },
+        ]
+      : []),
+    ...(user.status === "APPROVED"
+      ? [
+          {
+            label: "Activate retailer",
+            icon: <BadgeCheck className="h-4 w-4" />,
+            onClick: () => {
+              api(`/api/v1/finance/retailers/${id}/activate`, { token, method: "POST", body: "{}" })
+                .then(() => load())
+                .then(() => flash.ok("Retailer is now active."))
+                .catch((e) => flash.fail(e, "Could not activate retailer"));
+            },
+          },
+        ]
+      : []),
+    {
+      label: "Reset password",
+      icon: <KeyRound className="h-4 w-4" />,
+      onClick: () => setModal("password"),
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Link href="/admin/retailers" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors">
-          ← Back to Retailers Directory
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Top Navigation */}
+      <div>
+        <Link
+          href="/admin/retailers"
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors"
+        >
+          ← Back to Retailers
         </Link>
-        <span className="text-xs text-slate-400 font-mono">ID: {user.id}</span>
       </div>
 
       <Flash message={flash.message} error={flash.error} />
 
-      {/* Main Luxury Hero Card */}
-      <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-100/60">
-        <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 text-white sm:px-10 sm:py-10">
-          {/* Subtle Ambient Glow */}
-          <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
-          <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+      {/* Simplified Profile Card with Manage Button on the Top Right */}
+      <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
-            <div className="flex items-start gap-5">
-              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-navy-950 shadow-lg shadow-emerald-500/20">
-                {initials(user.full_name)}
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div className="space-y-3 min-w-0 pr-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-emerald-400 font-bold tracking-wider text-xs uppercase">
+                Retailer Outlet
+              </span>
+              <span className="text-slate-600">·</span>
+              <StatusPill value={user.status} />
+              <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+            </div>
+
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-tight">
+                {user.full_name}
+              </h1>
+            </div>
+
+            {/* 1st Row: Location of the retailer only */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-300">
+              <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span className="font-medium text-slate-200">{shopLine || "Location not specified"}</span>
+            </div>
+
+            {/* 2nd Row: Distributor & Hub (without links) */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300">
+              <div className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span>
+                  Distributor:{" "}
+                  <span className="font-medium text-slate-200">
+                    {user.parent_name || "Direct Outlet (No Distributor)"}
+                  </span>
+                </span>
               </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{user.full_name}</h1>
-                  <StatusPill value={user.status} />
-                  <span className="[&_span]:ring-white/20">
-                    <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
-                  </span>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-300">
-                  <span className="font-mono text-emerald-400 font-bold tracking-widest">{user.code ?? "—"}</span>
-                  <span className="text-slate-500">·</span>
-                  <span className="flex items-center gap-1.5 font-mono">
-                    {maskMobile(user.mobile)}
-                    <button
-                      type="button"
-                      className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
-                      aria-label={copied ? "Mobile copied" : "Copy mobile"}
-                      onClick={copyMobile}
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                    {copied && <span className="text-[10px] text-emerald-400 font-bold ml-1">Copied!</span>}
-                  </span>
-                  <span className="text-slate-500">·</span>
-                  <span className="flex items-center gap-1 text-slate-300">
-                    <Store className="h-3.5 w-3.5 text-emerald-400" />
-                    {shopLine}
-                  </span>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                    {user.parent_name ? (
-                      <Link href={`/admin/distributors/${user.parent_id}`} className="text-emerald-400/90 underline hover:text-emerald-300 font-medium">
-                        {user.parent_name}
-                      </Link>
-                    ) : (
-                      "Direct Outlet (No Distributor)"
-                    )}
-                    {user.hub_name ? ` · ${user.hub_name}` : ""}
-                  </span>
-                  <span className="text-slate-600">·</span>
-                  <span>Onboarded {when(user.created_at)} by {createdByLabel(user.created_by_name, user.created_by_code)}</span>
-                </div>
+              <span className="text-slate-600">·</span>
+              <div className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span className="font-medium text-slate-200">
+                  {[user.hub_name, user.hub_code ? `(${user.hub_code})` : ""].filter(Boolean).join(" ") || "Unassigned Hub"}
+                </span>
               </div>
             </div>
 
-            <ManageMenu actions={manageActions} variant="onDark" />
+            {/* 3rd Row: GFINCODE & PHONE with copy */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {user.code && (
+                <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                  <span>{user.code}</span>
+                  <button
+                    type="button"
+                    className="text-emerald-400/70 hover:text-emerald-300 transition-colors"
+                    title="Copy GFIN Code"
+                    onClick={copyCode}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                  {copiedCode && <span className="text-[10px] text-emerald-400 font-bold ml-0.5">Copied!</span>}
+                </span>
+              )}
+
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-300 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
+                <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                <span>{maskMobile(user.mobile)}</span>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:text-white transition-colors"
+                  title="Copy Mobile"
+                  onClick={copyMobile}
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+                {copied && <span className="text-[10px] text-emerald-400 font-bold ml-0.5">Copied!</span>}
+              </span>
+            </div>
+
+            {/* 4th Row: Creation details */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 pt-0.5">
+              <span className="inline-flex items-center gap-1.5 text-slate-300">
+                <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span>{when(user.created_at)}</span>
+              </span>
+              <span className="text-slate-600">·</span>
+              <span className="inline-flex items-center gap-1.5 text-slate-300">
+                <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span>
+                  Created by{" "}
+                  <span className="font-medium text-white">
+                    {user.created_by_name || user.created_by || "Platform Admin"}
+                  </span>
+                  {user.created_by_code && (
+                    <span className="font-mono text-[10px] text-slate-400 ml-1">({user.created_by_code})</span>
+                  )}
+                </span>
+              </span>
+            </div>
           </div>
 
-          <div className="relative z-10 mt-6 flex flex-wrap gap-3 pt-6 border-t border-white/10">
-            {!ekycVerified && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-lg shadow-emerald-500/25 hover:bg-emerald-400 transition-colors"
-                onClick={() => setEkycOpen(true)}
-              >
-                <BadgeCheck className="h-4 w-4" /> Complete Outlet eKYC
-              </button>
-            )}
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-md hover:bg-white/20 transition-colors"
-              onClick={() => setModal("adjust")}
-            >
-              Adjust Till Balance
-            </button>
-          </div>
-        </div>
-
-        {/* Float Stats Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 bg-white">
-          <div className="p-6 transition-colors hover:bg-slate-50/50">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Available Till Float</p>
-            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.wallet?.availableBalance)}</p>
-            <p className="mt-0.5 text-xs text-emerald-600">Active counter balance</p>
-          </div>
-          <div className="p-6 transition-colors hover:bg-slate-50/50">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">On Hold</p>
-            <p className="mt-1 font-display text-2xl font-bold text-slate-700">{inr(user.wallet?.holdBalance)}</p>
-            <p className="mt-0.5 text-xs text-slate-400">In-flight transactions</p>
-          </div>
-          <div className="p-6 transition-colors hover:bg-slate-50/50">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Commissions</p>
-            <p className="mt-1 font-display text-2xl font-bold text-navy-950">{inr(user.commissionEarned)}</p>
-            <p className="mt-0.5 text-xs text-slate-400">Lifetime earned revenue</p>
+          <div className="shrink-0">
+            <ManageMenu actions={manageActions} variant="onDark" compactOnMobile />
           </div>
         </div>
       </section>
 
       {/* Tabs & Table */}
       <section className="space-y-4">
-        <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
-          {(["sales", "customers", "transactions"] as const).map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === key
-                  ? "bg-navy-950 text-white shadow-sm"
-                  : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
-              }`}
-              onClick={() => setTab(key)}
-            >
-              {key === "sales" ? "Sales Pipeline" : key === "customers" ? "Customer Directory" : "Counter Transactions"}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1 w-fit">
+          {(["sales", "customers", "transactions", "requests"] as const).map((key) => {
+            const isActive = tab === key;
+            const count =
+              key === "sales"
+                ? sales.length
+                : key === "customers"
+                ? customers.length
+                : key === "requests"
+                ? requestCount
+                : user.recentTransactions?.length ?? 0;
+            const label =
+              key === "sales"
+                ? "Sales"
+                : key === "customers"
+                ? "Customers"
+                : key === "requests"
+                ? "Requests"
+                : "Transactions";
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                  isActive
+                    ? "bg-navy-950 text-white shadow-xs"
+                    : "text-slate-600 hover:text-navy-950"
+                }`}
+                onClick={() => setTab(key)}
+              >
+                {label}
+                {isActive && ` (${count})`}
+              </button>
+            );
+          })}
         </div>
+
         {tab === "sales" ? (
           salesError ? (
             <Alert tone="error">{salesError}</Alert>
           ) : salesLoading ? (
-            <div className="card h-32 animate-pulse bg-slate-50" />
+            <div className="card h-32 animate-pulse bg-slate-100" />
+          ) : sales.length === 0 ? (
+            <EmptyState title="No sales leads yet" body="Leads generated by this retailer will appear here." />
           ) : (
             <SalesTable rows={sales} detailBase="/admin/sales" hideRetailer />
           )
@@ -773,28 +955,41 @@ export function AdminRetailerDetail() {
           customersError ? (
             <Alert tone="error">{customersError}</Alert>
           ) : customersLoading ? (
-            <div className="card h-32 animate-pulse bg-slate-50" />
+            <div className="card h-32 animate-pulse bg-slate-100" />
           ) : customers.length === 0 ? (
             <EmptyState title="No customers yet" body="Customers appear here when this retailer adds them at the desk." />
           ) : (
             <DataTable
-              columns={["Name", "Mobile", "City", "Created by", "Code", "eKYC", "Added"]}
+              columns={["Customer", "Mobile", "Location", "Created By", "Code", "eKYC", "Created On"]}
               rows={customers.map((c) => [
-                c.full_name,
+                <span key={`${c.id}-name`} className="font-semibold text-navy-950">{c.full_name}</span>,
                 maskMobile(c.mobile),
                 [c.city, c.state].filter(Boolean).join(", ") || "—",
                 c.created_by ?? "—",
-                c.created_by_code ?? "—",
+                c.created_by_code ? (
+                  <span key={`${c.id}-code`} className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                    {c.created_by_code}
+                  </span>
+                ) : (
+                  "—"
+                ),
                 <EkycBadge key={`${c.id}-kyc`} status={c.ekyc_status} />,
                 c.created_at ? when(c.created_at) : "—",
               ])}
             />
           )
+        ) : tab === "requests" && id ? (
+          <RetailerRequestsPanel
+            token={token}
+            retailerId={id}
+            refreshKey={requestTick}
+            onCount={setRequestCount}
+          />
         ) : !user.recentTransactions?.length ? (
           <EmptyState title="No transactions yet" body="Outlet desk activity appears here." />
         ) : (
           <DataTable
-            columns={["When", "Type", "State", "Amount", ""]}
+            columns={["When", "Type", "Status", "Amount", "Action"]}
             rows={user.recentTransactions.map((t) => [
               when(t.created_at),
               t.txn_type.replaceAll("_", " "),
@@ -807,14 +1002,26 @@ export function AdminRetailerDetail() {
       </section>
 
       {id && (
-        <AgentEkycModal
-          open={ekycOpen}
-          userId={id}
-          userName={user.full_name}
-          mobile={user.mobile}
-          token={token}
-          onClose={() => setEkycOpen(false)}
-        />
+        <>
+          <AgentEkycModal
+            open={ekycOpen}
+            userId={id}
+            userName={user.full_name}
+            userType={user.user_type}
+            email={user.email}
+            token={token}
+            onClose={() => setEkycOpen(false)}
+            onVerified={() => { load().catch(() => undefined); }}
+          />
+          <AgentEkycStatusModal
+            open={statusOpen}
+            userId={id}
+            userName={user.full_name}
+            token={token}
+            onClose={() => setStatusOpen(false)}
+            onVerified={() => { load().catch(() => undefined); }}
+          />
+        </>
       )}
 
       <FormModal open={modal === "transfer"} title="Transfer distributor" description="Moves the outlet and its hub." onClose={() => setModal(null)} onSubmit={transfer} submitLabel="Transfer">
@@ -834,6 +1041,21 @@ export function AdminRetailerDetail() {
       <FormModal open={modal === "inactivate"} title="Inactivate retailer" onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); patchStatus("SUSPENDED"); }} submitLabel="Inactivate">
         <p className="text-sm text-navy-600">The outlet desk will not accept new transactions until reactivated.</p>
       </FormModal>
+      {id && (
+        <ActivationRequestModal
+          open={modal === "activation"}
+          token={token}
+          retailerId={id}
+          onClose={() => setModal(null)}
+          onSubmitted={() => {
+            setModal(null);
+            setTab("requests");
+            setRequestTick((n) => n + 1);
+            load().then(() => flash.ok("Activation request submitted.")).catch(() => undefined);
+          }}
+          onError={(err) => flash.fail(err, "Could not submit the activation request")}
+        />
+      )}
     </div>
   );
 }

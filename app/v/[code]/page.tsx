@@ -205,17 +205,33 @@ export default function VendorConsolePage() {
   }
 
   if (error && !vendor) {
+    const isInactive = error.toLowerCase().includes("not active") || error.toLowerCase().includes("inactive");
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-16">
         <div className="w-full max-w-md text-center space-y-5 rounded-3xl border border-slate-200/90 bg-white p-8 shadow-xl">
           <Logo compact />
-          <div className="inline-flex rounded-full bg-rose-50 border border-rose-200 px-3.5 py-1 text-xs font-bold text-rose-700">
-            Console Unavailable
+          <div
+            className={`inline-flex rounded-full px-3.5 py-1 text-xs font-bold ${
+              isInactive
+                ? "bg-amber-50 border border-amber-200 text-amber-800"
+                : "bg-rose-50 border border-rose-200 text-rose-700"
+            }`}
+          >
+            {isInactive ? "Link Inactive" : "Console Unavailable"}
           </div>
-          <h1 className="font-display text-2xl font-bold text-navy-950">Vendor Profile Not Found</h1>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{error}</p>
+          <h1 className="font-display text-2xl font-bold text-navy-950">
+            {isInactive ? "This URL is not active" : "Vendor Profile Not Found"}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            {isInactive
+              ? "The vendor agency associated with this portal is currently inactive. All links generated for this agency are disabled."
+              : error}
+          </p>
           <div className="pt-2">
-            <Link href="/" className="btn-secondary !py-2.5 !px-5 text-xs font-bold inline-flex items-center gap-1.5">
+            <Link
+              href="/"
+              className="btn-secondary !py-2.5 !px-5 text-xs font-bold inline-flex items-center gap-1.5"
+            >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Return to Homepage</span>
             </Link>

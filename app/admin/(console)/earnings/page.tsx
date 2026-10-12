@@ -131,7 +131,7 @@ export default function AdminEarningsPage() {
   }, [filterOptions, draft.hubId, draft.distributorId]);
 
   const hubOptions = filterOptions?.hubs ?? [];
-  const showHubFilter = userType === "SUPER_ADMIN" && hubOptions.length > 0;
+  const showHubFilter = (userType === "SUPER_ADMIN" || userType === "ADMIN") && hubOptions.length > 0;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

@@ -37,13 +37,27 @@ export function formatApiError(err: unknown, fallback: string) {
   return fallback;
 }
 
-async function handleUnauthorized(status: number, code: string | undefined) {
-  if (status !== 401 || code !== "UNAUTHENTICATED") return;
+function isAuthFailure(status: number, code: string | undefined) {
+  return status === 401 && (code === "UNAUTHENTICATED" || code === "SESSION_EXPIRED");
+}
+
+/**
+ * Tries to rotate the refresh cookie into a new access token. Returns the token when the
+ * caller should retry, or null once the session is genuinely gone.
+ */
+async function recoverSession(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const { refreshSession } = await import("@/lib/auth-client");
+  return refreshSession();
+}
+
+/** Last resort when refresh fails: drop the session and send the user to the public home page. */
+async function abandonSession() {
   if (typeof window === "undefined") return;
-  const { useSession } = await import("@/stores/session.store");
+  const { useSession, HOME_PATH } = await import("@/stores/session.store");
   useSession.getState().clear();
-  if (!window.location.pathname.startsWith("/login")) {
-    window.location.assign("/login");
+  if (window.location.pathname !== HOME_PATH) {
+    window.location.assign(HOME_PATH);
   }
 }
 
@@ -66,17 +80,34 @@ export async function api<T>(
   begin();
   let held = false;
   try {
-    const headers = new Headers(init.headers);
-    headers.set("Content-Type", "application/json");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
-    if (agentId) headers.set("X-Agent-Id", agentId);
+    const send = async (bearer: string | null | undefined) => {
+      const headers = new Headers(init.headers);
+      headers.set("Content-Type", "application/json");
+      if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
+      if (idempotencyKey) headers.set("Idempotency-Key", idempotencyKey);
+      if (agentId) headers.set("X-Agent-Id", agentId);
+      // Login sets the httpOnly refresh cookie. A cross-origin call (UI on :3001, API on
+      // :8090) drops Set-Cookie unless the request opts into credentials.
+      const res = await fetch(`${BASE}${path}`, {
+        ...init,
+        headers,
+        credentials: path.startsWith("/api/v1/auth/") ? "include" : init.credentials,
+      });
+      return { res, json: (await res.json()) as ApiEnvelope<T> };
+    };
 
-    const res = await fetch(`${BASE}${path}`, { ...init, headers });
-    const json = (await res.json()) as ApiEnvelope<T>;
+    let { res, json } = await send(token);
+    if (token && json.error && isAuthFailure(res.status, json.error.code)) {
+      const refreshed = await recoverSession();
+      if (refreshed) {
+        ({ res, json } = await send(refreshed));
+      }
+    }
     if (!res.ok || json.error) {
       const err = json.error ?? { code: "HTTP_ERROR", message: `Request failed (${res.status})`, retriable: res.status >= 500 };
-      await handleUnauthorized(res.status, err.code);
+      if (isAuthFailure(res.status, err.code)) {
+        await abandonSession();
+      }
       throw new ApiClientError(res.status, err);
     }
     held = holdLoader === true;
@@ -95,13 +126,25 @@ export async function apiForm<T>(
   begin();
   let held = false;
   try {
-    const headers = new Headers();
-    if (options.token) headers.set("Authorization", `Bearer ${options.token}`);
-    const res = await fetch(`${BASE}${path}`, { method: "POST", headers, body: form });
-    const json = (await res.json()) as ApiEnvelope<T>;
+    const send = async (bearer: string | null | undefined) => {
+      const headers = new Headers();
+      if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
+      const res = await fetch(`${BASE}${path}`, { method: "POST", headers, body: form });
+      return { res, json: (await res.json()) as ApiEnvelope<T> };
+    };
+
+    let { res, json } = await send(options.token);
+    if (options.token && json.error && isAuthFailure(res.status, json.error.code)) {
+      const refreshed = await recoverSession();
+      if (refreshed) {
+        ({ res, json } = await send(refreshed));
+      }
+    }
     if (!res.ok || json.error) {
       const err = json.error ?? { code: "HTTP_ERROR", message: `Request failed (${res.status})`, retriable: res.status >= 500 };
-      await handleUnauthorized(res.status, err.code);
+      if (isAuthFailure(res.status, err.code)) {
+        await abandonSession();
+      }
       throw new ApiClientError(res.status, err);
     }
     held = options.holdLoader === true;

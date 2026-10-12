@@ -14,8 +14,8 @@ const FAQS: FaqItem[] = [
     a: "No! All services (Money Transfer, Bill Pay, Mobile Recharge, and Credit Cards) work 100% on your existing smartphone or computer. You don't need any expensive machine.",
   },
   {
-    q: "When does my commission get credited?",
-    a: "Instantly. Within 5 seconds of the transaction succeeding, your commission is credited directly into your retailer wallet balance.",
+    q: "How fast is transaction settlement?",
+    a: "Instantly. Transactions settle sub-second with real-time bank switch confirmation and immediate wallet balance updates.",
   },
   {
     q: "How do I add money (float) to my wallet?",
@@ -27,7 +27,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Can I become a Master Distributor in my city?",
-    a: "Yes! Master Distributors onboard local Kirana stores and earn automatic commission on every transaction across their entire network. Call 1800 890 4040 to apply.",
+    a: "Yes! Master Distributors onboard local Kirana stores, allocate float, and manage regional operations across their network. Call 1800 890 4040 to apply.",
   },
 ];
 

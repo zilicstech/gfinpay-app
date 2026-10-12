@@ -1,4 +1,7 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, type ReactNode } from "react";
+import { X } from "lucide-react";
 
 type BadgeStyle = {
   container: string;
@@ -19,7 +22,12 @@ const badgeStyles: Record<string, BadgeStyle> = {
 
   // Pending / In progress
   PENDING: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  SUBMITTED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: true },
+  APPROVED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
   PENDING_KYC: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  PENDING_ACTIVATION: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  RECEIVED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
+  PAYMENT_RECEIVED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
   IN_PROGRESS: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: true },
   OPENED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
   LINK_CREATED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
@@ -34,17 +42,25 @@ const badgeStyles: Record<string, BadgeStyle> = {
   DEBIT: { container: "bg-rose-50 text-rose-800 ring-rose-500/25", dot: "bg-rose-500", ping: false },
 
   // Inactive / Suspended / Neutral
+  INACTIVE: { container: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400", ping: false },
   SUSPENDED: { container: "bg-amber-50/80 text-amber-900 ring-amber-300", dot: "bg-amber-400", ping: false },
   UNVERIFIED: { container: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400", ping: false },
   NOT_STARTED: { container: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400", ping: false },
+  OPEN: { container: "bg-sky-50 text-sky-800 ring-sky-200", dot: "bg-sky-500", ping: true },
+  WITH_HUB: { container: "bg-amber-50 text-amber-900 ring-amber-200", dot: "bg-amber-500", ping: false },
+  WITH_DISTRIBUTOR: { container: "bg-indigo-50 text-indigo-800 ring-indigo-200", dot: "bg-indigo-500", ping: false },
+  RETIRED: { container: "bg-slate-100 text-slate-600 ring-slate-200", dot: "bg-slate-400", ping: false },
+  NOT_INTERESTED: { container: "bg-rose-50 text-rose-800 ring-rose-200", dot: "bg-rose-500", ping: false },
   DISABLED: { container: "bg-slate-100 text-slate-600 ring-slate-200", dot: "bg-slate-400", ping: false },
 
   // Role Chips
-  ADMIN: { container: "bg-slate-900 text-amber-300 ring-slate-800", dot: "bg-amber-400", ping: false },
+  ADMIN: { container: "bg-slate-900 text-sky-300 ring-slate-800", dot: "bg-sky-400", ping: false },
+  HUBADMIN: { container: "bg-slate-900 text-amber-300 ring-slate-800", dot: "bg-amber-400", ping: false },
   SUPER_ADMIN: { container: "bg-slate-900 text-emerald-300 ring-slate-800", dot: "bg-emerald-400", ping: false },
   DISTRIBUTOR: { container: "bg-emerald-950 text-emerald-300 ring-emerald-800/40", dot: "bg-emerald-400", ping: false },
   MASTER_DISTRIBUTOR: { container: "bg-emerald-950 text-emerald-300 ring-emerald-800/40", dot: "bg-emerald-400", ping: false },
   RETAILER: { container: "bg-indigo-950 text-indigo-300 ring-indigo-800/40", dot: "bg-indigo-400", ping: false },
+  AUDITOR: { container: "bg-slate-900 text-cyan-300 ring-slate-800", dot: "bg-cyan-400", ping: false },
 };
 
 /** Active step / tab / chip — matches header avatar (black + emerald). */
@@ -188,6 +204,7 @@ export function Modal({
   open,
   title,
   description,
+  onClose,
   wide = false,
   children,
 }: {
@@ -198,16 +215,61 @@ export function Modal({
   wide?: boolean;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose?.();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4">
-      <div className="absolute inset-0 bg-navy-950/40" aria-hidden />
-      <div className={`relative z-10 w-full rounded-2xl border border-navy-900/10 bg-white p-6 shadow-xl ${wide ? "max-w-5xl" : "max-w-lg"}`}>
-        <div className="mb-4">
-          <h2 className="font-display text-2xl text-navy-950">{title}</h2>
-          {description && <p className="mt-1 text-sm text-navy-600">{description}</p>}
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex justify-center">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-navy-950/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+        onClick={onClose}
+        aria-hidden
+      />
+
+      {/* Modal Dialog Card */}
+      <div
+        className={`relative z-10 m-auto w-full max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] flex flex-col rounded-3xl border border-navy-900/10 bg-white p-6 sm:p-7 shadow-2xl transition-all duration-200 animate-in zoom-in-95 ${
+          wide ? "max-w-5xl" : "max-w-lg"
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-4 shrink-0 border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="font-display text-xl sm:text-2xl font-bold text-navy-950 tracking-tight">{title}</h2>
+            {description && <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed">{description}</p>}
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-400 hover:text-navy-950 rounded-xl p-1.5 hover:bg-slate-100 transition-colors shrink-0 -mr-1 -mt-1"
+              aria-label="Close dialog"
+              title="Close (Esc)"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
-        {children}
+
+        {/* Scrollable Body */}
+        <div className="overflow-y-auto min-h-0 flex-1 pr-1 -mr-1">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -258,3 +320,5 @@ export function DataTable({
     </>
   );
 }
+
+export { CustomSelect, type SelectOption } from "./CustomSelect";

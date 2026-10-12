@@ -3,5 +3,5 @@
 import { CustomerHistory } from "@/features/sales/CustomerHistory";
 
 export default function AdminCustomerDetailPage() {
-  return <CustomerHistory basePath="/admin/customers" />;
+  return <CustomerHistory basePath="/admin/customers" manage />;
 }

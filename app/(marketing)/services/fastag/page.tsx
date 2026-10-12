@@ -12,7 +12,6 @@ export default function Page() {
       kicker="FASTag Toll"
       title="Enter Vehicle Number & Recharge FASTag Instantly"
       art="fastag"
-      commission="0.25% to 0.50% Instant Margin (Direct Commission)"
       lead="Commercial drivers and vehicle owners need quick toll recharges. Type vehicle registration number, see current balance, accept cash, and recharge in seconds."
       partners={[
         "SBI FASTag",

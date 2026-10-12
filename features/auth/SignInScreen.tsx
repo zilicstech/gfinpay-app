@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api-client";
+import { markActivity } from "@/lib/session-activity";
 import { homeFor, useSession, useSessionHydrated } from "@/stores/session.store";
 import { Logo } from "@/components/brand/Logo";
 import { Alert } from "@/components/ui/primitives";
@@ -35,7 +36,7 @@ export function SignInScreen({
   panel?: ReactNode;
 }) {
   const router = useRouter();
-  const { user, token, setAuth } = useSession();
+  const { user, token, setAuth, loadProfile, bootstrapped } = useSession();
   const hydrated = useSessionHydrated();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -44,8 +45,11 @@ export function SignInScreen({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (hydrated && token && user?.userType) router.replace(homeFor(user.userType));
-  }, [hydrated, router, token, user]);
+    // Wait for the silent refresh so a reload does not briefly show the form to a signed-in user.
+    if (hydrated && bootstrapped && token && user?.userType) {
+      router.replace(homeFor(user.userType, user.status));
+    }
+  }, [bootstrapped, hydrated, router, token, user]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -57,7 +61,10 @@ export function SignInScreen({
         body: JSON.stringify({ identifier, password }),
       });
       setAuth(data.token, data.role, data.expiresAt);
-      router.replace(homeFor(data.role));
+      // Resets the idle clock, which may still hold a stamp from an earlier session.
+      markActivity();
+      const profile = await loadProfile();
+      router.replace(homeFor(profile.userType, profile.status));
     } catch (err) {
       setError(err instanceof ApiClientError ? err.error.message : "Unable to sign in");
     } finally {
@@ -233,11 +240,11 @@ export function SignInScreen({
             </p>
             <div>
               <Link
-                href="/"
+                href="/contact"
                 className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Return to Gfinpay Homepage</span>
+                <span>Become a partner</span>
+                <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>

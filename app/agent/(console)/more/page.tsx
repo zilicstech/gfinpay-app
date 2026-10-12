@@ -30,6 +30,7 @@ const ICONS: Record<string, { icon: typeof Zap; color: string; bg: string }> = {
   "/agent/transactions": { icon: Receipt, color: "text-indigo-500", bg: "bg-indigo-50" },
   "/agent/reports": { icon: PieChart, color: "text-cyan-500", bg: "bg-cyan-50" },
   "/agent/profile": { icon: UserRound, color: "text-slate-600", bg: "bg-slate-100" },
+  "/agent/settings": { icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
 };
 
 export default function AgentMorePage() {

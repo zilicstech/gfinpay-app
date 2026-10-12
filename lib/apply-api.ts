@@ -13,7 +13,7 @@ function backendOrigin() {
   return "";
 }
 
-async function callApi<T>(path: string, method: "GET" | "POST"): Promise<{ status: number; body: ApiEnvelope<T> }> {
+async function callApi<T>(path: string, method: "GET" | "POST", payload?: unknown): Promise<{ status: number; body: ApiEnvelope<T> }> {
   const origin = backendOrigin();
   if (!origin) {
     return {
@@ -23,7 +23,11 @@ async function callApi<T>(path: string, method: "GET" | "POST"): Promise<{ statu
   }
   const res = await fetch(`${origin}${path}`, {
     method,
-    headers: { Accept: "application/json" },
+    headers: {
+      Accept: "application/json",
+      ...(payload === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
     cache: "no-store",
   });
   let body: ApiEnvelope<T>;
@@ -41,4 +45,20 @@ export function lookupApply(token: string) {
 
 export function startApply(token: string) {
   return callApi<ApplyStart>(`/api/v1/public/apply/${encodeURIComponent(token)}/start`, "POST");
+}
+
+export type EkycStatus = { active: boolean; kyc_status: string };
+export type EkycStart = { url: string; method?: string };
+export type EkycComplete = { completed: boolean };
+
+export function lookupEkyc(token: string) {
+  return callApi<EkycStatus>(`/api/v1/public/ekyc/${encodeURIComponent(token)}`, "GET");
+}
+
+export function startEkyc(token: string) {
+  return callApi<EkycStart>(`/api/v1/public/ekyc/${encodeURIComponent(token)}/start`, "POST");
+}
+
+export function completeEkyc(token: string, data: string) {
+  return callApi<EkycComplete>(`/api/v1/public/ekyc/${encodeURIComponent(token)}/complete`, "POST", { data });
 }

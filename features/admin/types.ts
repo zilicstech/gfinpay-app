@@ -28,6 +28,7 @@ export type UserRow = {
   parent_id?: string;
   hub_id?: string;
   hub_name?: string;
+  hub_names?: string;
   hub_code?: string;
   shop_name?: string;
   retailer_city?: string;
@@ -61,6 +62,13 @@ export type WalletInfo = {
 
 export type UserDetail = UserRow & {
   retailers?: UserRow[];
+  distributors?: (UserRow & { retailer_count?: number })[];
+  assignedHubs?: (Hub & { assigned_at?: string })[];
+  platformStats?: {
+    totalHubs: number;
+    totalDistributors: number;
+    totalRetailers: number;
+  };
   wallet?: WalletInfo | null;
   recentTransactions?: TxnRow[];
   commissionEarned?: number;
@@ -71,9 +79,14 @@ export type UserDetail = UserRow & {
     pincode?: string;
     gstin?: string;
     kyc_status?: string;
+    paysprint_onboard_issued_at?: string | null;
     rejection_reason?: string;
     aadhaar_last4?: string;
   } | null;
+  activation?: {
+    canActivate?: boolean;
+    latest?: { id: string; status: string; amount?: number; utr?: string } | null;
+  };
 };
 
 export type TxnRow = {

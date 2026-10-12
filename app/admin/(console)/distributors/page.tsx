@@ -5,23 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   ArrowRight, 
+  BadgeCheck,
   Building2, 
-  CheckCircle2, 
   Copy, 
-  MapPin, 
-  Phone, 
   Plus, 
   Search, 
-  ShieldCheck, 
-  Store, 
-  Users 
+  ShieldAlert,
 } from "lucide-react";
 import { api, openDetails } from "@/lib/api-client";
-import { createdByLabel, maskMobile, when } from "@/lib/format";
+import { createdByLabel, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
-import { DataTable, EmptyState, PageHeader, StatCard, StatusPill } from "@/components/ui/primitives";
+import { DataTable, EmptyState, PageHeader, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, SelectField, TextField, ViewLink, useFlash } from "@/features/admin/AdminChrome";
-import { EkycBadge } from "@/features/sales/EkycBadge";
 import type { Hub, UserRow } from "@/features/admin/types";
 
 export default function DistributorsPage() {
@@ -79,7 +74,7 @@ export default function DistributorsPage() {
         token,
         method: "POST",
         holdLoader: true,
-        body: JSON.stringify({ fullName: name, mobile, password, email: `${mobile}@gfinpay.com`, hubId }),
+        body: JSON.stringify({ fullName: name, mobile, password, hubId }),
       });
       openDetails(`/admin/distributors/${created.id}`, (href) => router.push(href));
     } catch (err) {
@@ -87,12 +82,6 @@ export default function DistributorsPage() {
     }
   }
 
-  const metrics = useMemo(() => {
-    const total = users.length;
-    const active = users.filter((u) => u.status === "ACTIVE").length;
-    const verified = users.filter((u) => u.kyc_status === "VERIFIED").length;
-    return { total, active, verified, hubCount: hubs.length };
-  }, [users, hubs]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
@@ -135,37 +124,11 @@ export default function DistributorsPage() {
           disabled={hubs.length === 0}
         >
           <Plus className="h-4 w-4" />
-          Appoint Distributor
+          New Distributor
         </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Distributors"
-          value={String(metrics.total)}
-          hint="Regional master partners"
-          icon={<Users className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Active Networks"
-          value={String(metrics.active)}
-          hint="Operating downlines"
-          icon={<CheckCircle2 className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Hub Geographies"
-          value={String(metrics.hubCount)}
-          hint="Configured in Settings"
-          icon={<Building2 className="h-5 w-5" />}
-        />
-        <StatCard
-          label="eKYC Verified"
-          value={String(metrics.verified)}
-          hint="Fully documented"
-          icon={<ShieldCheck className="h-5 w-5" />}
-        />
-      </div>
+
 
       <Flash message={flash.message} error={flash.error} />
 
@@ -178,20 +141,24 @@ export default function DistributorsPage() {
               ["ACTIVE", "Active Only"],
               ["PENDING_KYC", "Pending KYC"],
               ["SUSPENDED", "Suspended"],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setStatusTab(key)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  statusTab === key
-                    ? "bg-navy-950 text-white shadow-xs"
-                    : "text-slate-600 hover:text-navy-950"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            ] as const).map(([key, label]) => {
+              const isActive = statusTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setStatusTab(key)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                    isActive
+                      ? "bg-navy-950 text-white shadow-xs"
+                      : "text-slate-600 hover:text-navy-950"
+                  }`}
+                >
+                  {label}
+                  {isActive && ` (${filteredUsers.length})`}
+                </button>
+              );
+            })}
           </div>
 
           <div className="relative min-w-[18rem]">
@@ -223,46 +190,59 @@ export default function DistributorsPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
                 <tr>
-                  <th className="px-6 py-4">Distributor Partner</th>
-                  <th className="px-6 py-4">Hub Territory</th>
-                  <th className="px-6 py-4">Mobile</th>
-                  <th className="px-6 py-4">eKYC</th>
+                  <th className="px-6 py-4">Distributor</th>
+                  <th className="px-6 py-4">Hub</th>
+                  <th className="px-6 py-4">Created By</th>
+                  <th className="px-6 py-4">Created On</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Appointed</th>
                   <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-800 font-bold text-sm shrink-0 ring-1 ring-emerald-300/60">
-                          {u.full_name.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-navy-950 text-sm">{u.full_name}</p>
-                          <div className="mt-0.5 flex items-center gap-1.5">
-                            <span className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                              {u.code ?? "—"}
+                {filteredUsers.map((u) => {
+                  const isVerified = (u.kyc_status ?? "").toUpperCase() === "VERIFIED";
+                  return (
+                    <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-start gap-2.5">
+                          {isVerified ? (
+                            <span
+                              className="mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-500/25 shrink-0"
+                              title="eKYC Verified"
+                            >
+                              <BadgeCheck className="h-4 w-4" />
                             </span>
-                            {u.code && (
-                              <button
-                                type="button"
-                                onClick={() => copy(u.code!)}
-                                className="text-slate-400 hover:text-slate-700"
-                                title="Copy Code"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </button>
-                            )}
-                            {copiedCode === u.code && (
-                              <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
-                            )}
+                          ) : (
+                            <span
+                              className="mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-500/25 shrink-0"
+                              title="eKYC Unverified"
+                            >
+                              <ShieldAlert className="h-4 w-4" />
+                            </span>
+                          )}
+                          <div>
+                            <p className="font-semibold text-navy-950 text-sm">{u.full_name}</p>
+                            <div className="mt-0.5 flex items-center gap-1.5">
+                              <span className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {u.code ?? "—"}
+                              </span>
+                              {u.code && (
+                                <button
+                                  type="button"
+                                  onClick={() => copy(u.code!)}
+                                  className="text-slate-400 hover:text-slate-700"
+                                  title="Copy Code"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </button>
+                              )}
+                              {copiedCode === u.code && (
+                                <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
@@ -271,17 +251,21 @@ export default function DistributorsPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-600">
-                      {maskMobile(u.mobile)}
-                    </td>
                     <td className="px-6 py-4">
-                      <EkycBadge status={u.kyc_status} />
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusPill value={u.status} />
+                      <div className="text-xs">
+                        <p className="font-medium text-slate-800">
+                          {u.created_by_name || u.created_by || "Platform Admin"}
+                        </p>
+                        {u.created_by_code && (
+                          <span className="font-mono text-[10px] text-slate-400">{u.created_by_code}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
                       {u.created_at ? when(u.created_at) : "—"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusPill value={u.status} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Link
@@ -293,8 +277,9 @@ export default function DistributorsPage() {
                       </Link>
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                );
+              })}
+            </tbody>
             </table>
           </div>
         )}

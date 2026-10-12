@@ -68,7 +68,7 @@ export default function Page() {
             <span>The Hold-Then-Capture Architecture</span>
           </div>
           <p className="text-sm text-emerald-950 leading-relaxed">
-            In {SITE.name}, wallets are never mutated in place. Instead, transactions are written to an append-only ledger. When a transfer begins, a `HOLD` entry moves ₹5,000 from available float to locked escrow. If the bank succeeds, a `CAPTURE` entry finalizes the payout and posts commissions. If the bank rejects or times out, an automated `REVERSAL` entry unlocks the hold immediately.
+            In {SITE.name}, wallets are never mutated in place. Instead, transactions are written to an append-only ledger. When a transfer begins, a `HOLD` entry moves ₹5,000 from available float to locked escrow. If the bank succeeds, a `CAPTURE` entry finalizes the payout and posts settlement entries. If the bank rejects or times out, an automated `REVERSAL` entry unlocks the hold immediately.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ export default function Page() {
         </h2>
 
         <p>
-          Every evening at 23:59:59 IST, our batch reconciliation engine compares the aggregate sum of all credits, debits, holds, and commission entries against the sponsor bank&apos;s settlement MIS file.
+          Every evening at 23:59:59 IST, our batch reconciliation engine compares the aggregate sum of all credits, debits, holds, and settlement entries against the sponsor bank&apos;s settlement MIS file.
         </p>
 
         <p>

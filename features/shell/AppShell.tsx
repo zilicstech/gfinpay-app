@@ -5,15 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard, Users, Store, PieChart, Percent, Wallet, ArrowLeftRight,
-  Landmark, LogOut, Settings, Shield, Receipt, Scale, LayoutGrid,
+  Landmark, LogOut, MessageSquare, Settings, Shield, ShieldCheck, Receipt, Scale, LayoutGrid,
   ChevronDown, UserRound, Zap, Smartphone, Tv, CarFront, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { NeonSpinner } from "@/components/ui/GlobalLoader";
+import { logoutSession } from "@/lib/auth-client";
 import {
   homeFor,
+  homePathFor,
   isSessionExpired,
-  loginPathFor,
   profilePathFor,
   roleLabel,
   useSession,
@@ -24,9 +25,10 @@ const SIDEBAR_KEY = "gfinpay-sidebar-collapsed";
 
 const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/analytics": PieChart,
-  "/admin/overview": LayoutDashboard,
   "/admin/distributors": Users,
   "/admin/retailers": Store,
+  "/admin/inquiries": MessageSquare,
+  "/distributor/inquiries": MessageSquare,
   "/admin/vendors": Store,
   "/admin/customers": UserRound,
   "/admin/onboarding": Users,
@@ -34,6 +36,15 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/reports": PieChart,
   "/admin/earnings": Percent,
   "/admin/admins": Shield,
+  "/admin/auditors": Scale,
+  "/admin/finance": Wallet,
+  "/auditor/overview": LayoutDashboard,
+  "/auditor/settings": Settings,
+  "/auditor/requests": Scale,
+  "/auditor/retailers": Wallet,
+  "/auditor/customers": UserRound,
+  "/auditor/profile": UserRound,
+  "/agent/activate": ShieldCheck,
   "/admin/transactions": Receipt,
   "/admin/recon": Scale,
   "/admin/sales": Receipt,
@@ -50,6 +61,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/distributor/overview": LayoutDashboard,
   "/distributor/earnings": Percent,
   "/distributor/agents": Store,
+  "/distributor/finance": Wallet,
   "/distributor/customers": Users,
   "/distributor/catalog": LayoutGrid,
   "/distributor/sales": Receipt,
@@ -59,6 +71,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/agent/customers": Users,
   "/agent/reports": PieChart,
   "/agent/more": Settings,
+  "/agent/settings": Settings,
   "/agent/profile": UserRound,
 };
 
@@ -68,21 +81,19 @@ export function AppShell({
   title,
   allowedTypes,
   nav,
-  loginHref,
   children,
 }: {
   title: string;
   allowedTypes: string[];
   nav: NavItem[];
   mobileNav?: NavItem[];
-  loginHref?: string;
   children: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, token, expiresAt, clear, loadProfile, profileLoaded } = useSession();
+  const { user, token, expiresAt, clear, loadProfile, profileLoaded, bootstrapped } = useSession();
   const hydrated = useSessionHydrated();
-  const signIn = loginHref ?? loginPathFor(allowedTypes[0]);
+  const signedOutHome = homePathFor();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -132,29 +143,37 @@ export function AppShell({
   }
 
   useEffect(() => {
-    if (!hydrated) return;
+    // bootstrapped means the silent refresh has settled, so an absent token is conclusive.
+    if (!hydrated || !bootstrapped) return;
     if (token && isSessionExpired(expiresAt)) {
       clear();
-      router.replace(signIn);
+      router.replace(signedOutHome);
       return;
     }
     if (!token) {
-      router.replace(signIn);
+      router.replace(signedOutHome);
       return;
     }
     if (!profileLoaded) {
       loadProfile().catch(() => {
         clear();
-        router.replace(signIn);
+        router.replace(signedOutHome);
       });
       return;
     }
     if (user && !allowedTypes.includes(user.userType)) {
-      router.replace(homeFor(user.userType));
+      router.replace(homeFor(user.userType, user.status));
     }
-  }, [allowedTypes, clear, expiresAt, hydrated, loadProfile, profileLoaded, router, signIn, token, user]);
+  }, [allowedTypes, bootstrapped, clear, expiresAt, hydrated, loadProfile, profileLoaded, router, signedOutHome, token, user]);
 
-  if (!hydrated || !token || !user || (!profileLoaded && !user.fullName)) {
+  if (
+    !hydrated ||
+    !bootstrapped ||
+    !token ||
+    !user ||
+    (!profileLoaded && !user.fullName) ||
+    (!!user.userType && !allowedTypes.includes(user.userType))
+  ) {
     return (
       <div className="grid min-h-screen place-items-center bg-black">
         <NeonSpinner />
@@ -218,15 +237,17 @@ export function AppShell({
               <PanelLeftOpen className={openIconClass} />
               <PanelLeftClose className={closeIconClass} />
             </button>
-            <Logo height={42} href={homeFor(user.userType)} />
+            <Logo height={42} href={homeFor(user.userType, user.status)} />
           </div>
 
           <AccountMenu
             name={user.fullName}
             code={user.code}
             role={roleLabel(user.userType)}
+            email={user.email ?? undefined}
+            mobile={user.mobile ?? undefined}
             profileHref={profileHref}
-            onLogout={() => { clear(); router.replace(signIn); }}
+            onLogout={async () => { await logoutSession(); router.replace(signedOutHome); }}
           />
         </div>
       </header>
@@ -240,14 +261,18 @@ function AccountMenu({
   name,
   code,
   role,
+  email,
+  mobile,
   profileHref,
   onLogout,
 }: {
   name: string;
   code?: string;
   role: string;
+  email?: string;
+  mobile?: string;
   profileHref: string;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -266,52 +291,89 @@ function AccountMenu({
     <div className="relative ml-auto" ref={ref}>
       <button
         type="button"
-        className="inline-flex items-center gap-2.5 rounded-full p-1 sm:pl-1 sm:pr-2.5 hover:bg-slate-100/80 transition-all border border-transparent hover:border-slate-200/80"
+        className={`inline-flex items-center gap-2.5 rounded-full p-1 sm:pl-1 sm:pr-3 transition-all border ${
+          open
+            ? "bg-slate-100 border-slate-300/80 shadow-xs ring-2 ring-emerald-500/20"
+            : "hover:bg-slate-100/80 border-transparent hover:border-slate-200/80"
+        }`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`${name}, ${role}`}
       >
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-navy-950 text-xs font-bold text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs">
+        <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 text-xs font-bold text-emerald-300 ring-2 ring-emerald-500/30 shadow-xs">
           {initials}
         </span>
         <span className="hidden text-left md:block">
           <span className="block max-w-[12rem] truncate text-sm font-semibold text-navy-950">{name}</span>
           <span className="block text-[11px] text-slate-500 font-medium">{role}</span>
         </span>
-        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180 text-navy-950" : ""}`} />
       </button>
+
       {open && (
-        <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-2xl p-2 shadow-xl ring-1 ring-black/5 z-50 animate-in fade-in zoom-in-95 duration-100" role="menu">
-          <div className="px-3 py-2.5 border-b border-slate-100">
-            <p className="text-sm font-bold text-navy-950 truncate">{name}</p>
-            {displayCode && (
-              <p className="mt-1 font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md inline-block">
-                {displayCode}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-slate-500 font-medium">{role}</p>
+        <div
+          className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-2xl p-2 shadow-2xl ring-1 ring-black/5 z-50 animate-in fade-in zoom-in-95 duration-100"
+          role="menu"
+        >
+          {/* User Info Header */}
+          <div className="flex items-start gap-3 p-3 border-b border-slate-100">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 text-xs font-bold text-emerald-300 shadow-xs ring-1 ring-white/10">
+              {initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-navy-950">{name}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-inset ring-emerald-500/20">
+                  {role}
+                </span>
+                {displayCode && (
+                  <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+                    {displayCode}
+                  </span>
+                )}
+              </div>
+              {(email || mobile) && (
+                <p className="mt-1 text-[11px] text-slate-400 truncate font-medium">
+                  {email || `+91 ${mobile}`}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="py-1">
+
+          {/* Menu Items */}
+          <div className="py-1.5 space-y-0.5">
             <Link
               href={profileHref}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-navy-800 hover:bg-slate-100/70 hover:text-navy-950 transition-colors"
+              className="group flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100/80 hover:text-navy-950 transition-colors"
               onClick={() => setOpen(false)}
               role="menuitem"
             >
-              <UserRound className="h-4 w-4 text-slate-500" />
-              <span>My Profile</span>
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700 transition-colors">
+                  <UserRound className="h-4 w-4" />
+                </div>
+                <span>My Profile</span>
+              </div>
+              <span className="text-[10px] text-slate-400 group-hover:text-slate-600 transition-colors font-medium">View & Edit</span>
             </Link>
           </div>
-          <div className="pt-1 border-t border-slate-100">
+
+          {/* Sign Out Action */}
+          <div className="pt-1.5 border-t border-slate-100">
             <button
               type="button"
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50/80 hover:text-rose-700 transition-colors"
+              className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50/80 hover:text-rose-700 transition-colors"
               onClick={onLogout}
               role="menuitem"
             >
-              <LogOut className="h-4 w-4 text-rose-500" />
-              <span>Log Out</span>
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-rose-50 text-rose-600 group-hover:bg-rose-100 transition-colors">
+                  <LogOut className="h-4 w-4" />
+                </div>
+                <span>Log Out</span>
+              </div>
+              <span className="text-[10px] text-rose-400 group-hover:text-rose-600 font-medium">Sign Out</span>
             </button>
           </div>
         </div>

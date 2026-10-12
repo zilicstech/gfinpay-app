@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { HomeFaq } from "@/features/marketing/HomeFaq";
+import { HomeSessionRedirect } from "@/features/marketing/HomeSessionRedirect";
 import { ServiceArt } from "@/components/illustrations/HomeArt";
 import { SITE } from "@/lib/site";
 import { seo } from "@/lib/seo";
@@ -32,7 +33,7 @@ import { seo } from "@/lib/seo";
 export const metadata = seo({
   title: `${SITE.name} — Turn your shop into a digital bank | Digital Banking & Bill Payments for Retailers`,
   description:
-    "Turn your store into an assisted banking powerhouse. Offer Domestic Money Transfer, BBPS bill payments, UPI cash-out, and high-commission FD credit cards.",
+    "Turn your store into an assisted banking powerhouse. Offer Domestic Money Transfer, BBPS bill payments, UPI cash-out, and guaranteed approval FD credit cards.",
   path: "/",
 });
 
@@ -41,7 +42,7 @@ const VISUAL_SERVICES = [
     href: "/services/domestic-money-transfer",
     kind: "dmt" as const,
     title: "Money Transfer (DMT)",
-    commission: "Earnings: 0.50% (₹25 - ₹75 / transfer)",
+    highlight: "Instant 24x7 IMPS Switch · Official Bank Receipt",
     badge: "Highest Demand",
     desc: "Customer brings cash. Send money instantly to any bank account over 24x7 IMPS.",
     points: ["All 120+ Indian Banks", "Instant Name Verification"],
@@ -51,8 +52,8 @@ const VISUAL_SERVICES = [
     href: "/services/bbps",
     kind: "bbps" as const,
     title: "BBPS Bill Payments",
-    commission: "Earnings: ₹5 to ₹20 per bill",
-    badge: "Daily Income",
+    highlight: "100+ Live Discoms & Official NPCI Receipt",
+    badge: "Daily Volume",
     desc: "Collect electricity, water, gas, broadband, and municipal bills for your neighborhood.",
     points: ["100+ State Discoms", "Official NPCI Receipt"],
     accent: "amber",
@@ -61,17 +62,17 @@ const VISUAL_SERVICES = [
     href: "/services/aeps",
     kind: "aeps" as const,
     title: "Aadhaar ATM (AePS)",
-    commission: "Earnings: Flat ₹10 per withdrawal",
+    highlight: "Instant Aadhaar Cash-Out · Biometric Verification",
     badge: "No ATM Card Needed",
     desc: "Customer scans thumb on biometric scanner to withdraw cash directly from their bank.",
-    points: ["Mantra & Morpho Support", "Mini Statement Income"],
+    points: ["Mantra & Morpho Support", "Mini Statement Access"],
     accent: "emerald",
   },
   {
     href: "/services/recharge",
     kind: "recharge" as const,
     title: "Mobile & DTH Recharge",
-    commission: "Earnings: Up to 3.5% Instant",
+    highlight: "Instant Live Top-Up · 100% Circle Coverage",
     badge: "High Speed",
     desc: "Prepaid mobile and DTH TV recharges with personalized customer R-offer plans.",
     points: ["Jio, Airtel, Vi, BSNL", "Tata Play & Dish TV"],
@@ -81,7 +82,7 @@ const VISUAL_SERVICES = [
     href: "/services/upi-cash-out",
     kind: "upi" as const,
     title: "UPI to Cash Out",
-    commission: "Earnings: 0.40% Instant Margin",
+    highlight: "Dynamic QR Code · Direct Wallet Settlement",
     badge: "No Machine Needed",
     desc: "Customer scans dynamic QR from your phone screen. Hand over cash once confirmed.",
     points: ["PhonePe, GPay, Paytm", "Instant Wallet Settlement"],
@@ -91,8 +92,8 @@ const VISUAL_SERVICES = [
     href: "/services/fd-credit-cards",
     kind: "cards" as const,
     title: "FD Credit Cards & Loans",
-    commission: "Earnings: ₹800 to ₹2,900 / card",
-    badge: "Highest Profit",
+    highlight: "Guaranteed Issuance · Zero Credit Score Needed",
+    badge: "High Demand",
     desc: "Help customers apply for guaranteed FD credit cards and personal loans on their phone.",
     points: ["Zero CIBIL Score Needed", "100% Paperless Approval"],
     accent: "indigo",
@@ -101,7 +102,7 @@ const VISUAL_SERVICES = [
     href: "/services/fastag",
     kind: "fastag" as const,
     title: "FASTag Toll Recharge",
-    commission: "Earnings: 0.25% - 0.50% Margin",
+    highlight: "NETC National Switch · Real-time Tag Balance",
     badge: "Vehicle Number Based",
     desc: "Type vehicle number, check current toll balance, and recharge in 30 seconds.",
     points: ["All NETC Issuer Banks", "Instant Plaza Clearance"],
@@ -111,7 +112,7 @@ const VISUAL_SERVICES = [
     href: "/services/lic",
     kind: "lic" as const,
     title: "LIC Insurance Premium",
-    commission: "Earnings: ₹15 to ₹45 per policy",
+    highlight: "Official Life Insurance Slip · Instant Verification",
     badge: "Official Receipt",
     desc: "Enter policy number, fetch exact due amount, and print official LIC tax receipt.",
     points: ["Live Due Date Fetch", "Official Tax Exemption Slip"],
@@ -131,7 +132,7 @@ const FD_PARTNER_BANKS = [
     last4: "8824",
     cardholder: "PREMIUM CUSTOMER",
     feature: "Zero CIBIL · Real-time Virtual Issuance",
-    earning: "Earn ₹800 - ₹2,900 / card",
+    issuance: "100% Digital Flow",
   },
   {
     name: "IOB",
@@ -144,7 +145,7 @@ const FD_PARTNER_BANKS = [
     last4: "4190",
     cardholder: "COUNTER ASSISTED",
     feature: "Earn up to 7.5% p.a. on FD Deposit",
-    earning: "Earn ₹800 - ₹2,500 / card",
+    issuance: "Instant Account Booking",
   },
   {
     name: "DCB Bank",
@@ -157,7 +158,7 @@ const FD_PARTNER_BANKS = [
     last4: "6532",
     cardholder: "PREFERRED MEMBER",
     feature: "Guaranteed Credit Limit from ₹5,000",
-    earning: "Earn ₹800 - ₹2,900 / card",
+    issuance: "Paperless KYC Flow",
   },
 ];
 
@@ -178,16 +179,17 @@ const STEPS = [
   },
   {
     step: "03",
-    title: "3. Instant Profit",
-    subtitle: "Instant Profit",
-    desc: "Customer gets instant printed or WhatsApp receipt. Your commission is credited to your wallet in 5 seconds.",
-    icon: Coins,
+    title: "3. Instant Confirmation",
+    subtitle: "Instant Confirmation",
+    desc: "Customer gets instant printed or WhatsApp receipt with real-time bank switch confirmation in seconds.",
+    icon: CheckCircle2,
   },
 ];
 
 export default function HomePage() {
   return (
     <div className="space-y-16 sm:space-y-24 pb-20 overflow-hidden">
+      <HomeSessionRedirect />
       {/* HERO SECTION */}
       <section className="relative pt-12 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
         {/* Ambient Gradient Glow */}
@@ -211,14 +213,14 @@ export default function HomePage() {
 
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-lg">
                 Money transfers, bill payments, Aadhaar cash withdrawals, mobile recharges, and credit cards.{" "}
-                <strong className="text-emerald-700 font-bold">Earn up to ₹35,000+ extra income monthly</strong> without any expensive machine costs.
+                <strong className="text-emerald-700 font-bold">Serve all neighborhood banking needs</strong> without any expensive machine costs.
               </p>
 
               {/* Visual Chips */}
               <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs font-bold text-slate-700">
                 <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 px-3.5 py-1.5 text-emerald-800">
-                  <Coins className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Instant Earning</span>
+                  <Zap className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Instant Settlement</span>
                 </span>
                 <span className="flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 px-3.5 py-1.5 text-slate-800">
                   <Smartphone className="h-3.5 w-3.5 text-slate-600" />
@@ -310,7 +312,7 @@ export default function HomePage() {
               FD Card Partnering Banks
             </h2>
             <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-              Guaranteed approval credit cards backed by fixed deposits. Customers build credit score while retailers earn up to ₹2,900 per card.
+              Guaranteed approval credit cards backed by fixed deposits. Customers build credit score with instant virtual card generation.
             </p>
           </div>
 
@@ -328,7 +330,7 @@ export default function HomePage() {
                 <div className="relative z-10 flex items-start justify-between">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Partner Bank
+                       Partner Bank
                     </span>
                     <h3 className="font-display text-xl sm:text-2xl font-black tracking-wide text-white">
                       {b.name}
@@ -375,12 +377,12 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Feature & Commission Bar */}
+                {/* Feature & Issuance Rail Bar */}
                 <div className="relative z-10 mt-6 pt-4 border-t border-white/10 space-y-1.5">
                   <p className="text-xs text-slate-300 font-medium">{b.feature}</p>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-slate-400">Retailer Margin:</span>
-                    <span className="text-emerald-400 font-bold">{b.earning}</span>
+                    <span className="text-[11px] text-slate-400">Issuance Flow:</span>
+                    <span className="text-emerald-400 font-bold">{b.issuance}</span>
                   </div>
                 </div>
               </div>
@@ -407,7 +409,7 @@ export default function HomePage() {
 
             <div className="flex items-center gap-2 text-slate-600 text-xs font-medium">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              <span>Instant Paperless KYC · Automated Wallet Commission</span>
+              <span>Instant Paperless KYC · Direct Bank Switch Rails</span>
             </div>
           </div>
         </div>
@@ -421,10 +423,10 @@ export default function HomePage() {
             <span>All 8 Core Services</span>
           </span>
           <h2 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-navy-950">
-            A service for every customer, profit on every transaction
+            A service for every customer, seamless transactions on every visit
           </h2>
           <p className="text-sm sm:text-base text-slate-600">
-            Select any service to view commission rates and start transacting on your counter.
+            Select any service to view operational features and start transacting on your counter.
           </p>
         </div>
 
@@ -454,10 +456,10 @@ export default function HomePage() {
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{s.desc}</p>
                 </div>
 
-                {/* Highlighted Commission Tag */}
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/80 p-3 text-xs sm:text-sm font-black text-emerald-800 flex items-center gap-2">
-                  <Coins className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span className="truncate">{s.commission}</span>
+                {/* Highlighted Feature Tag */}
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/80 p-3 text-xs sm:text-sm font-semibold text-emerald-800 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">{s.highlight}</span>
                 </div>
 
                 {/* Bullet Points */}
@@ -471,7 +473,7 @@ export default function HomePage() {
                 </ul>
 
                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-bold text-emerald-600 group-hover:text-emerald-700">
-                  <span>Explore Service & Commission Rates</span>
+                  <span>Explore Service Details</span>
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
@@ -593,7 +595,7 @@ export default function HomePage() {
               <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">Master Distributor</p>
               <h3 className="mt-1 font-display text-lg font-bold text-navy-950">Distributor Network</h3>
               <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                Onboard retailers in your city or district. Monitor network volume and earn automated split commission.
+                Onboard retailers in your city or district. Monitor network volume and expand your assisted banking distribution.
               </p>
             </div>
             <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
@@ -658,7 +660,7 @@ export default function HomePage() {
                 href="/login"
                 className="btn-primary !px-7 !py-3.5 text-sm font-bold shadow-xl shadow-emerald-500/30"
               >
-                <span>Retailer Login</span>
+                <span>Partner Login</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link

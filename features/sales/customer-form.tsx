@@ -1,6 +1,7 @@
 "use client";
 
 import { Field } from "@/components/ui/primitives";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 export const INDIAN_STATES = [
   "Andaman and Nicobar Islands",
@@ -109,18 +110,16 @@ export function CustomerFields({
         />
       </Field>
       <Field label="State">
-        <select
-          className="field"
+        <CustomSelect
           required
           value={value.state}
-          onChange={(e) => onChange({ ...value, state: e.target.value })}
-        >
-          <option value="">Select state</option>
-          {value.state && !INDIAN_STATES.includes(value.state) && <option value={value.state}>{value.state}</option>}
-          {INDIAN_STATES.map((state) => (
-            <option key={state} value={state}>{state}</option>
-          ))}
-        </select>
+          onChange={(s) => onChange({ ...value, state: s })}
+          placeholder="Select state"
+          options={[
+            ...(value.state && !INDIAN_STATES.includes(value.state) ? [{ value: value.state, label: value.state }] : []),
+            ...INDIAN_STATES.map((state) => ({ value: state, label: state })),
+          ]}
+        />
       </Field>
       <Field label="Pincode">
         <input

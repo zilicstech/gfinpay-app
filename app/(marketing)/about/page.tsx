@@ -46,8 +46,8 @@ const VALUES = [
   },
   {
     icon: Users,
-    title: "Instant Commission Equity",
-    desc: "No end-of-month waiting or opaque clawbacks. Retailers and distributors earn instant, transparent ledger splits the very second a transaction completes.",
+    title: "Instant Ledger Equity",
+    desc: "No end-of-month waiting or opaque clawbacks. Retailers and distributors benefit from instant, transparent ledger settlements the very second a transaction completes.",
   },
 ];
 

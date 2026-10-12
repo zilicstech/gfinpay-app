@@ -12,7 +12,6 @@ export default function Page() {
       kicker="Bharat BillPay (BBPS)"
       title="Pay Electricity & Utility Bills at Your Store"
       art="bbps"
-      commission="₹5 to ₹20 per bill + Incentives (Instant Commission)"
       lead="Customer brings their paper bill or CA number. Enter the number, fetch the live amount, accept cash, and pay instantly from your wallet. Provide printed or WhatsApp receipt."
       partners={[
         "Tata Power",
@@ -27,7 +26,7 @@ export default function Page() {
       steps={[
         { step: "01", title: "Enter Consumer Number", desc: "Customer provides Consumer CA number or mobile." },
         { step: "02", title: "Fetch Live Bill & Collect Cash", desc: "Real-time bill fetch confirms exact amount due." },
-        { step: "03", title: "Instant Receipt & Commission", desc: "Instant BBPS reference ID generated & commission credited to wallet." },
+        { step: "03", title: "Instant Receipt Generation", desc: "Instant BBPS reference ID generated & official NPCI receipt issued." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">

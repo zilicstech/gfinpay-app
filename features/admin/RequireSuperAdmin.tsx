@@ -2,19 +2,21 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isSuperAdmin, useSession } from "@/stores/session.store";
+import { homeFor, isSuperAdminOrPlatformAdmin, useSession } from "@/stores/session.store";
 
+/** Super admin and platform admin — used for auditor management and similar platform-wide admin work. */
 export function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
   const user = useSession((s) => s.user);
   const router = useRouter();
+  const allowed = isSuperAdminOrPlatformAdmin(user?.userType);
 
   useEffect(() => {
-    if (user && !isSuperAdmin(user.userType)) {
-      router.replace("/admin/overview");
+    if (user && !allowed) {
+      router.replace(homeFor(user.userType, user.status));
     }
-  }, [router, user]);
+  }, [allowed, router, user]);
 
-  if (!user || !isSuperAdmin(user.userType)) {
+  if (!user || !allowed) {
     return (
       <div className="grid min-h-[40vh] place-items-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />

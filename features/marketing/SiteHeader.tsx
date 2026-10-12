@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -25,12 +25,19 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { SITE } from "@/lib/site";
+import { homeFor, useSession, useSessionHydrated } from "@/stores/session.store";
 
 export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hydrated = useSessionHydrated();
+  const { token, user, bootstrapped } = useSession();
+  const signedIn = hydrated && bootstrapped && Boolean(token) && Boolean(user?.userType);
+  const ctaHref = signedIn ? homeFor(user?.userType, user?.status) : "/login";
+  const ctaLabel = signedIn ? "Go to dashboard" : "Partner Login";
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl shadow-sm transition-all duration-300">
+      <SignedOutNotice />
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <Logo compact />
@@ -66,10 +73,10 @@ export function SiteHeader() {
           {/* Right CTAs */}
           <div className="hidden lg:flex items-center gap-3">
             <Link
-              href="/login"
+              href={ctaHref}
               className="btn-primary group !py-2.5 !px-5 text-sm shadow-emerald-500/20"
             >
-              <span>Retailer Login</span>
+              <span>{ctaLabel}</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>
@@ -150,11 +157,11 @@ export function SiteHeader() {
 
             <div className="pt-2">
               <Link
-                href="/login"
+                href={ctaHref}
                 className="btn-primary w-full shadow-lg shadow-emerald-500/25"
                 onClick={() => setMobileOpen(false)}
               >
-                <span>Retailer Login</span>
+                <span>{ctaLabel}</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <p className="mt-2.5 text-center text-xs text-slate-400">
@@ -164,6 +171,41 @@ export function SiteHeader() {
           </div>
         )}
     </header>
+  );
+}
+
+/**
+ * Shown after an idle sign-out, which lands on `/?signedOut=idle`. Read from the browser
+ * rather than useSearchParams so the marketing pages stay statically rendered.
+ */
+function SignedOutNotice() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setVisible(new URLSearchParams(window.location.search).get("signedOut") === "idle");
+  }, []);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <div className="border-b border-amber-200/80 bg-amber-50">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+        <p className="flex items-center gap-2 text-sm font-medium text-amber-900">
+          <ShieldCheck className="h-4 w-4 shrink-0 text-amber-600" />
+          You were signed out after 30 minutes of inactivity. Please sign in again to continue.
+        </p>
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-amber-700 transition hover:bg-amber-100"
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -237,20 +279,20 @@ function ServicesMegaMenu() {
               <ServiceItem
                 href="/services/lic"
                 title="LIC & Insurance"
-                desc="Fetch policy premium and pay with commission"
+                desc="Fetch policy premium and issue official tax receipts"
               />
             </div>
           </div>
 
-          {/* Column 3: High Margin Digital Products */}
+          {/* Column 3: Secured Digital Products */}
           <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-navy-950 p-4 text-white flex flex-col justify-between">
             <div>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300 mb-3">
-                <Sparkles className="h-3 w-3" /> High Commission
+                <Sparkles className="h-3 w-3" /> Guaranteed Approvals
               </span>
               <p className="font-display text-base font-bold text-white">Digital Banking Products</p>
               <p className="mt-1 text-xs text-slate-300 leading-relaxed">
-                Sell FD-backed credit cards (SBM/IOB), personal loans, and zero-balance savings accounts.
+                Offer FD-backed credit cards (SBM/IOB), personal loans, and zero-balance savings accounts.
               </p>
               <div className="mt-4 space-y-2 border-t border-white/10 pt-3">
                 <Link
@@ -270,7 +312,7 @@ function ServicesMegaMenu() {
               </div>
             </div>
             <div className="mt-4 rounded-xl bg-white/10 p-2.5 text-[11px] text-slate-300 border border-white/10">
-              <span className="font-semibold text-white">Earn ₹150 - ₹2,900+</span> per activated card or loan lead.
+              <span className="font-semibold text-white">100% Digital KYC</span> with zero physical paperwork.
             </div>
           </div>
         </div>

@@ -20,5 +20,5 @@ export default function DistributorSaleDetailPage() {
   if (error) return <Alert tone="error">{error}</Alert>;
   if (!lead) return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
 
-  return <SaleDetail backHref="/distributor/sales" backLabel="All sales" lead={lead} audience="desk" />;
+  return <SaleDetail backHref="/distributor/sales" backLabel="All sales" lead={lead} audience="view" />;
 }

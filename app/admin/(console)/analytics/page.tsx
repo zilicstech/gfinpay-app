@@ -3,12 +3,37 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Briefcase, Building2, Layers, Store, Users } from "lucide-react";
-import { api } from "@/lib/api-client";
-import { useSession } from "@/stores/session.store";
-import { StatCard } from "@/components/ui/primitives";
-import type { OverviewSnapshot, SalesTrendPoint } from "@/features/console/OverviewMetrics";
+import { api, formatApiError } from "@/lib/api-client";
+import { isHubAdmin, useSession } from "@/stores/session.store";
+import { Alert, EmptyState, StatCard, StatusPill } from "@/components/ui/primitives";
+import { n, type OverviewSnapshot, type SalesTrendPoint } from "@/features/console/OverviewMetrics";
 
 type TrendRange = "daily" | "weekly" | "monthly";
+
+type HubRow = {
+  id: string;
+  code: string;
+  name: string;
+  city?: string;
+  state?: string;
+  status?: string;
+  distributors?: number;
+  distributors_active?: number;
+  retailers?: number;
+  retailers_active?: number;
+  customers?: number;
+  customers_ekyc?: number;
+};
+
+type HubDashboard = OverviewSnapshot & {
+  totals?: {
+    hubs?: number;
+    distributors?: number;
+    retailers?: number;
+    customers?: number;
+  };
+  hubs?: HubRow[];
+};
 
 function parsePeriod(value: string) {
   const [y, m, d] = value.slice(0, 10).split("-").map(Number);
@@ -31,28 +56,29 @@ function formatPeriodLabel(period: string, range: TrendRange) {
 export default function AnalyticsPage() {
   const token = useSession((s) => s.token);
   const user = useSession((s) => s.user);
-  const [data, setData] = useState<OverviewSnapshot | null>(null);
-  const [vendorCount, setVendorCount] = useState<number>(3);
+  const hubAdmin = isHubAdmin(user?.userType);
+  const [data, setData] = useState<HubDashboard | null>(null);
+  const [vendorCount, setVendorCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeRange, setActiveRange] = useState<TrendRange>("daily");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !user?.userType) return;
     setLoading(true);
+    setError(null);
     Promise.all([
-      api<OverviewSnapshot>("/api/v1/admin/reports/summary", { token }),
-      api<any[]>("/api/v1/admin/vendors", { token }).catch(() => []),
+      api<HubDashboard>("/api/v1/admin/hub-dashboard", { token }),
+      api<unknown[]>("/api/v1/admin/vendors", { token }).catch(() => []),
     ])
       .then(([summary, vendors]) => {
         setData(summary);
-        if (Array.isArray(vendors)) {
-          setVendorCount(vendors.length);
-        }
+        setVendorCount(Array.isArray(vendors) ? vendors.length : 0);
       })
-      .catch(() => {})
+      .catch((e) => setError(formatApiError(e, "Could not load analytics")))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, user?.userType]);
 
   // Active trend series based on range selection
   const activePoints: SalesTrendPoint[] = useMemo(() => {
@@ -103,6 +129,16 @@ export default function AnalyticsPage() {
     },
   }[activeRange];
 
+  const hubs = n(data?.network?.hubs ?? data?.totals?.hubs);
+  const distributors = n(data?.network?.distributors ?? data?.totals?.distributors);
+  const retailers = n(data?.network?.retailers ?? data?.totals?.retailers);
+  const customers = n(data?.network?.customers ?? data?.totals?.customers);
+  const assignedHubs = data?.hubs ?? [];
+
+  if (error) {
+    return <Alert tone="error">{error}</Alert>;
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. Welcome Card */}
@@ -119,38 +155,64 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* 2. Counter Cards (Same design as admin/distributors page) */}
+      {/* 2. Counter Cards */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard
-          label="Hubs"
-          value={String(data?.network?.hubs ?? 10)}
-          hint="Regional hubs"
-          icon={<Building2 className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Distributors"
-          value={String(data?.network?.distributors ?? 3)}
-          hint={`${data?.network?.distributors_active ?? 3} active`}
-          icon={<Layers className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Retailers"
-          value={String(data?.network?.retailers ?? 3)}
-          hint={`${data?.network?.retailers_active ?? 3} active`}
-          icon={<Store className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Vendors"
-          value={String(data?.network?.vendors ?? vendorCount)}
-          hint="Partner desks"
-          icon={<Briefcase className="h-5 w-5" />}
-        />
-        <StatCard
-          label="Customers"
-          value={String(data?.network?.customers ?? 15)}
-          hint="Counter profiles"
-          icon={<Users className="h-5 w-5" />}
-        />
+        <StatCard label="Hubs" value={loading ? "—" : String(hubs)} icon={<Building2 className="h-5 w-5" />} />
+        <StatCard label="Distributors" value={loading ? "—" : String(distributors)} icon={<Layers className="h-5 w-5" />} />
+        <StatCard label="Retailers" value={loading ? "—" : String(retailers)} icon={<Store className="h-5 w-5" />} />
+        <StatCard label="Vendors" value={loading ? "—" : String(data?.network?.vendors ?? vendorCount)} icon={<Briefcase className="h-5 w-5" />} />
+        <StatCard label="Customers" value={loading ? "—" : String(customers)} icon={<Users className="h-5 w-5" />} />
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+          <div>
+            <h2 className="text-xl font-bold text-navy-950">{hubAdmin ? "Your hubs" : "Hubs"}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {hubAdmin
+                ? "Counts are limited to the hubs assigned to you."
+                : "Every hub on the platform."}
+            </p>
+          </div>
+          {loading ? (
+            <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+          ) : assignedHubs.length === 0 ? (
+            <EmptyState
+              title={hubAdmin ? "No hubs assigned" : "No hubs yet"}
+              body={hubAdmin ? "Ask a platform admin to assign you to a hub." : "Create a hub from Settings to see it here."}
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
+                  <tr>
+                    <th className="px-5 py-3.5">Hub</th>
+                    <th className="px-5 py-3.5">Location</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">Distributors</th>
+                    <th className="px-5 py-3.5">Retailers</th>
+                    <th className="px-5 py-3.5">Customers</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {assignedHubs.map((hub) => (
+                    <tr key={hub.id} className="hover:bg-slate-50/60">
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-navy-950">{hub.name}</p>
+                        <p className="font-mono text-[11px] text-slate-400">{hub.code}</p>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-slate-500">
+                        {[hub.city, hub.state].filter(Boolean).join(", ") || "—"}
+                      </td>
+                      <td className="px-5 py-4"><StatusPill value={hub.status ?? "—"} /></td>
+                      <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.distributors)}</td>
+                      <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.retailers)}</td>
+                      <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.customers)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
       </section>
 
       {/* 3. Sales Trend Charts (Daily, Weekly, Monthly) */}

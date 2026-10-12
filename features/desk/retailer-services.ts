@@ -21,6 +21,7 @@ const ALWAYS: NavItem[] = [
   { href: "/agent/customers", label: "Customers" },
   { href: "/agent/catalog", label: "Catalog" },
   { href: "/agent/reports", label: "Reports" },
+  { href: "/agent/settings", label: "Settings" },
 ];
 
 export function enabledCodes(services: PlatformServiceRow[]): Set<string> {
@@ -53,6 +54,7 @@ export function buildAgentNav(codes: Set<string>, fdProviders: FdProviderRow[]):
     nav.push({ href: "/agent/sales", label: "Sales" });
   }
   nav.push({ href: "/agent/reports", label: "Reports" });
+  nav.push({ href: "/agent/settings", label: "Settings" });
   return nav;
 }
 
@@ -116,6 +118,7 @@ export function buildMoreItems(codes: Set<string>, fdProviders: FdProviderRow[])
     { href: "/agent/transactions", label: "Transactions", hint: "Receipts and history" },
     { href: "/agent/reports", label: "Reports", hint: "Your commission" },
     { href: "/agent/profile", label: "My profile", hint: "Name, email, password" },
+    { href: "/agent/settings", label: "Settings", hint: "Bank accounts for withdrawals" },
   );
   return items;
 }
@@ -123,6 +126,8 @@ export function buildMoreItems(codes: Set<string>, fdProviders: FdProviderRow[])
 export const FALLBACK_DISTRIBUTOR_NAV: NavItem[] = [
   { href: "/distributor/overview", label: "Overview" },
   { href: "/distributor/agents", label: "Retailers" },
+  { href: "/distributor/inquiries", label: "Inquiries" },
+  { href: "/distributor/finance", label: "Finance" },
   { href: "/distributor/customers", label: "Customers" },
   { href: "/distributor/catalog", label: "Catalog" },
   { href: "/distributor/transactions", label: "Transactions" },
@@ -133,6 +138,8 @@ export function buildDistributorNav(codes: Set<string>, fdProviders: FdProviderR
   const nav: NavItem[] = [
     { href: "/distributor/overview", label: "Overview" },
     { href: "/distributor/agents", label: "Retailers" },
+    { href: "/distributor/inquiries", label: "Inquiries" },
+    { href: "/distributor/finance", label: "Finance" },
   ];
   nav.push(
     { href: "/distributor/customers", label: "Customers" },

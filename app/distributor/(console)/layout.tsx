@@ -13,7 +13,7 @@ function DistributorConsoleNav({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AppShell title="Distributor" allowedTypes={["MASTER_DISTRIBUTOR"]} loginHref="/login" nav={nav}>
+    <AppShell title="Distributor" allowedTypes={["MASTER_DISTRIBUTOR"]} nav={nav}>
       {children}
     </AppShell>
   );

@@ -12,7 +12,6 @@ export default function Page() {
       kicker="Insurance Premium"
       title="Collect LIC Premiums at Your Store & Issue Instant Receipts"
       art="lic"
-      commission="₹15 to ₹45 per policy premium (Instant Commission)"
       lead="Neighborhood customers no longer need to stand in long queues at branch offices. Enter policy number, fetch exact due amount with late fee calculations, accept cash, and generate an official receipt."
       partners={[
         "Life Insurance Corporation (LIC)",

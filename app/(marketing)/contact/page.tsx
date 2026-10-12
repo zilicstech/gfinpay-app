@@ -1,21 +1,15 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import {
   ArrowRight,
-  Building2,
   CheckCircle2,
-  Clock,
   Headphones,
   Mail,
   MapPin,
-  MessageSquare,
   Phone,
-  Send,
-  ShieldCheck,
-  Sparkles,
 } from "lucide-react";
+import { api, formatApiError } from "@/lib/api-client";
 import { SITE } from "@/lib/site";
 
 const HUBS = [
@@ -26,17 +20,36 @@ const HUBS = [
 ];
 
 export default function ContactPage() {
-  const [persona, setPersona] = useState<"retailer" | "distributor" | "bank" | "vendor">("distributor");
   const [sent, setSent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [city, setCity] = useState("");
   const [message, setMessage] = useState("");
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setSent(true);
+    setSaving(true);
+    setError(null);
+    try {
+      await api("/api/v1/public/inquiries", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: name.trim(),
+          mobile: mobile.replace(/\D/g, ""),
+          email: email.trim(),
+          city: city.trim(),
+          message: message.trim(),
+        }),
+      });
+      setSent(true);
+    } catch (err) {
+      setError(formatApiError(err, "Could not send your inquiry"));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -54,7 +67,7 @@ export default function ContactPage() {
                 Let's build financial access together.
               </h1>
               <p className="mt-4 text-base text-slate-600 leading-relaxed">
-                Whether you want to become a regional Master Distributor, onboard your Kirana outlet, or integrate your banking institution — our operations team is ready.
+                Tell us you want to become a partner. Our team will read the enquiry and take it from there.
               </p>
             </div>
 
@@ -76,8 +89,8 @@ export default function ContactPage() {
                   <Mail className="h-5 w-5 transition-colors duration-300" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-medium">Partnership & Distribution Inquiries</p>
-                  <p className="font-display text-sm font-bold text-navy-950">{SITE.partnerEmail}</p>
+                  <p className="text-xs text-slate-400 font-medium">Become a partner</p>
+                  <p className="font-display text-sm font-bold text-navy-950">{SITE.email}</p>
                   <p className="text-[11px] text-slate-400">Direct response within 24 business hours</p>
                 </div>
               </div>
@@ -110,7 +123,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="font-display text-2xl font-bold text-navy-950">Thank you, {name}!</h3>
                   <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                    Your inquiry has been routed to our regional territory lead for <strong>{city || "your area"}</strong>. We will contact you at <strong>{email || mobile}</strong> shortly.
+                    Your enquiry to become a partner is with us. We will contact you at <strong>{email || mobile}</strong>.
                   </p>
                   <div className="pt-4">
                     <button
@@ -125,32 +138,10 @@ export default function ContactPage() {
               ) : (
                 <form onSubmit={onSubmit} className="space-y-5">
                   <div>
-                    <h2 className="font-display text-xl font-bold text-navy-950">Send an Inquiry</h2>
-                    <p className="text-xs text-slate-500 mt-1">Select your profile to connect with the right desk.</p>
+                    <h2 className="font-display text-xl font-bold text-navy-950">Become a partner</h2>
+                    <p className="text-xs text-slate-500 mt-1">Send one enquiry. We will follow up from info@gfinpay.com.</p>
                   </div>
-
-                  {/* Persona Tabs */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[
-                      { id: "distributor", label: "Distributor" },
-                      { id: "retailer", label: "Kirana Agent" },
-                      { id: "bank", label: "Bank / BaaS" },
-                      { id: "vendor", label: "Vendor Partner" },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setPersona(tab.id as typeof persona)}
-                        className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
-                          persona === tab.id
-                            ? "bg-navy-950 text-white shadow-sm"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
+                  {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>}
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
@@ -222,8 +213,9 @@ export default function ContactPage() {
                   <button
                     type="submit"
                     className="btn-primary w-full shadow-lg shadow-emerald-500/25 !py-3.5 font-bold"
+                    disabled={saving}
                   >
-                    <span>Submit Inquiry</span>
+                    <span>{saving ? "Sending…" : "Submit inquiry"}</span>
                     <ArrowRight className="h-4 w-4" />
                   </button>
 

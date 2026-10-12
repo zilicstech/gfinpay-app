@@ -31,7 +31,7 @@ import { seo } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
 export const metadata = seo({
-  title: `All Banking Services, API Rails & B2B Commission Slabs — ${SITE.name}`,
+  title: `All Banking Services & API Rails — ${SITE.name}`,
   description:
     "Enterprise-grade banking rails and retail distribution services for fintech networks, corporate BCs, master distributors, and retail counters. AePS, DMT, BBPS, FD Credit Cards, UPI Cash-Out, and more.",
   path: "/services",
@@ -44,7 +44,7 @@ interface ServiceB2B {
   badge: string;
   title: string;
   subtitle: string;
-  commissionTag: string;
+  settlementTag: string;
   lead: string;
   points: { title: string; desc: string }[];
   metrics: { label: string; value: string }[];
@@ -64,7 +64,7 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "Latency < 450ms",
     title: "Domestic Money Transfer (DMT) & Remittance Engine",
     subtitle: "High-Velocity Cash-to-Account Rail with Penny-Drop Beneficiary Validation",
-    commissionTag: "Up to 0.50% Margin · Flat ₹25 to ₹75 / Txn",
+    settlementTag: "Instant T+0 IMPS · Official Bank Receipt",
     lead: "Empower your retail counters to convert unbanked and migrant cash into instant bank deposits across 120+ Indian banks. Engineered with direct multi-bank IMPS switching (SBI, ICICI, HDFC) and real-time penny-drop name verification to ensure zero misrouted transfers and near-zero failure rates.",
     points: [
       {
@@ -85,7 +85,7 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
     ],
     metrics: [
-      { label: "Retailer Margin", value: "0.50% (₹25–₹75)" },
+      { label: "IMPS Switch", value: "Instant 24x7 Settlement" },
       { label: "Settlement Speed", value: "Instant T+0 IMPS" },
       { label: "Bank Coverage", value: "120+ Scheduled Banks" },
       { label: "Switch Availability", value: "99.98% 24x7x365" },
@@ -102,7 +102,7 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "NPCI AePS 2.0 Certified",
     title: "Aadhaar Micro-ATM (AePS) & Cash Withdrawal Switch",
     subtitle: "Interoperable Aadhaar Biometric Banking for Semi-Urban & Rural Footfall",
-    commissionTag: "Up to ₹12.50 / Withdrawal + ₹1.50 Mini-Statement",
+    settlementTag: "Direct NPCI AePS 2.0 Switch · Biometric 2FA",
     lead: "Transform local retailers into full-service doorstep bank branches. Customers withdraw cash, check account balances, and fetch mini-statements using only their 12-digit Aadhaar number and biometric fingerprint. Cash dispensed to customers immediately replenishes digital wallet balances for money transfers.",
     points: [
       {
@@ -123,8 +123,8 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
     ],
     metrics: [
-      { label: "Commission Slab", value: "Flat ₹10–₹12.50 / Txn" },
-      { label: "Mini Statement", value: "₹1.50 Extra per Inquiry" },
+      { label: "Withdrawal Rail", value: "Aadhaar Micro-ATM" },
+      { label: "Mini Statement", value: "Instant 10-Txn Slip" },
       { label: "Hardware", value: "All RD Scanners" },
       { label: "Settlement", value: "Real-time Wallet Credit" },
     ],
@@ -140,7 +140,7 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "Sub-Second Bill Fetch",
     title: "Bharat Bill Payment System (BBPS) Collection Engine",
     subtitle: "Recurring Utility Invoicing & Instant NPCI Digital Payment Receipts",
-    commissionTag: "₹5 to ₹25 / Bill + Monthly Volume Retainers",
+    settlementTag: "20,000+ Verified Billers · Official NPCI Receipt",
     lead: "Capture recurring monthly footfalls by connecting your network directly to the RBI-conceptualized Bharat BillPay network. Retailers collect electricity, water, municipal tax, piped cooking gas, broadband, and credit card payments with instant consumer name lookup and legitimate digital receipts.",
     points: [
       {
@@ -161,7 +161,7 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
     ],
     metrics: [
-      { label: "Earnings per Bill", value: "₹5 to ₹25 + Slabs" },
+      { label: "Settlement Speed", value: "Real-time Biller Credit" },
       { label: "Biller Network", value: "20,000+ Pan-India" },
       { label: "Receipt Validity", value: "100% NPCI Legal Proof" },
       { label: "Compliance", value: "RBI & NPCI Authorized" },
@@ -178,8 +178,8 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "SBM · IOB · DCB Banks",
     title: "FD-Backed Credit Cards & Co-Branded Bank Lending",
     subtitle: "Zero-Custody High-Ticket Financial Products Powered by ZET & NOVU",
-    commissionTag: "₹800 to ₹2,900 / Activated Card Referral",
-    lead: "Unlock the highest profit margins in retail fintech by issuing fixed-deposit backed credit cards from premier scheduled banks (SBM Bank, Indian Overseas Bank, and DCB Bank). Zero CIBIL score required, zero underwriting rejection, zero paperwork, and zero retailer cash custody risk.",
+    settlementTag: "SBM · IOB · DCB Banks · 100% Digital Flow",
+    lead: "Issue fixed-deposit backed credit cards from premier scheduled banks (SBM Bank, Indian Overseas Bank, and DCB Bank). Zero CIBIL score required, zero underwriting rejection, zero paperwork, and zero retailer cash custody risk.",
     points: [
       {
         title: "100% Guaranteed Approval",
@@ -194,12 +194,12 @@ const B2B_SERVICES: ServiceB2B[] = [
         desc: "Direct partnerships with regulated scheduled commercial banks: SBM Bank, IOB, and DCB Bank.",
       },
       {
-        title: "Unmatched High-Ticket Payouts",
-        desc: "Earn institutional referral commissions from ₹800 up to ₹2,900 per issued card upon successful activation.",
+        title: "Direct Bank Digital Onboarding",
+        desc: "Digital verification and instant virtual card generation directly through the bank's secure portal.",
       },
     ],
     metrics: [
-      { label: "Distributor Payout", value: "₹800 – ₹2,900 / Card" },
+      { label: "Card Generation", value: "Instant Virtual Card" },
       { label: "Credit Requirement", value: "Zero (No CIBIL needed)" },
       { label: "Bank Partners", value: "SBM, IOB, DCB Bank" },
       { label: "Turnaround Time", value: "5-Minute Digital Flow" },
@@ -214,9 +214,9 @@ const B2B_SERVICES: ServiceB2B[] = [
     category: "Telecom & DTH Switch",
     badge: "99.99% Telecom Switch SLA",
     slaTag: "Latency < 600ms",
-    title: "High-Margin Mobile & DTH Multi-Operator Recharge Switch",
+    title: "Mobile & DTH Multi-Operator Recharge Switch",
     subtitle: "Sub-Second Top-Ups Across All Circles with Intelligent R-Offer Discovery",
-    commissionTag: "Up to 3.80% Instant Commission Slabs",
+    settlementTag: "Sub-Second Execution · All 22 Telecom Circles",
     lead: "Equip your retailer network with ultra-fast mobile and satellite TV recharges backed by high-throughput operator switches. Built-in intelligent mobile number portability (MNP) circle detection eliminates failed recharges, while real-time R-Offer plan fetching boosts transaction ticket size.",
     points: [
       {
@@ -232,12 +232,12 @@ const B2B_SERVICES: ServiceB2B[] = [
         desc: "Queries the telecom operator's billing switch in real-time to surface exclusive customer plan offers.",
       },
       {
-        title: "Unmatched Real-Time Margins",
-        desc: "Industry-leading margins up to 3.8% credited instantly to retailer wallets with zero deductions.",
+        title: "Instant Wallet Settlement",
+        desc: "Top-ups processed sub-second with real-time balance reconciliation and zero latency.",
       },
     ],
     metrics: [
-      { label: "Operator Margin", value: "Up to 3.80% Instant" },
+      { label: "Operator Rail", value: "Direct Telecom Switch" },
       { label: "Execution Speed", value: "Sub-Second (< 600ms)" },
       { label: "Plan Engine", value: "Live R-Offer API" },
       { label: "Coverage", value: "All 22 Telecom Circles" },
@@ -254,8 +254,8 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "Dynamic Fraud-Proof QR",
     title: "UPI Dynamic QR Cash-Out & Cash Disbursement",
     subtitle: "Turn Every Smartphone into a Digital ATM Without POS Machine Costs",
-    commissionTag: "0.40% Instant Margin on Dispensed Cash",
-    lead: "Capitalize on India's booming UPI adoption. Customers scan a dynamic QR code generated on the retailer's smartphone or PC using PhonePe, Google Pay, or Paytm. Once verified with green-tick audio-visual confirmation, the retailer hands over cash and earns an immediate margin.",
+    settlementTag: "Dynamic Fraud-Proof QR · Instant Wallet Settlement",
+    lead: "Capitalize on India's booming UPI adoption. Customers scan a dynamic QR code generated on the retailer's smartphone or PC using PhonePe, Google Pay, or Paytm. Once verified with green-tick audio-visual confirmation, the retailer hands over cash with immediate confirmation.",
     points: [
       {
         title: "Zero Hardware Machine Capex",
@@ -271,11 +271,11 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
       {
         title: "Excess Cash Drainage Solution",
-        desc: "Provides kiranas and retail stores a safe, profitable channel to offload excess daily sales cash without bank visits.",
+        desc: "Provides kiranas and retail stores a safe channel to offload excess daily sales cash without bank visits.",
       },
     ],
     metrics: [
-      { label: "Retailer Margin", value: "0.40% Instant Margin" },
+      { label: "Reconciliation", value: "Instant T+0 Ledger" },
       { label: "Hardware Cost", value: "₹0 (Zero Terminal Capex)" },
       { label: "Payment Apps", value: "GPay, PhonePe, Paytm" },
       { label: "Settlement", value: "Instant Wallet Liquidity" },
@@ -292,7 +292,7 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "60-Second Blacklist Clear",
     title: "FASTag National Tollway Top-Up & Vehicle Registry",
     subtitle: "Real-Time NETC Switch Integration for Highway Transit Hubs",
-    commissionTag: "0.25% to 0.50% Instant Margin",
+    settlementTag: "NETC National Switch · 60s Blacklist Clearance",
     lead: "Serve commercial fleet operators, transporters, and private car owners at transit locations. Direct integration with the National Electronic Toll Collection (NETC) switch allows retailers to input vehicle registration numbers, auto-fetch issuing banks and toll balances, and clear toll barrier blacklists in 60 seconds.",
     points: [
       {
@@ -313,7 +313,7 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
     ],
     metrics: [
-      { label: "Top-up Margin", value: "0.25% – 0.50% Instant" },
+      { label: "Switch Rail", value: "NETC Central Switch" },
       { label: "Barrier Sync", value: "< 60 Seconds Clearance" },
       { label: "Issuing Banks", value: "All 34+ NETC Banks" },
       { label: "Search Mechanism", value: "Instant Vehicle Reg No" },
@@ -330,7 +330,7 @@ const B2B_SERVICES: ServiceB2B[] = [
     slaTag: "Valid Tax 80C Invoicing",
     title: "LIC Policy & Micro-Insurance Premium Collection",
     subtitle: "Direct Life Insurance Corporation Portal Sync with Official Tax Proofs",
-    commissionTag: "₹15 to ₹45 / Policy Collected",
+    settlementTag: "Direct LIC Central Host · Valid 80C Receipts",
     lead: "Capture large-ticket insurance collections for the country's most trusted financial brand. Direct connectivity with Life Insurance Corporation of India (LIC) enables real-time policy verification, installment calculation including late fees, and instantaneous delivery of valid tax-exemption receipts.",
     points: [
       {
@@ -343,7 +343,7 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
       {
         title: "High Average Transaction Value",
-        desc: "Higher policy ticket sizes (₹3,000–₹25,000) deliver substantial absolute commission earnings per customer.",
+        desc: "Handle premium ticket sizes (₹3,000–₹25,000) with direct central host validation and zero failure risk.",
       },
       {
         title: "Customer Trust & Loyalty",
@@ -351,7 +351,7 @@ const B2B_SERVICES: ServiceB2B[] = [
       },
     ],
     metrics: [
-      { label: "Policy Payout", value: "₹15 to ₹45 / Receipt" },
+      { label: "Host Sync", value: "Direct LIC Central Switch" },
       { label: "Tax Exemption", value: "100% IT Act 80C Compliant" },
       { label: "Integration", value: "Direct LIC Central Host" },
       { label: "Turnaround", value: "Instant Receipt Issuance" },
@@ -375,7 +375,7 @@ export default function ServicesIndex() {
             Enterprise Banking Rails for Retail & Corporate Distribution
           </h1>
           <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Deploy certified banking, utility, credit, and cash collection APIs with industry-leading commercial slabs,
+            Deploy certified banking, utility, credit, and cash collection APIs with high availability,
             sub-second latency, and automated T+0 settlements.
           </p>
 
@@ -453,15 +453,15 @@ export default function ServicesIndex() {
                         {s.slaTag}
                       </div>
 
-                      {/* Floating Bottom Commission Banner */}
+                      {/* Floating Bottom Rail Banner */}
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-white/95 p-2.5 shadow-lg backdrop-blur-md">
                         <div className="flex items-center gap-2">
                           <div className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700">
-                            <Coins className="h-4 w-4" />
+                            <ShieldCheck className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Commercial Margin</p>
-                            <p className="text-xs font-black text-emerald-800">{s.commissionTag}</p>
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Switch & Settlement Rail</p>
+                            <p className="text-xs font-bold text-emerald-800">{s.settlementTag}</p>
                           </div>
                         </div>
                       </div>
@@ -563,9 +563,9 @@ export default function ServicesIndex() {
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-700 transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white group-hover:[&_*]:!text-white group-hover:[&_svg]:!text-white">
                 <Layers className="h-5 w-5" />
               </div>
-              <h3 className="font-display text-base font-bold text-navy-950">Automated Multi-Tier Splitting</h3>
+              <h3 className="font-display text-base font-bold text-navy-950">Multi-Tier Network Management</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Appoint regional distributors and super agents with automatic commission cascading. When a retailer completes a service, margins split instantly down the hierarchy.
+                Appoint regional distributors and super agents with structured operational hierarchy, instant volume monitoring, and real-time ledger settlement across the network.
               </p>
             </div>
 

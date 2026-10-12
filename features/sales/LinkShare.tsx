@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Copy, Share2 } from "lucide-react";
 import { QrCode } from "@/components/ui/QrCode";
 
-export function LinkShare({ url, caption }: { url: string; caption?: string }) {
+export function LinkShare({ url, caption, hint }: { url: string; caption?: string; hint?: string }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -28,7 +28,7 @@ export function LinkShare({ url, caption }: { url: string; caption?: string }) {
         <QrCode value={url} />
         <div className="min-w-0 flex-1 space-y-2">
           <p className="break-all text-sm text-navy-800">{url}</p>
-          <p className="text-xs text-navy-500">Show the QR. The customer scans it and finishes on their phone.</p>
+          <p className="text-xs text-navy-500">{hint ?? "Show the QR. The customer scans it and finishes on their phone."}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-secondary inline-flex items-center gap-2 text-sm" onClick={() => copy()}>
               <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy link"}

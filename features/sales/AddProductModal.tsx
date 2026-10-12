@@ -6,6 +6,7 @@ import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { useLoader } from "@/stores/loader.store";
 import { useSession } from "@/stores/session.store";
 import { Alert, Field, Modal } from "@/components/ui/primitives";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { productTitle } from "@/features/sales/CatalogShowcase";
 import { LinkShare } from "@/features/sales/LinkShare";
 import type { CatalogCategory } from "@/features/sales/CatalogView";
@@ -128,12 +129,19 @@ export function AddProductModal({
         {error && <Alert tone="error">{error}</Alert>}
         <form className="space-y-3" onSubmit={check}>
           <Field label="Category">
-            <select className="field" required value={categoryCode} onChange={(e) => { setCategoryCode(e.target.value); setResult(null); }}>
-              <option value="">Select a category</option>
-              {categories.map((category) => (
-                <option key={category.code} value={category.code}>{category.name}</option>
-              ))}
-            </select>
+            <CustomSelect
+              required
+              value={categoryCode}
+              onChange={(code) => {
+                setCategoryCode(code);
+                setResult(null);
+              }}
+              placeholder="Select a category"
+              options={categories.map((category) => ({
+                value: category.code,
+                label: category.name,
+              }))}
+            />
           </Field>
           {!fdCategory && (
             <Field label="Budget">

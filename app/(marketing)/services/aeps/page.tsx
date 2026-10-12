@@ -12,7 +12,6 @@ export default function Page() {
       kicker="Aadhaar ATM (AePS)"
       title="Turn Your Shop into a Neighborhood Aadhaar ATM"
       art="aeps"
-      commission="Flat ₹10 per withdrawal + Extra mini-statement commission"
       lead="Customer scans their thumb on your biometric scanner. Cash is debited from their bank account and credited into your retailer wallet. Hand over physical cash to the customer."
       partners={[
         "Mantra Biometrics",
@@ -25,7 +24,7 @@ export default function Page() {
       steps={[
         { step: "01", title: "Select Bank & Aadhaar Number", desc: "Customer provides 12-digit Aadhaar number and selects bank name." },
         { step: "02", title: "Scan Fingerprint", desc: "Customer places thumb on biometric scanner for secure verification." },
-        { step: "03", title: "Dispense Cash & Earn Margin", desc: "Wallet balance credited immediately; hand over cash notes to customer." },
+        { step: "03", title: "Dispense Cash & Complete", desc: "Wallet balance credited immediately; hand over cash notes to customer." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">
@@ -35,7 +34,7 @@ export default function Page() {
         </div>
         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
           <p className="font-bold text-navy-950 text-sm">Balance Inquiry & Mini-Statement</p>
-          <p className="text-xs text-slate-500 mt-1">Check remaining account balance and print last 5 transactions for extra walk-in fees.</p>
+          <p className="text-xs text-slate-500 mt-1">Check remaining account balance and print last 5 transactions for customer convenience.</p>
         </div>
       </div>
     </ServiceLayout>

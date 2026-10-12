@@ -12,7 +12,6 @@ export default function Page() {
       kicker="Operational Wallet"
       title="Load Wallet & Start Transacting Instantly"
       art="wallet"
-      commission="Zero Loading Charges (Free UPI Top-Up)"
       lead="Top up your working float in 10 seconds via dynamic UPI QR or Netbanking. Never worry about minus balances or overdraft debts — every rupee is safeguarded by an append-only double-entry ledger."
       partners={[
         "Instant UPI Load",
@@ -24,7 +23,7 @@ export default function Page() {
       steps={[
         { step: "01", title: "Top Up via UPI", desc: "Scan QR with PhonePe or GPay to add float instantly without fees." },
         { step: "02", title: "Serve Walk-in Customers", desc: "Send money, pay bills, and dispense cash from available balance." },
-        { step: "03", title: "Earn Instant Commission", desc: "Every transaction fee and commission splits into your wallet in real-time." },
+        { step: "03", title: "Instant Ledger Settlement", desc: "Every transaction settles with automated double-entry ledger reconciliation in real-time." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">

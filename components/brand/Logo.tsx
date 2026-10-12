@@ -15,18 +15,21 @@ export function Logo({
   asSpan?: boolean;
 }) {
   const height = heightProp ?? (compact ? 48 : 68);
-  const width = heightProp ? Math.round(height * 2.55) : compact ? 200 : 220;
+  const width = heightProp ? Math.round(height * 4.2) : compact ? 220 : 260;
+
+  const scale = light ? 0.71 : 1;
+  const multiplier = (heightProp ? 3.15 : 2.8) * scale;
 
   const content = (
     <Image
-      src="/images/gfinpay-transparent.png"
+      src={light ? "/images/gfinpay-white-logo.jpg" : "/images/gfinpay-new-logo.jpg"}
       alt="Gfinpay"
-      width={800}
-      height={800}
-      className={`absolute top-1/2 max-w-none -translate-y-1/2 ${
-        heightProp ? "left-0 -translate-x-[8%]" : "left-1/2 -translate-x-1/2"
-      } ${light ? "invert" : ""}`}
-      style={{ height: height * (heightProp ? 3.15 : 2.8), width: "auto" }}
+      width={1920}
+      height={1080}
+      className={`absolute top-1/2 left-1/2 max-w-none -translate-y-1/2 -translate-x-1/2 ${
+        light ? "mix-blend-screen" : "mix-blend-multiply"
+      }`}
+      style={{ height: height * multiplier, width: "auto" }}
       priority
     />
   );

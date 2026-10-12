@@ -8,10 +8,19 @@ export function ApplyHandoff({
   url,
   encdata,
   method,
+  title = "Connecting to Official Portal",
+  body = "Please wait while we safely redirect you to the verified banking onboarding portal to complete your application.",
+  points = [
+    "Customer-funded security deposit (AML verified)",
+    "Retailer never accesses your card or banking credentials",
+  ],
 }: {
   url: string;
   encdata: string;
   method?: string;
+  title?: string;
+  body?: string;
+  points?: string[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -56,22 +65,20 @@ export function ApplyHandoff({
         </div>
 
         <h1 className="mt-4 font-display text-xl font-extrabold text-navy-950">
-          Connecting to Official Portal
+          {title}
         </h1>
         <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-          Please wait while we safely redirect you to the verified banking onboarding portal to complete your application.
+          {body}
         </p>
 
         {/* Safety checklist */}
         <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-100 p-3.5 text-left text-xs space-y-2 text-slate-600">
-          <div className="flex items-center gap-2 text-slate-700 font-medium">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            <span>Customer-funded security deposit (AML verified)</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-700 font-medium">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            <span>Retailer never accesses your card or banking credentials</span>
-          </div>
+          {points.map((point) => (
+            <div key={point} className="flex items-center gap-2 text-slate-700 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span>{point}</span>
+            </div>
+          ))}
         </div>
 
         <p className="mt-5 text-[11px] text-slate-400">

@@ -12,7 +12,6 @@ export default function Page() {
       kicker="Money Transfer (DMT)"
       title="Transfer Customer Cash to Any Bank Account Instantly"
       art="dmt"
-      commission="0.50% Margin (Flat ₹25 to ₹75 per transfer)"
       lead="Customer gives cash. You send money instantly to any bank account in India over IMPS 24x7. Real-time name verification ensures 100% correct account transfers."
       partners={[
         "State Bank of India",
@@ -27,7 +26,7 @@ export default function Page() {
       steps={[
         { step: "01", title: "Enter Mobile & Account", desc: "Customer provides phone number and recipient account number + IFSC." },
         { step: "02", title: "Verify Account Holder Name", desc: "Penny-drop validation verifies recipient name before sending." },
-        { step: "03", title: "Instant Transfer & Commission", desc: "Money transfers in 5 seconds via IMPS & commission enters your wallet." },
+        { step: "03", title: "Instant Transfer & Official Receipt", desc: "Money transfers in 5 seconds via IMPS & customer receives official SMS and print slip." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">

@@ -12,7 +12,6 @@ export default function Page() {
       kicker="Recharge"
       title="Recharge Any Mobile & DTH Service Instantly"
       art="recharge"
-      commission="Up to 3.5% Instant Margin (Direct Commission)"
       lead="Instant prepaid mobile and DTH top-ups for every network in India. View trending plans, unlimited 5G packs, and DTH annual offers in 1-click."
       partners={[
         "Jio Prepaid",
@@ -27,7 +26,7 @@ export default function Page() {
       steps={[
         { step: "01", title: "Select Number & Operator", desc: "Enter 10-digit mobile or DTH subscriber ID." },
         { step: "02", title: "Choose Best Plan", desc: "Browse unlimited talktime, 5G data, and combo packs." },
-        { step: "03", title: "Instant Recharge & Cashback", desc: "Recharge confirms in 2 seconds & margin stays in your wallet." },
+        { step: "03", title: "Instant Recharge Confirmation", desc: "Recharge confirms in 2 seconds with official operator transaction ID." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">

@@ -123,7 +123,7 @@ export function SiteFooter() {
             </li>
             <li>
               <Link className="text-emerald-400 font-semibold hover:text-emerald-300 inline-flex items-center gap-1" href="/login">
-                <span>Retailer Login</span>
+                <span>Partner Login</span>
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </li>

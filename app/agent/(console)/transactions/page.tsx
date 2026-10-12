@@ -35,11 +35,24 @@ export default function AgentTransactionsPage() {
 
   useEffect(() => {
     if (!token) return;
+    let cancelled = false;
     setLoading(true);
     api<TxnRow[]>("/api/v1/desk/transactions", { token })
-      .then((data) => setRows(Array.isArray(data) ? data : []))
-      .catch((e) => flash.fail(e, "Failed to load transactions"))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (cancelled) return;
+        setRows(Array.isArray(data) ? data : []);
+        flash.clear();
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        flash.fail(e, "Failed to load transactions");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   function copy(id: string) {
@@ -72,10 +85,10 @@ export default function AgentTransactionsPage() {
       if (query) {
         const q = query.toLowerCase();
         return (
-          r.id.toLowerCase().includes(q) ||
-          r.txn_type.toLowerCase().includes(q) ||
+          String(r.id ?? "").toLowerCase().includes(q) ||
+          String(r.txn_type ?? "").toLowerCase().includes(q) ||
           (r.partner_ref && r.partner_ref.toLowerCase().includes(q)) ||
-          String(r.amount).includes(q)
+          String(r.amount ?? "").includes(q)
         );
       }
       return true;
@@ -172,7 +185,7 @@ export default function AgentTransactionsPage() {
           </div>
         ) : filteredRows.length === 0 ? (
           <EmptyState
-            title="No transactions match your search"
+            title={query || statusFilter !== "ALL" ? "No transactions match your search" : "No transactions yet"}
             body={query || statusFilter !== "ALL" ? "Try clearing search or status filters." : "Completed counter sales will appear here."}
           />
         ) : (
@@ -199,7 +212,7 @@ export default function AgentTransactionsPage() {
                         </div>
                         <div className="mt-1 flex items-center gap-2">
                           <span className="font-mono text-xs text-slate-500">
-                            {t.id.slice(0, 12)}...
+                            {String(t.id).slice(0, 12)}...
                           </span>
                           <button
                             type="button"
@@ -216,7 +229,7 @@ export default function AgentTransactionsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <StatusPill value={t.state} />
+                      <StatusPill value={t.state || "UNKNOWN"} />
                     </td>
                     <td className="px-6 py-4 text-xs text-slate-600">
                       {t.created_at ? when(t.created_at) : "—"}

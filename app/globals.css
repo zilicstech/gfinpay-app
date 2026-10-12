@@ -36,7 +36,51 @@ body {
 }
 
 .field {
-  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-navy-950 placeholder:text-slate-400 shadow-sm transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15 sm:py-3 sm:text-sm;
+  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-navy-950 placeholder:text-slate-400 shadow-sm transition-all duration-200 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/15 sm:py-3 sm:text-sm;
+}
+
+/* Modern Select Dropdown Styling across Platform */
+select.field,
+select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1.125rem center;
+  background-size: 1rem 1rem;
+  padding-right: 2.75rem !important;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+select.field:hover,
+select:hover:not(:disabled) {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+select.field:focus,
+select:focus {
+  border-color: #10b981;
+  background-color: #ffffff;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+}
+
+select:disabled {
+  background-color: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #020617;
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .btn {

@@ -59,7 +59,7 @@ export default function Page() {
         </p>
 
         <p>
-          Secured credit cards backed by Fixed Deposits (such as those issued by SBM Bank India and Indian Overseas Bank) represent one of the highest margin opportunities for Bharat retailers, generating referral commissions between ₹800 and ₹2,900 per approved applicant.
+          Secured credit cards backed by Fixed Deposits (such as those issued by SBM Bank India and Indian Overseas Bank) represent a high-value financial product for Bharat retailers to offer their walk-in customers, enabling access to formal credit lines with zero underwriting rejection.
         </p>
 
         <div className="rounded-3xl border border-indigo-200 bg-indigo-50/50 p-6 sm:p-8 my-8 space-y-2">
@@ -78,8 +78,8 @@ export default function Page() {
 
         <ul className="space-y-3 list-disc pl-5 text-slate-600">
           <li><strong>No Cash Pooling:</strong> The retailer&apos;s till never receives deposit funds, preventing any regulatory commingling violations.</li>
-          <li><strong>Real-time Webhook Attestation:</strong> Partner bank webhooks verify the issuance of the lien-marked FD before ledger commission unlocks.</li>
-          <li><strong>Automated Split Settlement:</strong> Once the partner bank confirms onboarding, commission splits automatically credit the retailer and distributor passbooks.</li>
+          <li><strong>Real-time Webhook Attestation:</strong> Partner bank webhooks verify the issuance of the lien-marked FD before ledger settlement unlocks.</li>
+          <li><strong>Automated Split Settlement:</strong> Once the partner bank confirms onboarding, ledger records automatically credit the retailer and distributor passbooks.</li>
         </ul>
       </div>
 

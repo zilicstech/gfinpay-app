@@ -143,7 +143,14 @@ export default function AgentSalesPage() {
               ))}
             </div>
           ) : (
-            <SalesTable rows={filteredRows} detailBase="/agent/sales" hideRetailer />
+            <SalesTable
+              rows={filteredRows}
+              detailBase="/agent/sales"
+              hideRetailer
+              showChannel={false}
+              hideDistributor
+              hideCustomer
+            />
           )}
         </div>
       </div>

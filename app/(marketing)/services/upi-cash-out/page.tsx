@@ -12,7 +12,6 @@ export default function Page() {
       kicker="UPI Cash-Out"
       title="Customer Scans UPI QR, You Hand Over Cash"
       art="upi"
-      commission="0.40% Instant Margin (Instant Wallet Settlement)"
       lead="Display a dynamic UPI QR code on your mobile screen. Customer scans with PhonePe, Google Pay, or Paytm and authorizes with UPI PIN. Once the green checkmark shows, hand over physical cash notes."
       partners={[
         "PhonePe",
@@ -25,7 +24,7 @@ export default function Page() {
       steps={[
         { step: "01", title: "Generate Dynamic QR", desc: "Type amount in app; dynamic UPI QR generates instantly on your screen." },
         { step: "02", title: "Customer Scans & Authorizes", desc: "Customer scans with any UPI app and authorizes payment with their UPI PIN." },
-        { step: "03", title: "Dispense Cash & Keep Commission", desc: "Funds land in your wallet with sound alert; hand over cash to customer." },
+        { step: "03", title: "Dispense Cash & Complete", desc: "Funds land in your wallet with sound alert; hand over cash to customer." },
       ]}
     >
       <div className="grid sm:grid-cols-2 gap-4">

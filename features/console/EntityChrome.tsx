@@ -8,7 +8,12 @@ import { StatusPill } from "@/components/ui/primitives";
 
 export type Crumb = { href?: string; label: string };
 export type MetaItem = { icon: ReactNode; label: string };
-export type ManageAction = { label: string; onClick: () => void; tone?: "default" | "danger" };
+export type ManageAction = {
+  label: string;
+  onClick: () => void;
+  tone?: "default" | "danger";
+  icon?: ReactNode;
+};
 
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
@@ -56,9 +61,11 @@ export function initialsFromName(name: string) {
 export function ManageMenu({
   actions,
   variant = "default",
+  compactOnMobile = false,
 }: {
   actions: ManageAction[];
   variant?: "default" | "onDark";
+  compactOnMobile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -99,7 +106,7 @@ export function ManageMenu({
           <div
             ref={menuRef}
             role="menu"
-            className="fixed z-[200] w-56 overflow-hidden rounded-xl border border-navy-900/10 bg-white py-1 shadow-lg"
+            className="fixed z-[200] min-w-[14.5rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xl shadow-slate-900/10"
             style={{ top: menuPos.top, right: menuPos.right }}
           >
             {actions.map((item) => (
@@ -107,15 +114,26 @@ export function ManageMenu({
                 key={item.label}
                 type="button"
                 role="menuitem"
-                className={`block w-full px-3 py-2.5 text-left text-sm font-medium hover:bg-[#f5f5f5] ${
-                  item.tone === "danger" ? "text-rose-700" : "text-navy-800"
+                className={`flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                  item.tone === "danger"
+                    ? "text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    : "text-slate-700 hover:bg-slate-100/80 hover:text-navy-950"
                 }`}
                 onClick={() => {
                   setOpen(false);
                   item.onClick();
                 }}
               >
-                {item.label}
+                {item.icon && (
+                  <span
+                    className={`shrink-0 ${
+                      item.tone === "danger" ? "text-rose-500" : "text-slate-400"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                )}
+                <span>{item.label}</span>
               </button>
             ))}
           </div>,
@@ -128,13 +146,26 @@ export function ManageMenu({
       <button
         ref={buttonRef}
         type="button"
-        className={variant === "onDark" ? entityPrimaryActionClass : "btn-primary"}
+        className={
+          compactOnMobile
+            ? variant === "onDark"
+              ? "inline-flex items-center justify-center gap-2 rounded-full bg-emerald-300 p-2 sm:px-4 sm:py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-200 shadow-sm"
+              : "btn-primary !p-2 sm:!px-4 sm:!py-2.5"
+            : variant === "onDark"
+            ? entityPrimaryActionClass
+            : "btn-primary"
+        }
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label="Manage options"
         onClick={() => setOpen((v) => !v)}
       >
-        <Settings className="h-4 w-4" />
-        Manage
+        <Settings className="h-4 w-4 shrink-0" />
+        {compactOnMobile ? (
+          <span className="hidden sm:inline">Manage</span>
+        ) : (
+          "Manage"
+        )}
       </button>
       {menu}
     </div>
