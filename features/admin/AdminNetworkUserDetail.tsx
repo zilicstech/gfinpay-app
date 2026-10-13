@@ -57,7 +57,7 @@ const primaryActionClass =
 
 type DistributorModal = "hub" | "password" | "adjust" | "freeze" | "inactivate" | "retailer" | null;
 
-type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "activation" | null;
+type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "reactivate" | "activation" | null;
 
 export function AdminDistributorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -760,6 +760,15 @@ export function AdminRetailerDetail() {
           },
         ]
       : []),
+    ...(user.status === "INACTIVE" || user.status === "SUSPENDED"
+      ? [
+          {
+            label: "Activate retailer",
+            icon: <BadgeCheck className="h-4 w-4" />,
+            onClick: () => setModal("reactivate"),
+          },
+        ]
+      : []),
     ...(user.status === "APPROVED"
       ? [
           {
@@ -1040,6 +1049,9 @@ export function AdminRetailerDetail() {
       </FormModal>
       <FormModal open={modal === "inactivate"} title="Inactivate retailer" onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); patchStatus("SUSPENDED"); }} submitLabel="Inactivate">
         <p className="text-sm text-navy-600">The outlet desk will not accept new transactions until reactivated.</p>
+      </FormModal>
+      <FormModal open={modal === "reactivate"} title="Activate retailer" onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); patchStatus("ACTIVE"); }} submitLabel="Activate">
+        <p className="text-sm text-navy-600">This outlet can sign in and use the desk again.</p>
       </FormModal>
       {id && (
         <ActivationRequestModal

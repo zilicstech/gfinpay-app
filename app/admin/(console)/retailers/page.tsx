@@ -32,7 +32,7 @@ export default function RetailersPage() {
 
   // Filter state
   const [query, setQuery] = useState("");
-  const [statusTab, setStatusTab] = useState<"ALL" | "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED" | "ACTIVE" | "SUSPENDED">("ALL");
+  const [statusTab, setStatusTab] = useState<"ALL" | "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED" | "ACTIVE" | "INACTIVE" | "SUSPENDED">("ALL");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Modal state
@@ -148,6 +148,7 @@ export default function RetailersPage() {
               ["APPROVED", "Approved"],
               ["REJECTED", "Rejected"],
               ["ACTIVE", "Active"],
+              ["INACTIVE", "Inactive"],
               ["SUSPENDED", "Suspended"],
             ] as const).map(([key, label]) => {
               const isActive = statusTab === key;

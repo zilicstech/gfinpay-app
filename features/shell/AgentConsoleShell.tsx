@@ -16,16 +16,15 @@ const PENDING_NAV = [{ href: "/agent/activate", label: "Activation" }];
 function PendingActivationGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const allowed = pathname === "/agent/activate" || pathname === "/agent/profile";
 
   useEffect(() => {
-    if (pathname !== "/agent/activate" && pathname !== "/agent/profile") {
-      router.replace("/agent/activate");
-    }
-  }, [pathname, router]);
+    if (!allowed) router.replace("/agent/activate");
+  }, [allowed, router]);
 
   return (
     <AppShell title="Retailer" allowedTypes={["RETAILER"]} nav={PENDING_NAV}>
-      {children}
+      {allowed ? children : <div className="card h-48 animate-pulse bg-[#f5f5f5]" />}
     </AppShell>
   );
 }
