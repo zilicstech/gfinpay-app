@@ -1,24 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { proxyRequestHeaders, proxyResponse } from "@/lib/upstream-proxy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const HOP_BY_HOP = new Set([
-  "connection",
-  "keep-alive",
-  "proxy-authenticate",
-  "proxy-authorization",
-  "te",
-  "trailers",
-  "transfer-encoding",
-  "upgrade",
-  "host",
-  "content-length",
-  "origin",
-  "referer",
-  "access-control-request-method",
-  "access-control-request-headers",
-]);
 
 function proxyTarget() {
   const configured = process.env.API_PROXY_TARGET?.trim().replace(/\/$/, "");
@@ -43,12 +27,9 @@ async function proxy(request: NextRequest, path: string[]) {
   const incoming = new URL(request.url);
   const destination = `${target}/webhooks/${path.map(encodeURIComponent).join("/")}${incoming.search}`;
 
-  const headers = new Headers();
-  request.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) headers.set(key, value);
-  });
+  const headers = proxyRequestHeaders(request);
 
-  const init: RequestInit = { method: request.method, headers, redirect: "follow" };
+  const init: RequestInit = { method: request.method, headers, redirect: "manual" };
   if (request.method !== "GET" && request.method !== "HEAD") {
     init.body = await request.arrayBuffer();
   }
@@ -60,12 +41,7 @@ async function proxy(request: NextRequest, path: string[]) {
     return envelope(502, "API_UNAVAILABLE", "Could not reach the API", true);
   }
 
-  const responseHeaders = new Headers();
-  upstream.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) responseHeaders.set(key, value);
-  });
-
-  return new NextResponse(upstream.body, { status: upstream.status, headers: responseHeaders });
+  return proxyResponse(upstream);
 }
 
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
