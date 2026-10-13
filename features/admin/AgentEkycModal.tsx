@@ -216,15 +216,21 @@ export function AgentEkycStatusModal({
   onVerified?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [status, setStatus] = useState<OnboardStatus | null>(null);
+  const [freshLink, setFreshLink] = useState<OnboardLink | null>(null);
   const onVerifiedRef = useRef(onVerified);
   onVerifiedRef.current = onVerified;
 
   useEffect(() => {
     if (!open) {
       setError(null);
+      setRefreshError(null);
       setStatus(null);
+      setFreshLink(null);
+      setRefreshing(false);
       return;
     }
     if (!userId || !token) return;
@@ -252,37 +258,77 @@ export function AgentEkycStatusModal({
     };
   }, [open, userId, token, scope]);
 
+  async function generateNewLink() {
+    if (!userId || !token || refreshing) return;
+    setRefreshing(true);
+    setRefreshError(null);
+    const path = scope === "desk"
+      ? `/api/v1/desk/outlets/${userId}/paysprint-onboard/refresh`
+      : `/api/v1/admin/users/${userId}/paysprint-onboard/refresh`;
+    try {
+      const row = await api<OnboardLink>(path, { token, method: "POST", body: JSON.stringify({}) });
+      setFreshLink(row);
+      if ((row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
+    } catch (err) {
+      setRefreshError(formatApiError(err, "Could not generate a new onboarding link"));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   const approved = status?.is_approved ?? "";
-  const completed = Boolean(status?.completed) || approved.trim().toLowerCase() === "accepted";
+  const completed = Boolean(status?.completed)
+    || approved.trim().toLowerCase() === "accepted"
+    || (freshLink?.kyc_status ?? "").toUpperCase() === "VERIFIED";
   const tone = completed ? "success" : approved.trim().toLowerCase() === "rejected" ? "error" : "info";
+  const shareUrl = freshLink?.redirect_url || status?.redirect_url || "";
 
   return (
-    <Modal open={open} title="eKYC status" onClose={onClose}>
+    <Modal open={open} title="eKYC status" onClose={onClose} persistent>
       {loading ? (
         <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-      ) : error ? (
-        <Alert tone="error">{error}</Alert>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-navy-950">{statusHeading(approved)}</p>
-          <Alert tone={tone}>
-            {status?.message || "PaySprint did not return an onboarding status."}
-          </Alert>
-          {userName && (
-            <p className="text-sm text-navy-600">Status for {userName} on Bank 2.</p>
+          {error && <Alert tone="error">{error}</Alert>}
+          {status && (
+            <>
+              <p className="text-sm font-semibold text-navy-950">{statusHeading(approved)}</p>
+              <Alert tone={tone}>
+                {status.message || "PaySprint did not return an onboarding status."}
+              </Alert>
+              {userName && (
+                <p className="text-sm text-navy-600">Status for {userName} on Bank 2.</p>
+              )}
+            </>
           )}
-          {status?.redirect_url && !completed && (
-            <LinkShare
-              url={status.redirect_url}
-              caption={`Complete PaySprint eKYC${userName ? ` for ${userName}` : ""}.`}
-              hint="This is the same link already shared. Gfinpay continues to PaySprint."
-            />
+          {!completed && (
+            <div className="space-y-3">
+              <p className="text-sm text-navy-600">
+                PaySprint onboarding pages expire. Generate a new link and share it again so the retailer can continue.
+              </p>
+              {refreshError && <Alert tone="error">{refreshError}</Alert>}
+              {freshLink?.message && freshLink.redirect_url && (
+                <Alert tone="success">{freshLink.message}</Alert>
+              )}
+              {shareUrl && (
+                <LinkShare
+                  url={shareUrl}
+                  share={false}
+                  caption={`Complete PaySprint eKYC${userName ? ` for ${userName}` : ""}.`}
+                  hint={freshLink?.redirect_url
+                    ? "This opens a new PaySprint session. The previous page has expired."
+                    : "This is the same link already shared. Gfinpay continues to PaySprint."}
+                />
+              )}
+              <div className="flex justify-end">
+                <button type="button" className="btn-primary" onClick={generateNewLink} disabled={refreshing || !userId || !token}>
+                  {refreshing ? "Generating…" : "New eKyc Link"}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
-      <div className="mt-4 flex justify-end">
-        <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
-      </div>
     </Modal>
   );
 }

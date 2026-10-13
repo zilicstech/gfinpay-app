@@ -206,6 +206,7 @@ export function Modal({
   description,
   onClose,
   wide = false,
+  persistent = false,
   children,
 }: {
   open: boolean;
@@ -213,6 +214,7 @@ export function Modal({
   description?: string;
   onClose?: () => void;
   wide?: boolean;
+  persistent?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -220,14 +222,14 @@ export function Modal({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === "Escape" && !persistent) onClose?.();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, persistent]);
 
   if (!open) return null;
 
@@ -236,7 +238,7 @@ export function Modal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-navy-950/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-        onClick={onClose}
+        onClick={persistent ? undefined : onClose}
         aria-hidden
       />
 
@@ -259,7 +261,7 @@ export function Modal({
               onClick={onClose}
               className="text-slate-400 hover:text-navy-950 rounded-xl p-1.5 hover:bg-slate-100 transition-colors shrink-0 -mr-1 -mt-1"
               aria-label="Close dialog"
-              title="Close (Esc)"
+              title={persistent ? "Close" : "Close (Esc)"}
             >
               <X className="h-5 w-5" />
             </button>

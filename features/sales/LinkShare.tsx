@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Copy, Share2 } from "lucide-react";
 import { QrCode } from "@/components/ui/QrCode";
 
-export function LinkShare({ url, caption, hint }: { url: string; caption?: string; hint?: string }) {
+export function LinkShare({ url, caption, hint, share = true }: { url: string; caption?: string; hint?: string; share?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -13,7 +13,7 @@ export function LinkShare({ url, caption, hint }: { url: string; caption?: strin
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function share() {
+  async function shareLink() {
     if (navigator.share) {
       await navigator.share({ title: "Continue your application", text: caption ?? "Open this link to continue.", url });
       return;
@@ -33,9 +33,11 @@ export function LinkShare({ url, caption, hint }: { url: string; caption?: strin
             <button type="button" className="btn-secondary inline-flex items-center gap-2 text-sm" onClick={() => copy()}>
               <Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy link"}
             </button>
-            <button type="button" className="btn-secondary inline-flex items-center gap-2 text-sm" onClick={() => share().catch(() => undefined)}>
-              <Share2 className="h-4 w-4" /> Share
-            </button>
+            {share && (
+              <button type="button" className="btn-secondary inline-flex items-center gap-2 text-sm" onClick={() => shareLink().catch(() => undefined)}>
+                <Share2 className="h-4 w-4" /> Share
+              </button>
+            )}
           </div>
         </div>
       </div>
