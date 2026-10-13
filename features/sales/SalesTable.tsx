@@ -14,6 +14,18 @@ import {
 import { EmptyState, StatusPill } from "@/components/ui/primitives";
 import { partnerStatusLabel } from "@/lib/partner-status";
 import { when } from "@/lib/format";
+import { productTitle } from "@/features/sales/CatalogShowcase";
+
+export function funnelStepLabel(row: {
+  partner_status?: string | null;
+  link_opened_at?: string | null;
+  state?: string | null;
+}): string {
+  if (row.partner_status && partnerStatusLabel(row.partner_status) !== "—") {
+    return partnerStatusLabel(row.partner_status);
+  }
+  return row.link_opened_at ? "Opened" : "Initiated";
+}
 
 export type SalesLead = {
   id: string;
@@ -112,7 +124,10 @@ export function SalesTable({
                   </span>
                   <div>
                     <p className="font-semibold text-navy-950 text-sm">
-                      {row.item_name ?? row.product_code ?? "Financial Product"}
+                      {productTitle(
+                        row.item_code ?? row.product_code ?? "",
+                        row.item_name ?? row.product_code ?? "Financial Product"
+                      )}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
                       {row.sale_provider ?? "Bank Partner"}
@@ -190,7 +205,7 @@ export function SalesTable({
               <td className="px-6 py-4">
                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                   <Clock className="h-3 w-3 text-slate-400 shrink-0" />
-                  {partnerStatusLabel(row.partner_status)}
+                  {funnelStepLabel(row)}
                 </span>
               </td>
               <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">

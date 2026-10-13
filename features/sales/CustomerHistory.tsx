@@ -5,28 +5,18 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowRight,
-  BadgeCheck,
-  Briefcase,
-  Building2,
   Clock,
   Copy,
   CreditCard,
-  FileCheck2,
-  FileText,
   LayoutGrid,
   Mail,
   MapPin,
   Pencil,
   Phone,
-  Shield,
-  ShieldAlert,
-  ShieldCheck,
   Store,
-  User,
-  Users,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
-import { inr, maskMobile, when } from "@/lib/format";
+import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { Alert, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { EkycBadge } from "@/features/sales/EkycBadge";
@@ -34,20 +24,9 @@ import { Flash, FormModal, useFlash } from "@/features/admin/AdminChrome";
 import { CustomerFields, type CustomerDraft } from "@/features/sales/customer-form";
 import { AddProductModal } from "@/features/sales/AddProductModal";
 import { SellFdCardModal } from "@/features/sales/SellFdCardModal";
-import { productTitle } from "@/features/sales/CatalogShowcase";
-import { EkycComingSoonModal } from "@/features/ekyc/EkycComingSoonModal";
 import { ManageMenu, type ManageAction } from "@/features/console/EntityChrome";
-
-type Service = {
-  id: string;
-  item_code?: string;
-  item_name: string;
-  category_name: string;
-  state: string;
-  budget?: number;
-  created_at?: string;
-  link_opened_at?: string;
-};
+import { funnelStepLabel, type SalesLead } from "@/features/sales/SalesTable";
+import { productTitle } from "@/features/sales/CatalogShowcase";
 
 type Txn = {
   id: string;
@@ -75,11 +54,11 @@ type Customer = {
   created_by_code?: string;
   created_at?: string;
   desk_manageable?: boolean;
-  services: Service[];
+  services: SalesLead[];
   transactions: Txn[];
 };
 
-type TabType = "products" | "transactions" | "profile";
+type TabType = "products" | "transactions";
 
 export function CustomerHistory({ basePath, manage = false }: { basePath: string; manage?: boolean }) {
   const token = useSession((s) => s.token);
@@ -97,7 +76,6 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [ekycOpen, setEkycOpen] = useState(false);
 
   function load() {
     if (!token || !id) return;
@@ -178,8 +156,9 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
     draft.city.trim() &&
     draft.state &&
     draft.pincode.length === 6;
-  const ekycVerified = (customer.ekyc_status ?? "").toUpperCase() === "VERIFIED";
   const canManage = manage || customer.desk_manageable !== false;
+  const isAdmin = basePath.startsWith("/admin");
+  const canAddLead = !isAdmin && canManage;
 
   const manageActions: ManageAction[] = [
     {
@@ -187,20 +166,15 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
       icon: <Pencil className="h-4 w-4" />,
       onClick: startEdit,
     },
-    ...(!ekycVerified
+    ...(canAddLead
       ? [
           {
-            label: "Complete eKYC",
-            icon: <BadgeCheck className="h-4 w-4" />,
-            onClick: () => setEkycOpen(true),
+            label: sellFd ? "Sell FD Card" : "Add service lead",
+            icon: sellFd ? <CreditCard className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />,
+            onClick: () => setAddOpen(true),
           },
         ]
       : []),
-    {
-      label: sellFd ? "Sell FD Card" : "Add service lead",
-      icon: sellFd ? <CreditCard className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />,
-      onClick: () => setAddOpen(true),
-    },
   ];
 
   return (
@@ -281,15 +255,11 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
               </span>
             </div>
 
-            {/* Row 2: Creation & CID Details */}
+            {/* Row 2: Creation Details */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 pt-0.5">
               <span className="inline-flex items-center gap-1.5 text-slate-300">
                 <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                 <span>Added {when(customer.created_at)}</span>
-              </span>
-              <span className="text-slate-600">·</span>
-              <span className="font-mono text-[11px] text-slate-400">
-                CID: {customer.id}
               </span>
             </div>
           </div>
@@ -306,9 +276,8 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
       {/* Modern Segmented Tab Switcher */}
       <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1.5 w-fit">
         {([
-          ["products", `Product Applications (${customer.services?.length ?? 0})`],
-          ["transactions", `Counter Transactions (${customer.transactions?.length ?? 0})`],
-          ["profile", "Profile & Compliance"],
+          ["products", `Sales (${customer.services?.length ?? 0})`],
+          ["transactions", `Transactions (${customer.transactions?.length ?? 0})`],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -325,17 +294,17 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
         ))}
       </div>
 
-      {/* TAB 1: PRODUCT APPLICATIONS */}
+      {/* TAB 1: SALES */}
       {tab === "products" && (
         <div className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
-              <h3 className="font-display text-xl font-bold text-navy-950">Subscribed Banking Products</h3>
+              <h3 className="font-display text-xl font-bold text-navy-950">Sales</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Credit cards, loan applications, and banking services started for this customer.
+                Financial products, credit cards, and loan applications initiated for this customer.
               </p>
             </div>
-            {canManage && (
+            {canAddLead && (
               <button
                 type="button"
                 className="btn-primary !py-2 !px-4 text-xs font-bold inline-flex items-center gap-1.5 shrink-0"
@@ -350,10 +319,10 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
           {!customer.services || customer.services.length === 0 ? (
             <div className="space-y-4 text-center py-6">
               <EmptyState
-                title="No product applications initiated"
+                title="No sales leads yet"
                 body="Banking products and cards initiated for this customer will appear here with live pipeline progress."
               />
-              {canManage && (
+              {canAddLead && (
                 <button
                   type="button"
                   className="btn-primary text-xs inline-flex items-center gap-1.5"
@@ -371,9 +340,9 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
                   <tr>
                     <th className="px-6 py-4">Product</th>
                     <th className="px-6 py-4">Category</th>
-                    <th className="px-6 py-4">Pipeline Status</th>
-                    <th className="px-6 py-4">Link Status</th>
-                    <th className="px-6 py-4">Applied On</th>
+                    <th className="px-6 py-4">Funnel Step</th>
+                    <th className="px-6 py-4">Created On</th>
+                    <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
@@ -381,19 +350,20 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
                   {customer.services.map((s) => (
                     <tr key={s.id} className="transition-colors hover:bg-slate-50/60 group">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs shrink-0 ring-1 ring-inset ring-emerald-500/20">
-                            <CreditCard className="h-4 w-4 text-emerald-600" />
-                          </div>
+                        <div className="flex items-start gap-2.5">
+                          <span className="mt-0.5 inline-flex items-center justify-center h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-500/25 shrink-0">
+                            <CreditCard className="h-3.5 w-3.5" />
+                          </span>
                           <div>
                             <p className="font-semibold text-navy-950 text-sm">
-                              {productTitle(s.item_code ?? "", s.item_name)}
+                              {productTitle(
+                                s.item_code ?? s.product_code ?? "",
+                                s.item_name ?? s.product_code ?? "Financial Product"
+                              )}
                             </p>
-                            {s.item_code && (
-                              <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                {s.item_code}
-                              </span>
-                            )}
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {s.sale_provider ?? "Bank Partner"}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -403,23 +373,18 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
                       </td>
 
                       <td className="px-6 py-4">
-                        <StatusPill value={s.state} />
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {s.link_opened_at ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                            Opened
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                            Pending Click
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                          <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                          {funnelStepLabel(s)}
+                        </span>
                       </td>
 
                       <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
-                        {when(s.created_at)}
+                        {s.created_at ? when(s.created_at) : "—"}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <StatusPill value={s.state} />
                       </td>
 
                       <td className="px-6 py-4 text-right">
@@ -427,7 +392,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
                           href={`${salesBase}/${s.id}`}
                           className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors"
                         >
-                          {canManage ? "Manage" : "View"}
+                          Inspect
                           <ArrowRight className="h-3 w-3" />
                         </Link>
                       </td>
@@ -440,14 +405,14 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
         </div>
       )}
 
-      {/* TAB 2: COUNTER TRANSACTIONS */}
+      {/* TAB 2: TRANSACTIONS */}
       {tab === "transactions" && (
         <div className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
-              <h3 className="font-display text-xl font-bold text-navy-950">Counter Transactions</h3>
+              <h3 className="font-display text-xl font-bold text-navy-950">Transactions</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Domestic money transfer, bill pay, and cash services transacted at retail counters.
+                Domestic money transfer, bill pay, and cash services transacted for this customer.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -462,7 +427,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
 
           {!customer.transactions || customer.transactions.length === 0 ? (
             <EmptyState
-              title="No counter transactions recorded"
+              title="No transactions recorded"
               body="Completed DMT, AePS, and bill pay desk transactions for this customer will appear here."
             />
           ) : (
@@ -502,140 +467,8 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
         </div>
       )}
 
-      {/* TAB 3: PROFILE & COMPLIANCE */}
-      {tab === "profile" && (
-        <div className="grid gap-6 sm:grid-cols-2">
-          {/* Card 1: Consumer Demographics */}
-          <div className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
-                <User className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-lg text-navy-950">Demographic Profile</h3>
-                <p className="text-xs text-slate-500">Contact and residential details recorded in registry.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Full Name</p>
-                <p className="font-display font-bold text-base text-navy-950 mt-1">{customer.full_name}</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Mobile Phone</p>
-                <p className="font-mono font-bold text-sm text-navy-950 mt-1">+91 {customer.mobile}</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 col-span-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Email Address</p>
-                <p className="font-medium text-sm text-navy-950 mt-1">{customer.email || "Not provided"}</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">City</p>
-                <p className="font-medium text-sm text-navy-950 mt-1">{customer.city || "—"}</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">State & Pincode</p>
-                <p className="font-medium text-sm text-navy-950 mt-1">
-                  {customer.state || "—"} {customer.pincode ? `(${customer.pincode})` : ""}
-                </p>
-              </div>
-            </div>
-
-            {canManage && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={startEdit}
-                  className="btn-secondary !py-2 !px-4 text-xs font-bold inline-flex items-center gap-1.5"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  <span>Edit Demographic Information</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Card 2: Compliance & Identification */}
-          <div className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-50 text-indigo-700">
-                <FileCheck2 className="h-5 w-5 text-indigo-600" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-lg text-navy-950">Compliance & Sourcing</h3>
-                <p className="text-xs text-slate-500">Identity verification records and acquisition origin.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">eKYC Verification</p>
-                <div className="mt-1.5">
-                  <EkycBadge status={customer.ekyc_status} />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Verified Date</p>
-                <p className="font-medium text-xs text-navy-950 mt-1">
-                  {customer.ekyc_verified_at ? when(customer.ekyc_verified_at) : "Pending eKYC"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">OVD Document Type</p>
-                <p className="font-mono font-bold text-xs text-navy-950 mt-1">
-                  {customer.ovd_type ?? "None recorded"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Last 4 Digits</p>
-                <p className="font-mono font-bold text-xs text-navy-950 mt-1">
-                  {customer.ovd_last4 ? `•••• •••• ${customer.ovd_last4}` : "—"}
-                </p>
-              </div>
-            </div>
-
-            {/* Acquisition Channel strip */}
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 space-y-1">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Originating Channel</p>
-              <div className="flex items-center gap-2 pt-1 text-xs">
-                <Store className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span className="font-bold text-navy-950">
-                  {customer.created_by === "VENDOR"
-                    ? customer.vendor_name ?? "Affiliate Vendor Agency"
-                    : customer.retailer_name ?? "Platform Retail Counter"}
-                </span>
-                {customer.created_by_code && (
-                  <span className="font-mono text-slate-500">({customer.created_by_code})</span>
-                )}
-              </div>
-            </div>
-
-            {!ekycVerified && canManage && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEkycOpen(true)}
-                  className="btn-primary !py-2 !px-4 text-xs font-bold inline-flex items-center gap-1.5"
-                >
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  <span>Initiate Customer eKYC</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* MODALS */}
-      {canManage && id && (sellFd ? (
+      {canAddLead && id && (sellFd ? (
         <SellFdCardModal
           open={addOpen}
           customerId={id}
@@ -651,8 +484,6 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
           onClose={() => setAddOpen(false)}
         />
       ))}
-
-      <EkycComingSoonModal open={ekycOpen} title="Customer eKYC" onClose={() => setEkycOpen(false)} />
 
       {draft && (
         <FormModal

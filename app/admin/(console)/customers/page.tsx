@@ -5,24 +5,16 @@ import Link from "next/link";
 import {
   ArrowRight,
   BadgeCheck,
-  Briefcase,
-  Building2,
-  Clock,
   Copy,
   MapPin,
   Phone,
   Search,
-  Shield,
   ShieldAlert,
-  ShieldCheck,
-  Store,
-  Users,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { Alert, EmptyState } from "@/components/ui/primitives";
-import { EkycBadge } from "@/features/sales/EkycBadge";
 
 type Customer = {
   id: string;
@@ -44,34 +36,11 @@ function locationLine(c: Customer) {
   return [c.city, c.state].filter(Boolean).join(", ") || "—";
 }
 
-const CREATED_BY_MARK: Record<string, { label: string; Icon: typeof Store; chip: string }> = {
-  ADMIN: {
-    label: "Admin Direct",
-    Icon: Shield,
-    chip: "bg-slate-100 text-slate-800 ring-slate-200",
-  },
-  DISTRIBUTOR: {
-    label: "Distributor",
-    Icon: Users,
-    chip: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  },
-  RETAILER: {
-    label: "Retail Counter",
-    Icon: Store,
-    chip: "bg-indigo-50 text-indigo-800 ring-indigo-200",
-  },
-  VENDOR: {
-    label: "Vendor Agency",
-    Icon: Briefcase,
-    chip: "bg-amber-50 text-amber-800 ring-amber-200",
-  },
-};
-
 export default function AdminCustomersPage() {
   const token = useSession((s) => s.token);
   const [rows, setRows] = useState<Customer[]>([]);
   const [query, setQuery] = useState("");
-  const [statusTab, setStatusTab] = useState<"ALL" | "VERIFIED" | "PENDING_KYC" | "RETAILER" | "VENDOR">("ALL");
+  const [statusTab, setStatusTab] = useState<"ALL" | "RETAILER" | "VENDOR">("ALL");
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
@@ -99,18 +68,13 @@ export default function AdminCustomersPage() {
   }
 
   const counts = useMemo(() => {
-    const verified = rows.filter((c) => (c.ekyc_status ?? "").toUpperCase() === "VERIFIED").length;
-    const unverified = rows.length - verified;
     const retailer = rows.filter((c) => c.created_by === "RETAILER").length;
     const vendor = rows.filter((c) => c.created_by === "VENDOR").length;
-    return { verified, unverified, retailer, vendor };
+    return { retailer, vendor };
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((c) => {
-      const isVerified = (c.ekyc_status ?? "").toUpperCase() === "VERIFIED";
-      if (statusTab === "VERIFIED" && !isVerified) return false;
-      if (statusTab === "PENDING_KYC" && isVerified) return false;
       if (statusTab === "RETAILER" && c.created_by !== "RETAILER") return false;
       if (statusTab === "VENDOR" && c.created_by !== "VENDOR") return false;
 
@@ -124,7 +88,8 @@ export default function AdminCustomersPage() {
           (c.pincode && c.pincode.includes(q)) ||
           (c.retailer_name && c.retailer_name.toLowerCase().includes(q)) ||
           (c.vendor_name && c.vendor_name.toLowerCase().includes(q)) ||
-          (c.created_by_code && c.created_by_code.toLowerCase().includes(q))
+          (c.created_by_code && c.created_by_code.toLowerCase().includes(q)) ||
+          (c.created_by_name && c.created_by_name.toLowerCase().includes(q))
         );
       }
       return true;
@@ -156,8 +121,6 @@ export default function AdminCustomersPage() {
           <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1">
             {([
               ["ALL", "All Customers", rows.length],
-              ["VERIFIED", "eKYC Verified", counts.verified],
-              ["PENDING_KYC", "Unverified", counts.unverified],
               ["RETAILER", "Retail Outlets", counts.retailer],
               ["VENDOR", "Vendor Field", counts.vendor],
             ] as const).map(([key, label, count]) => {
@@ -186,7 +149,7 @@ export default function AdminCustomersPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by Name, Phone, Location, Sourced By..."
+              placeholder="Search by Name, Phone, Location, Creator..."
               className="field !pl-10 !py-2 text-xs w-full"
             />
           </div>
@@ -214,19 +177,15 @@ export default function AdminCustomersPage() {
               <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
                 <tr>
                   <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Contact Phone</th>
                   <th className="px-6 py-4">Location</th>
-                  <th className="px-6 py-4">Sourced Via</th>
-                  <th className="px-6 py-4">eKYC</th>
-                  <th className="px-6 py-4">Added On</th>
+                  <th className="px-6 py-4">Created By</th>
+                  <th className="px-6 py-4">Created On</th>
                   <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredRows.map((c) => {
                   const isVerified = (c.ekyc_status ?? "").toUpperCase() === "VERIFIED";
-                  const mark = c.created_by ? CREATED_BY_MARK[c.created_by] : undefined;
-                  const Icon = mark?.Icon;
                   return (
                     <tr key={c.id} className="transition-colors hover:bg-slate-50/60 group">
                       <td className="px-6 py-4">
@@ -248,28 +207,22 @@ export default function AdminCustomersPage() {
                           )}
                           <div>
                             <p className="font-semibold text-navy-950 text-sm">{c.full_name}</p>
-                            <span className="font-mono text-[10px] text-slate-400">
-                              CID: {c.id.slice(0, 8)}...
-                            </span>
+                            <div className="mt-0.5 flex items-center gap-1 font-mono text-[11px] text-slate-500">
+                              <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span>+91 {c.mobile}</span>
+                              <button
+                                type="button"
+                                onClick={() => copy(c.mobile)}
+                                className="text-slate-400 hover:text-slate-700 ml-0.5"
+                                title="Copy Mobile"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                              {copiedPhone === c.mobile && (
+                                <span className="text-[10px] text-emerald-600 font-bold ml-0.5">Copied!</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-slate-700">
-                          <Phone className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>+91 {c.mobile}</span>
-                          <button
-                            type="button"
-                            onClick={() => copy(c.mobile)}
-                            className="text-slate-400 hover:text-slate-700"
-                            title="Copy Mobile"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
-                          {copiedPhone === c.mobile && (
-                            <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
-                          )}
                         </div>
                       </td>
 
@@ -284,34 +237,18 @@ export default function AdminCustomersPage() {
                       </td>
 
                       <td className="px-6 py-4">
-                        {mark && Icon ? (
-                          <div className="space-y-1">
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide ring-1 ring-inset ${mark.chip}`}
-                            >
-                              <Icon className="h-3 w-3" />
-                              {mark.label}
-                            </span>
-                            <p className="text-xs font-medium text-navy-950 truncate max-w-[12rem]">
-                              {c.created_by === "VENDOR"
-                                ? c.vendor_name ?? "Vendor Agency"
-                                : c.retailer_name ?? "Counter Outlet"}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <EkycBadge status={c.ekyc_status} />
+                        <div className="text-xs">
+                          <p className="font-medium text-slate-800">
+                            {c.retailer_name || c.vendor_name || c.created_by_name || (c.created_by === "ADMIN" ? "Platform Admin" : c.created_by || "Platform Admin")}
+                          </p>
+                          {c.created_by_code && (
+                            <span className="font-mono text-[10px] text-slate-400 block mt-0.5">{c.created_by_code}</span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span>{c.created_at ? when(c.created_at) : "—"}</span>
-                        </div>
+                        {c.created_at ? when(c.created_at) : "—"}
                       </td>
 
                       <td className="px-6 py-4 text-right">
