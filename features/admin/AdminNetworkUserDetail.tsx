@@ -28,7 +28,8 @@ import { EkycBadge } from "@/features/sales/EkycBadge";
 import { AgentEkycModal, AgentEkycStatusModal, agentEkycLinkOpened, agentEkycVerified, agentKycStatus } from "@/features/admin/AgentEkycModal";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { inr, maskMobile, when, createdByLabel } from "@/lib/format";
-import { useSession } from "@/stores/session.store";
+import { useSession, isSuperAdminOrPlatformAdmin } from "@/stores/session.store";
+import { ActivityHistory } from "@/features/admin/ActivityHistory";
 import { Alert, DataTable, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, SelectField, TextField, ViewLink, useFlash } from "@/features/admin/AdminChrome";
 import { emptyRetailerDraft, RetailerOnboardFields, retailerDraftReady, type RetailerDraft } from "@/features/admin/retailer-form";
@@ -63,6 +64,7 @@ export function AdminDistributorDetail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const token = useSession((s) => s.token);
+  const platformAdmin = isSuperAdminOrPlatformAdmin(useSession((s) => s.user?.userType));
   const flash = useFlash();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function AdminDistributorDetail() {
   const [narration, setNarration] = useState("");
   const [retailerDraft, setRetailerDraft] = useState<RetailerDraft>(emptyRetailerDraft);
   const [modal, setModal] = useState<DistributorModal>(null);
-  const [tab, setTab] = useState<"retailers" | "customers" | "transactions">("retailers");
+  const [tab, setTab] = useState<"retailers" | "customers" | "transactions" | "audit">("retailers");
   const [customers, setCustomers] = useState<RetailerCustomer[]>([]);
   const [customersError, setCustomersError] = useState<string | null>(null);
   const [customersLoading, setCustomersLoading] = useState(false);
@@ -365,7 +367,7 @@ export function AdminDistributorDetail() {
       {/* Tabs & Table */}
       <section className="space-y-4">
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1 w-fit">
-          {(["retailers", "customers", "transactions"] as const).map((key) => {
+          {(["retailers", "customers", "transactions", ...(platformAdmin ? ["audit"] as const : [])] as const).map((key) => {
             const isActive = tab === key;
             const count =
               key === "retailers"
@@ -378,6 +380,8 @@ export function AdminDistributorDetail() {
                 ? "Retailers"
                 : key === "customers"
                 ? "Customers"
+                : key === "audit"
+                ? "Audit"
                 : "Transactions";
             return (
               <button
@@ -391,13 +395,15 @@ export function AdminDistributorDetail() {
                 onClick={() => setTab(key)}
               >
                 {label}
-                {isActive && ` (${count})`}
+                {isActive && key !== "audit" && ` (${count})`}
               </button>
             );
           })}
         </div>
 
-        {tab === "retailers" ? (
+        {tab === "audit" && platformAdmin && id ? (
+          <ActivityHistory token={token} userId={id} />
+        ) : tab === "retailers" ? (
           !user.retailers?.length ? (
             <EmptyState title="No retailers yet" body="Add a retailer to place under this distributor." />
           ) : (
@@ -570,6 +576,7 @@ function DistributorModals(props: {
 export function AdminRetailerDetail() {
   const { id } = useParams<{ id: string }>();
   const token = useSession((s) => s.token);
+  const platformAdmin = isSuperAdminOrPlatformAdmin(useSession((s) => s.user?.userType));
   const flash = useFlash();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -580,7 +587,7 @@ export function AdminRetailerDetail() {
   const [direction, setDirection] = useState("CREDIT");
   const [narration, setNarration] = useState("");
   const [modal, setModal] = useState<RetailerModal>(null);
-  const [tab, setTab] = useState<"sales" | "customers" | "transactions" | "requests">("sales");
+  const [tab, setTab] = useState<"sales" | "customers" | "transactions" | "requests" | "audit">("sales");
   const [requestCount, setRequestCount] = useState(0);
   const [requestTick, setRequestTick] = useState(0);
   const [sales, setSales] = useState<SalesLead[]>([]);
@@ -914,7 +921,7 @@ export function AdminRetailerDetail() {
       {/* Tabs & Table */}
       <section className="space-y-4">
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1 w-fit">
-          {(["sales", "customers", "transactions", "requests"] as const).map((key) => {
+          {(["sales", "customers", "transactions", "requests", ...(platformAdmin ? ["audit"] as const : [])] as const).map((key) => {
             const isActive = tab === key;
             const count =
               key === "sales"
@@ -931,6 +938,8 @@ export function AdminRetailerDetail() {
                 ? "Customers"
                 : key === "requests"
                 ? "Requests"
+                : key === "audit"
+                ? "Audit"
                 : "Transactions";
             return (
               <button
@@ -944,13 +953,15 @@ export function AdminRetailerDetail() {
                 onClick={() => setTab(key)}
               >
                 {label}
-                {isActive && ` (${count})`}
+                {isActive && key !== "audit" && ` (${count})`}
               </button>
             );
           })}
         </div>
 
-        {tab === "sales" ? (
+        {tab === "audit" && platformAdmin && id ? (
+          <ActivityHistory token={token} userId={id} />
+        ) : tab === "sales" ? (
           salesError ? (
             <Alert tone="error">{salesError}</Alert>
           ) : salesLoading ? (

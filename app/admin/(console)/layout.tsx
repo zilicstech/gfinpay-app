@@ -18,6 +18,7 @@ const SUPER_NAV = [
   { href: "/admin/sales", label: "Sales" },
   { href: "/admin/recon", label: "Recon" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/audit", label: "Audit" },
   { href: "/admin/earnings", label: "Earnings" },
   { href: "/admin/transactions", label: "Transactions" },
   { href: "/admin/settings", label: "Settings" },
@@ -42,6 +43,7 @@ const SUPER_ONLY = [
   "/admin/settings",
   "/admin/recon",
   "/admin/reports",
+  "/admin/audit",
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

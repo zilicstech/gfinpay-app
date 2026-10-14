@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard, Users, Store, PieChart, Percent, Wallet, ArrowLeftRight,
   Landmark, LogOut, MessageSquare, Settings, Shield, ShieldCheck, Receipt, Scale, LayoutGrid,
+  ClipboardList,
   ChevronDown, UserRound, Zap, Smartphone, Tv, CarFront, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -34,6 +35,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/onboarding": Users,
   "/admin/users": Users,
   "/admin/reports": PieChart,
+  "/admin/audit": ClipboardList,
   "/admin/earnings": Percent,
   "/admin/admins": Shield,
   "/admin/auditors": Scale,

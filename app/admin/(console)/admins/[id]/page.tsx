@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { maskMobile, when } from "@/lib/format";
+import { ActivityHistory } from "@/features/admin/ActivityHistory";
 import { isSuperAdminOrPlatformAdmin, useSession } from "@/stores/session.store";
 import { Alert, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, SelectField, TextField, useFlash } from "@/features/admin/AdminChrome";
@@ -404,6 +405,19 @@ export default function AdminDetailPage() {
               <ShieldCheck className="h-3.5 w-3.5" />
               Profile & Security
             </button>
+            {isSuperAdminOrPlatformAdmin(currentUserType) && (
+              <button
+                type="button"
+                onClick={() => setTab("audit")}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                  tab === "audit"
+                    ? "bg-navy-950 text-white shadow-xs"
+                    : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
+                }`}
+              >
+                Audit
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -434,6 +448,10 @@ export default function AdminDetailPage() {
           </>
         )}
       </div>
+
+      {isHub && tab === "audit" && isSuperAdminOrPlatformAdmin(currentUserType) && id && (
+        <ActivityHistory token={token} userId={id} />
+      )}
 
       {/* Tab 1 (Hub Admin): Assigned Hub & Territory */}
       {isHub && tab === "territory" && (
