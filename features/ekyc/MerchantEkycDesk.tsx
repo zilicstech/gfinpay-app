@@ -84,7 +84,7 @@ export function MerchantEkycDesk() {
         <p className="mt-2 text-sm text-slate-500">
           {onboardingOpen
             ? "Finish onboarding with the link below. Bank eKYC opens after that."
-            : `Scan a finger on this computer. If something fails, read this number to support: ${requestId}`}
+            : `Scan a finger on this device. If something fails, read this number to support: ${requestId}`}
         </p>
       </div>
       {error && <Alert tone="error">{error}</Alert>}
@@ -215,31 +215,37 @@ function BankCard({
       let serial = "";
       let model = "";
       if (!pid) {
-        const port = await discover().catch(async (err: unknown) => {
+        const service = await discover().catch(async (err: unknown) => {
           const reason = err instanceof RdError ? err.reason : "no_rd_service";
           await report("DISCOVER", false, { reason, portsTried: 21 });
           throw err;
         });
-        await report("DISCOVER", true, { port });
-        const info = await deviceInfo(port);
+        await report("DISCOVER", true, { port: service.port, reason: service.infoUrl });
+        const info = await deviceInfo(service).catch(async (err: unknown) => {
+          const reason = err instanceof RdError ? err.reason : "device_info_failed";
+          await report("DEVICE_INFO", false, { port: service.port, reason });
+          throw err;
+        });
         serial = info.serial;
         model = info.model;
         setDevice(`${info.model || "Scanner"} ${info.serial}`.trim());
-        await report("DEVICE_INFO", true, { port, deviceSerial: info.serial, deviceModel: info.model, dpId: info.dpId, rdsId: info.rdsId });
-        const captured = await capture(port, env, bank.wadh, info).catch(async (err: unknown) => {
+        await report("DEVICE_INFO", true, { port: service.port, deviceSerial: info.serial, deviceModel: info.model, dpId: info.dpId, rdsId: info.rdsId });
+        const captured = await capture(service, env, bank.wadh, info).catch(async (err: unknown) => {
           const code = err instanceof RdError ? err.errCode : "";
           const infoText = err instanceof RdError ? err.errInfo : "";
-          await report("CAPTURE", false, { port, errCode: code, errInfo: infoText, deviceModel: model });
+          const shape = err instanceof RdError ? err.shape : "";
+          await report("CAPTURE", false, { port: service.port, errCode: code, errInfo: infoText, deviceModel: model, reason: shape });
           throw err;
         });
         pid = captured.pidData;
         await report("CAPTURE", true, {
-          port,
+          port: service.port,
           deviceSerial: serial,
           deviceModel: model,
           qScore: Number(captured.qScore) || undefined,
           pidLength: pid.length,
           tookMs: captured.tookMs,
+          reason: captured.shape,
         });
       }
       const latitude = bank.needsLocation ? point?.latitude ?? "" : "";
