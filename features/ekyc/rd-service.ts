@@ -62,12 +62,12 @@ export async function discover(): Promise<number> {
   if (cors) {
     throw new RdError(
       "cors_blocked",
-      "The scanner is running but it is blocking this page. In the Mantra RD service, allow this website, then try again.",
+      "The scanner is running but it is blocking this page. Allow this website in the scanner service, then try again.",
     );
   }
   throw new RdError(
     "no_rd_service",
-    "The fingerprint scanner service is not running. Start Mantra RD Service on this PC, then try again.",
+    "The fingerprint scanner service is not running. Start the RD service for this scanner, then try again.",
   );
 }
 
@@ -84,9 +84,19 @@ export async function deviceInfo(port: number): Promise<DeviceInfo> {
   return info;
 }
 
+/** Idemia checks the UIDAI spec: env belongs on PidOptions. Mantra reads env from Opts. */
+function pidOptions(env: string, wadh: string, device: DeviceInfo) {
+  const id = `${device.rdsId} ${device.dpId} ${device.model}`.toLowerCase();
+  const idemia = id.includes("idemia") || id.includes("morpho") || id.includes("cbme");
+  if (idemia) {
+    return `<PidOptions ver="1.0" env="${env}"><Opts fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" wadh="${wadh}"/></PidOptions>`;
+  }
+  return `<PidOptions ver="1.0"><Opts env="${env}" fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" wadh="${wadh}"/></PidOptions>`;
+}
+
 export async function capture(port: number, env: string, wadh: string, device: DeviceInfo): Promise<CaptureResult> {
   const started = Date.now();
-  const options = `<PidOptions ver="1.0"><Opts env="${env}" fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" wadh="${wadh}"/></PidOptions>`;
+  const options = pidOptions(env, wadh, device);
   const xml = await call(port, "CAPTURE", options);
   const errCode = attr(xml, "errCode");
   const errInfo = attr(xml, "errInfo");
