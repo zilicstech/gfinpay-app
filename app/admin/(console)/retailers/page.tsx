@@ -210,7 +210,7 @@ export default function RetailersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredRetailers.map((u) => {
-                  const isVerified = (u.kyc_status ?? "").toUpperCase() === "VERIFIED";
+                  const isVerified = ["COMPLETED", "VERIFIED"].includes((u.kyc_status ?? "").toUpperCase());
                   return (
                     <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
                       {/* 1. Retailer */}

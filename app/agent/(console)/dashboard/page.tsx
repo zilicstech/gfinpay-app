@@ -62,6 +62,14 @@ export default function AgentDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeRange, setActiveRange] = useState<TrendRange>("daily");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [kycOpen, setKycOpen] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    api<{ kycStatus?: string; bankStatus?: string }>("/api/v1/me/ekyc", { token })
+      .then((res) => setKycOpen(res.kycStatus !== "COMPLETED" || res.bankStatus !== "VERIFIED"))
+      .catch(() => setKycOpen(false));
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -150,16 +158,26 @@ export default function AgentDashboard() {
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10">
-          <p className="text-emerald-400 font-bold tracking-wider text-xs sm:text-sm mb-1 uppercase">
-            Welcome Back
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-display text-white tracking-tight">
-            Hello, {user?.fullName || "Partner"}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Your digital retail desk is live. Manage customer services, monitor counter float, and track transactions.
-          </p>
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-emerald-400 font-bold tracking-wider text-xs sm:text-sm mb-1 uppercase">
+              Welcome Back
+            </p>
+            <h1 className="text-3xl sm:text-4xl font-display text-white tracking-tight">
+              Hello, {user?.fullName || "Partner"}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Your digital retail desk is live. Manage customer services, monitor counter float, and track transactions.
+            </p>
+          </div>
+          {kycOpen && (
+            <Link
+              href="/agent/kyc"
+              className="shrink-0 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-navy-950"
+            >
+              Complete KYC
+            </Link>
+          )}
         </div>
       </section>
 

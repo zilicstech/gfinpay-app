@@ -25,6 +25,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { EkycBadge } from "@/features/sales/EkycBadge";
+import { BankEkycSummary } from "@/features/ekyc/BankEkycSummary";
 import { AgentEkycModal, AgentEkycStatusModal, agentEkycLinkOpened, agentEkycVerified, agentKycStatus } from "@/features/admin/AgentEkycModal";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { inr, maskMobile, when, createdByLabel } from "@/lib/format";
@@ -287,7 +288,8 @@ export function AdminDistributorDetail() {
               </span>
               <span className="text-slate-600">·</span>
               <StatusPill value={user.status} />
-              <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+              <EkycBadge status={agentEkycVerified(user) ? "COMPLETED" : "PENDING"} />
+              <BankEkycSummary kyc={user.kyc} />
             </div>
 
             <div>
@@ -823,7 +825,8 @@ export function AdminRetailerDetail() {
               </span>
               <span className="text-slate-600">·</span>
               <StatusPill value={user.status} />
-              <EkycBadge status={agentKycStatus(user) === "VERIFIED" ? "VERIFIED" : "NOT_STARTED"} />
+              <EkycBadge status={agentEkycVerified(user) ? "COMPLETED" : "PENDING"} />
+              <BankEkycSummary kyc={user.kyc} />
             </div>
 
             <div>

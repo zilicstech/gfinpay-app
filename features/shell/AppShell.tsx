@@ -53,6 +53,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/settings": Settings,
   "/admin/profile": UserRound,
   "/agent/dashboard": LayoutDashboard,
+  "/agent/kyc": ShieldCheck,
   "/agent/wallet": Wallet,
   "/agent/dmt": ArrowLeftRight,
   "/agent/bbps": Zap,

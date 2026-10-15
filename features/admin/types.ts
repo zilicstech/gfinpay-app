@@ -79,6 +79,8 @@ export type UserDetail = UserRow & {
     pincode?: string;
     gstin?: string;
     kyc_status?: string;
+    bank_status?: string;
+    banks?: { bank_name?: string; status?: string; last_message?: string }[];
     paysprint_onboard_issued_at?: string | null;
     rejection_reason?: string;
     aadhaar_last4?: string;

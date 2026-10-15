@@ -63,7 +63,7 @@ export function AgentEkycModal({
       .then((row) => {
         if (cancelled) return;
         setLink(row);
-        if ((row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
+        if ((row.kyc_status ?? "").toUpperCase() === "COMPLETED" || (row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
       })
       .catch((e) => {
         if (!cancelled) setError(formatApiError(e, "Could not start eKYC"));
@@ -91,7 +91,7 @@ export function AgentEkycModal({
         body: JSON.stringify({ email: draftEmail.trim() }),
       });
       setLink(row);
-      if ((row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
+      if ((row.kyc_status ?? "").toUpperCase() === "COMPLETED" || (row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
     } catch (err) {
       setError(formatApiError(err, "Could not start eKYC"));
     } finally {
@@ -100,7 +100,8 @@ export function AgentEkycModal({
   }
 
   const url = link?.redirect_url ?? "";
-  const verified = (link?.kyc_status ?? "").toUpperCase() === "VERIFIED";
+  const verified = (link?.kyc_status ?? "").toUpperCase() === "COMPLETED"
+    || (link?.kyc_status ?? "").toUpperCase() === "VERIFIED";
 
   return (
     <Modal open={open} title="Do eKYC" onClose={onClose}>
@@ -164,7 +165,8 @@ export function agentKycStatus(user: { kyc?: { kyc_status?: string } | null; kyc
 }
 
 export function agentEkycVerified(user: { kyc?: { kyc_status?: string } | null; kyc_status?: string }) {
-  return agentKycStatus(user) === "VERIFIED";
+  const status = agentKycStatus(user).toUpperCase();
+  return status === "COMPLETED" || status === "VERIFIED";
 }
 
 export function agentEkycLinkOpened(user: { kyc?: { paysprint_onboard_issued_at?: string | null } | null }) {
@@ -245,7 +247,7 @@ export function AgentEkycStatusModal({
       .then((row) => {
         if (cancelled) return;
         setStatus(row);
-        if (row.completed || (row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
+        if (row.completed || (row.kyc_status ?? "").toUpperCase() === "COMPLETED" || (row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
       })
       .catch((e) => {
         if (!cancelled) setError(formatApiError(e, "Could not check eKYC status"));
@@ -268,7 +270,7 @@ export function AgentEkycStatusModal({
     try {
       const row = await api<OnboardLink>(path, { token, method: "POST", body: JSON.stringify({}) });
       setFreshLink(row);
-      if ((row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
+      if ((row.kyc_status ?? "").toUpperCase() === "COMPLETED" || (row.kyc_status ?? "").toUpperCase() === "VERIFIED") onVerifiedRef.current?.();
     } catch (err) {
       setRefreshError(formatApiError(err, "Could not generate a new onboarding link"));
     } finally {
@@ -279,6 +281,7 @@ export function AgentEkycStatusModal({
   const approved = status?.is_approved ?? "";
   const completed = Boolean(status?.completed)
     || approved.trim().toLowerCase() === "accepted"
+    || (freshLink?.kyc_status ?? "").toUpperCase() === "COMPLETED"
     || (freshLink?.kyc_status ?? "").toUpperCase() === "VERIFIED";
   const tone = completed ? "success" : approved.trim().toLowerCase() === "rejected" ? "error" : "info";
   const shareUrl = freshLink?.redirect_url || status?.redirect_url || "";

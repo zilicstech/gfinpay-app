@@ -25,7 +25,6 @@ const nextConfig: NextConfig = {
       { source: "/kyc", destination: "/admin/retailers", permanent: true },
       { source: "/admin/kyc", destination: "/admin/retailers", permanent: true },
       { source: "/admin/kyc/:id", destination: "/admin/retailers/:id", permanent: true },
-      { source: "/agent/kyc", destination: "/agent/dashboard", permanent: false },
       { source: "/distributor/kyc", destination: "/distributor/overview", permanent: false },
       { source: "/distributor/kyc/:id", destination: "/distributor/agents/:id", permanent: false },
       { source: "/recon", destination: "/admin/recon", permanent: true },

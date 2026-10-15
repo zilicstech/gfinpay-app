@@ -3,7 +3,7 @@ import { BadgeCheck, Clock, ShieldAlert, ShieldX } from "lucide-react";
 export function EkycBadge({ status }: { status?: string }) {
   const norm = (status ?? "").toUpperCase();
 
-  if (norm === "VERIFIED") {
+  if (norm === "VERIFIED" || norm === "COMPLETED") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-500/25 shadow-xs">
         <span className="relative flex h-1.5 w-1.5 shrink-0">

@@ -86,7 +86,7 @@ export default function DistributorsPage() {
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
       if (statusTab === "ACTIVE" && u.status !== "ACTIVE") return false;
-      if (statusTab === "PENDING_KYC" && u.kyc_status === "VERIFIED") return false;
+      if (statusTab === "PENDING_KYC" && ["COMPLETED", "VERIFIED"].includes((u.kyc_status ?? "").toUpperCase())) return false;
       if (statusTab === "SUSPENDED" && u.status !== "SUSPENDED") return false;
 
       if (query) {
@@ -200,7 +200,7 @@ export default function DistributorsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.map((u) => {
-                  const isVerified = (u.kyc_status ?? "").toUpperCase() === "VERIFIED";
+                  const isVerified = ["COMPLETED", "VERIFIED"].includes((u.kyc_status ?? "").toUpperCase());
                   return (
                     <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
                       <td className="px-6 py-4">

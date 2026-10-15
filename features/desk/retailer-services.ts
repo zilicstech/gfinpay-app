@@ -41,7 +41,10 @@ export function customerDeskEnabled(codes: Set<string>, fdProviders: FdProviderR
 }
 
 export function buildAgentNav(codes: Set<string>, fdProviders: FdProviderRow[]): NavItem[] {
-  const nav: NavItem[] = [{ href: "/agent/dashboard", label: "Home" }];
+  const nav: NavItem[] = [
+    { href: "/agent/dashboard", label: "Home" },
+    { href: "/agent/kyc", label: "KYC" },
+  ];
   if (codes.has("DMT")) nav.push({ href: "/agent/dmt", label: "DMT" });
   if (codes.has("BBPS")) nav.push({ href: "/agent/bbps", label: "Bills" });
   if (codes.has("UPI_CASHOUT")) nav.push({ href: "/agent/cash-out/upi", label: "Cash" });
@@ -108,6 +111,7 @@ export function buildMoreItems(codes: Set<string>, fdProviders: FdProviderRow[])
   if (codes.has("UPI_CASHOUT")) items.push({ href: "/agent/cash-out/upi", label: "UPI to cash", hint: "Dynamic QR Cashout" });
   if (codes.has("AEPS")) items.push({ href: "/agent/aeps", label: "AePS cash out", hint: "Biometric Withdrawal" });
   items.push(
+    { href: "/agent/kyc", label: "KYC", hint: "Finish onboarding, then scan a finger" },
     { href: "/agent/customers", label: "Customers", hint: "People you added and their history" },
     { href: "/agent/catalog", label: "Catalog", hint: "Services you can sell" },
   );

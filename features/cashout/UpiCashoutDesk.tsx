@@ -18,6 +18,7 @@ import {
   Wallet, 
   Zap 
 } from "lucide-react";
+import Link from "next/link";
 import { api, formatApiError } from "@/lib/api-client";
 import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -48,6 +49,17 @@ export function UpiCashoutDesk() {
   const [session, setSession] = useState<CashoutSession | null>(null);
   const [timeLeft, setTimeLeft] = useState(180);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [ekycReady, setEkycReady] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    api<{ banks?: { bankName: string; needed: boolean; status: string }[] }>("/api/v1/me/ekyc", { token })
+      .then((res) => {
+        const bank6 = res.banks?.find((bank) => bank.bankName === "bank6");
+        setEkycReady(!bank6?.needed || bank6.status === "SUCCESS");
+      })
+      .catch(() => setEkycReady(false));
+  }, [token]);
 
   // Poll wallet balance
   useEffect(() => {
@@ -188,6 +200,18 @@ export function UpiCashoutDesk() {
     const s = sec % 60;
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
+
+  if (ekycReady === false) {
+    return (
+      <div className="mx-auto max-w-xl rounded-[2rem] border border-amber-200 bg-amber-50 p-8">
+        <h1 className="font-display text-2xl font-bold text-navy-950">Finish cash out eKYC first</h1>
+        <p className="mt-2 text-sm text-slate-600">Cash out stays closed until the bank accepts the fingerprint scan.</p>
+        <Link href="/agent/kyc" className="mt-4 inline-block rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white">
+          Open eKYC
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
