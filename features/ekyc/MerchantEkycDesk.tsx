@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { Fingerprint, MapPin } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { ArrowLeftRight, BadgeCheck, Banknote, Fingerprint, MapPin } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { useSession } from "@/stores/session.store";
 import { Alert } from "@/components/ui/primitives";
@@ -75,23 +75,27 @@ export function MerchantEkycDesk() {
     }
   }
 
-  const onboardingOpen = state != null && state.kycStatus !== "COMPLETED";
+  const loaded = state != null;
+  const onboardingOpen = loaded && state.kycStatus !== "COMPLETED";
+  const neededBanks = state?.banks.filter((bank) => bank.needed) ?? [];
+  const doneBanks = neededBanks.filter((bank) => bank.status === "SUCCESS");
+  const openBanks = neededBanks.filter((bank) => bank.status !== "SUCCESS");
+  const allDone = !onboardingOpen && neededBanks.length > 0 && openBanks.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-navy-950">KYC</h1>
         <p className="mt-2 text-sm text-slate-500">
-          {onboardingOpen
-            ? "Finish onboarding with the link below. Bank eKYC opens after that."
-            : `Scan a finger on this device. If something fails, read this number to support: ${requestId}`}
+          {state == null ? "Checking what is already finished." : headline(onboardingOpen, neededBanks.length, openBanks)}
         </p>
       </div>
       {error && <Alert tone="error">{error}</Alert>}
-      {onboardingOpen && (
+      {onboardingOpen && state && (
         <section className="space-y-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-display text-xl font-bold text-navy-950">Onboarding</h2>
-          <p className="text-sm text-slate-600">{state.message || "Open this link to finish onboarding."}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-700">To do</p>
+          <h2 className="font-display text-xl font-bold text-navy-950">Finish onboarding</h2>
+          <p className="text-sm text-slate-600">{state.message || "Open this link to finish onboarding. Bank checks start after that."}</p>
           {state.onboardingUrl && (
             <a href={state.onboardingUrl} className="block break-all text-sm font-medium text-navy-950 underline" target="_blank" rel="noreferrer">
               {state.onboardingUrl}
@@ -117,13 +121,37 @@ export function MerchantEkycDesk() {
           </div>
         </section>
       )}
-      {!onboardingOpen && state?.banks.filter((bank) => bank.needed).map((bank) => (
+      {loaded && !onboardingOpen && (
+        <DoneCard
+          icon={<BadgeCheck className="h-6 w-6" />}
+          title="Onboarding completed"
+          detail={openBanks.length === 0
+            ? "This outlet is registered with the bank."
+            : openBanks.length === 1
+              ? "This outlet is registered. Finish the bank check below on this device."
+              : "This outlet is registered. Both bank checks below use the scanner on this device."}
+        />
+      )}
+      {loaded && !onboardingOpen && doneBanks.map((bank) => (
+        <DoneCard
+          key={bank.bankName}
+          icon={bank.bankName === "bank6" ? <Banknote className="h-6 w-6" /> : <ArrowLeftRight className="h-6 w-6" />}
+          title={bank.bankName === "bank6" ? "UPI to cash activated" : "Money transfer activated"}
+          detail={bank.bankName === "bank6"
+            ? "Customers can pay by UPI and take cash from this counter."
+            : "Customers can send money from this counter."}
+        />
+      ))}
+      {loaded && !onboardingOpen && openBanks.length > 0 && (
+        <p className="text-xs text-slate-400">If a scan fails, read this number to support: {requestId}</p>
+      )}
+      {state && !onboardingOpen && openBanks.map((bank) => (
         <BankCard
           key={bank.bankName}
           bank={bank}
           env={state.rdEnv}
           allowPaste={state.allowPastedPid}
-          locked={state.kycStatus !== "COMPLETED"}
+          locked={false}
           token={token}
           requestId={requestId}
           onDone={(message, next) => {
@@ -137,7 +165,32 @@ export function MerchantEkycDesk() {
           }}
         />
       ))}
+      {allDone && (
+        <p className="text-sm text-slate-500">Nothing else is waiting on this page.</p>
+      )}
     </div>
+  );
+}
+
+function headline(onboardingOpen: boolean, neededCount: number, openBanks: Bank[]) {
+  if (onboardingOpen) return "Finish onboarding with the link below. Bank checks open after that.";
+  if (neededCount > 0 && openBanks.length === 0) return "Onboarding and both bank checks are active.";
+  if (openBanks.length === neededCount) return "Onboarding is done. Complete both bank checks below.";
+  return `${openBanks.map((bank) => bank.label).join(" and ")} is the only step left.`;
+}
+
+function DoneCard({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
+  return (
+    <section className="flex items-start gap-4 rounded-[2rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-5 shadow-sm">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+        {icon}
+      </span>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Completed</p>
+        <h2 className="mt-1 font-display text-xl font-bold text-navy-950">{title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">{detail}</p>
+      </div>
+    </section>
   );
 }
 
@@ -273,9 +326,13 @@ function BankCard({
   return (
     <form onSubmit={scan} className="space-y-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <h2 className="font-display text-xl font-bold text-navy-950">{bank.label}</h2>
-        <p className="text-xs text-slate-400">{bank.bankName}</p>
-        <p className="mt-1 text-sm text-slate-500">{bank.status === "SUCCESS" ? "Done" : "Not done yet"}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Still to do</p>
+        <h2 className="mt-1 font-display text-xl font-bold text-navy-950">{bank.label}</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {bank.bankName === "bank6"
+            ? "Allow location, then scan a finger. This turns on UPI to cash."
+            : "Scan a finger on this device. This turns on money transfer."}
+        </p>
       </div>
       <label className="block text-sm font-medium text-navy-800">
         Aadhaar number
