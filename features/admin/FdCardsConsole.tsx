@@ -1,9 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CreditCard, Layers, Percent, Settings2, Sparkles } from "lucide-react";
+import { CreditCard, Layers, Settings2, Sparkles } from "lucide-react";
 import { api } from "@/lib/api-client";
-import { inr } from "@/lib/format";
 import { DataTable, Modal, PageHeader, StatCard } from "@/components/ui/primitives";
 import { Flash, FormModal, SelectField, TextField, useFlash } from "@/features/admin/AdminChrome";
 import type { FdBudgetBand, FdCardSku, FdProvider } from "@/features/admin/types";
@@ -31,34 +30,6 @@ function cardSubtitle(card: FdCardSku) {
   if (card.provider === "ZET") return "ZET · static onboarding link";
   if (card.provider === "GROWMORE") return "GrowMore · Novu · static link";
   return card.provider_name;
-}
-
-function moneyFrom(value: unknown) {
-  if (value == null || value === "") return 0;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
-}
-
-function amountsFromRule(rule: FdProvider["commission_rule"]) {
-  const received = moneyFrom(rule?.flat_fee);
-  if (rule?.retailer_amount != null || rule?.distributor_amount != null) {
-    return {
-      received: rule?.flat_fee == null ? "" : String(rule.flat_fee),
-      retailer: rule?.retailer_amount == null ? "" : String(rule.retailer_amount),
-      distributor: rule?.distributor_amount == null ? "" : String(rule.distributor_amount),
-    };
-  }
-  const rPct = moneyFrom(rule?.retailer_share_pct);
-  const dPct = moneyFrom(rule?.distributor_share_pct);
-  return {
-    received: received ? String(received) : "",
-    retailer: received ? String(round2((received * rPct) / 100)) : "",
-    distributor: received ? String(round2((received * dPct) / 100)) : "",
-  };
 }
 
 function CardStatusToggle({ on }: { on: boolean }) {
@@ -98,12 +69,6 @@ export function FdCardsConsole({ token }: { token: string | null }) {
   const [ruleModal, setRuleModal] = useState<"new" | FdBudgetBand | null>(null);
   const [ruleProvider, setRuleProvider] = useState("ZET");
   const [ruleRank, setRuleRank] = useState("1");
-
-  const [commissionProvider, setCommissionProvider] = useState<FdProvider | null>(null);
-  const [received, setReceived] = useState("");
-  const [retailerAmount, setRetailerAmount] = useState("");
-  const [distributorAmount, setDistributorAmount] = useState("");
-  const [acknowledged, setAcknowledged] = useState(false);
 
   async function load() {
     const [c, r, p] = await Promise.all([
@@ -221,56 +186,6 @@ export function FdCardsConsole({ token }: { token: string | null }) {
     }
   }
 
-  function openCommission(provider: FdProvider) {
-    const amounts = amountsFromRule(provider.commission_rule);
-    setReceived(amounts.received);
-    setRetailerAmount(amounts.retailer);
-    setDistributorAmount(amounts.distributor);
-    setAcknowledged(false);
-    setCommissionProvider(provider);
-  }
-
-  function setAmount(setter: (v: string) => void, value: string) {
-    setter(value);
-    setAcknowledged(false);
-  }
-
-  const receivedN = moneyFrom(received);
-  const retailerN = moneyFrom(retailerAmount);
-  const distributorN = moneyFrom(distributorAmount);
-  const profit = round2(receivedN - retailerN - distributorN);
-  const splitValid = receivedN >= 0 && retailerN >= 0 && distributorN >= 0 && profit >= 0;
-  const hasRule = Boolean(commissionProvider?.commission_rule?.id);
-  const profitHint = !splitValid
-    ? "Retailer and distributor amounts cannot exceed amount received."
-    : `After paying the retailer and distributor, ${inr(profit)} stays with the platform.`;
-
-  async function saveCommission(e: FormEvent) {
-    e.preventDefault();
-    if (!commissionProvider || !acknowledged || !splitValid) return;
-    setBusy(true);
-    try {
-      await api(`/api/v1/admin/fd-cards/providers/${commissionProvider.code}/commission`, {
-        token,
-        method: "PUT",
-        body: JSON.stringify({
-          rule: {
-            flatFee: receivedN,
-            retailerAmount: retailerN,
-            distributorAmount: distributorN,
-          },
-        }),
-      });
-      setCommissionProvider(null);
-      await load();
-      flash.ok(hasRule ? "Commission saved." : "Commission added.");
-    } catch (err) {
-      flash.fail(err, "Could not save commission");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const rankedProviders = new Set(rules.map((rule) => rule.preferred_provider));
   const providerOptions = providers
     .filter((provider) => {
@@ -281,21 +196,19 @@ export function FdCardsConsole({ token }: { token: string | null }) {
       return true;
     })
     .map((provider) => ({ value: provider.code, label: provider.name }));
-  const providersWithCommission = providers.filter((p) => p.commission_rule?.id).length;
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Origination"
         title="FD cards"
-        description="Configure each bank card, the order providers are offered, and the fixed rupee commission paid on conversion."
+        description="Configure each bank card and the order providers are offered. Commission is set once for FD Card on Service Rails."
       />
       <Flash message={flash.message} error={flash.error} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <StatCard label="Cards active" value={String(liveCards.length)} hint={`${cards.length} SKUs configured`} icon={<CreditCard className="h-5 w-5" />} />
         <StatCard label="Provider preference" value={String(rules.length)} hint="Lower number is offered first" icon={<Layers className="h-5 w-5" />} />
-        <StatCard label="Commission set" value={String(providersWithCommission)} hint={`of ${providers.length} providers`} icon={<Percent className="h-5 w-5" />} />
       </div>
 
       <section className="space-y-3">
@@ -388,44 +301,6 @@ export function FdCardsConsole({ token }: { token: string | null }) {
         />
       </section>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="font-display text-xl text-navy-950">Commission</h2>
-            <p className="mt-1 text-sm text-navy-600">
-              Fixed rupees per converted card. Enter amount received, retailer payout, and distributor payout. Platform profit is calculated automatically.
-            </p>
-          </div>
-        </div>
-        <DataTable
-          columns={["Provider", "Received ₹", "Retailer ₹", "Distributor ₹", "Platform profit ₹", ""]}
-          rows={providers.map((p) => {
-            const rule = p.commission_rule;
-            const amounts = amountsFromRule(rule);
-            const recv = moneyFrom(amounts.received);
-            const ret = moneyFrom(amounts.retailer);
-            const dist = moneyFrom(amounts.distributor);
-            const plat = round2(recv - ret - dist);
-            const configured = Boolean(rule?.id);
-            return [
-              p.name,
-              configured ? inr(recv) : "—",
-              configured ? inr(ret) : "—",
-              configured ? inr(dist) : "—",
-              configured ? inr(plat) : "—",
-              <button
-                key={`${p.code}-c`}
-                type="button"
-                className="text-sm font-semibold text-brand-700"
-                onClick={() => openCommission(p)}
-              >
-                {configured ? "Edit" : "Add commission"}
-              </button>,
-            ];
-          })}
-        />
-      </section>
-
       <Modal
         open={pendingCardToggle != null}
         title={pendingCardToggle?.active ? "Deactivate FD card" : "Activate FD card"}
@@ -474,55 +349,6 @@ export function FdCardsConsole({ token }: { token: string | null }) {
       >
         <SelectField label="Provider" required value={ruleProvider} onChange={setRuleProvider} options={providerOptions} />
         <TextField label="Preference" required value={ruleRank} onChange={setRuleRank} inputMode="numeric" />
-      </FormModal>
-
-      <FormModal
-        open={commissionProvider != null}
-        title={hasRule ? `Edit ${commissionProvider?.name} commission` : `Add ${commissionProvider?.name} commission`}
-        description="Enter the rupees you receive per card, then the fixed payout to the retailer and distributor. Platform profit is calculated automatically."
-        onClose={() => setCommissionProvider(null)}
-        onSubmit={saveCommission}
-        submitLabel={hasRule ? "Save commission" : "Add commission"}
-        submitDisabled={busy || !acknowledged || !splitValid}
-      >
-        <TextField
-          label="Amount received per card ₹"
-          value={received}
-          onChange={(v) => setAmount(setReceived, v)}
-          inputMode="numeric"
-          required
-        />
-        <TextField
-          label="Retailer amount ₹"
-          value={retailerAmount}
-          onChange={(v) => setAmount(setRetailerAmount, v)}
-          inputMode="numeric"
-          required
-        />
-        <TextField
-          label="Distributor amount ₹"
-          value={distributorAmount}
-          onChange={(v) => setAmount(setDistributorAmount, v)}
-          inputMode="numeric"
-          required
-        />
-        <div>
-          <p className="text-xs font-medium text-navy-500">Profit per card (platform)</p>
-          <p className={`font-display text-2xl ${splitValid ? "text-navy-950" : "text-rose-700"}`}>
-            {splitValid ? inr(profit) : "—"}
-          </p>
-          <p className="mt-1 text-xs text-navy-500">{profitHint}</p>
-          <label className="mt-3 flex items-start gap-2 text-sm text-navy-800">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={acknowledged}
-              disabled={!splitValid}
-              onChange={(e) => setAcknowledged(e.target.checked)}
-            />
-            <span>I acknowledge the profit per card after retailer and distributor payouts.</span>
-          </label>
-        </div>
       </FormModal>
     </div>
   );

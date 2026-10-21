@@ -1,185 +1,173 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { 
-  ArrowRight, 
-  Building2, 
-  CheckCircle2, 
-  CreditCard, 
-  IndianRupee, 
-  Plus, 
-  Printer, 
-  RotateCcw, 
-  Search, 
-  Send, 
-  ShieldCheck, 
-  User, 
-  UserPlus, 
-  Wallet, 
-  Zap 
+import {
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  Plus,
+  Printer,
+  RotateCcw,
+  Trash2,
+  User,
+  Wallet,
+  Zap,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
-import { Alert, Field, Modal, StatusPill } from "@/components/ui/primitives";
+import { Alert, Field, Modal } from "@/components/ui/primitives";
 import { Flash, useFlash } from "@/features/admin/AdminChrome";
+import { DmtActivation } from "@/features/ekyc/MerchantEkycDesk";
 
-type Sender = {
-  id: string;
-  full_name?: string;
-  fullName?: string;
+type Remitter = {
+  senderId: string;
   mobile: string;
-  kyc_status?: string;
-  monthly_limit?: number;
-  remaining_limit?: number;
+  exists: boolean;
+  status: string;
+  limit?: number | null;
+  accountOpeningUrl?: string | null;
+  message?: string;
+  rejections?: { RejectionType?: string; Remarks?: string }[];
 };
 
 type Beneficiary = {
   id: string;
   name: string;
-  account_number?: string;
-  accountNumber?: string;
+  accountLast4?: string;
+  accountMasked?: string;
   ifsc: string;
-  bank_name?: string;
+  bankId?: string;
   bankName?: string;
+  verified?: boolean;
 };
 
-type DmtReceipt = {
-  transactionId: string;
-  utr?: string;
-  state: string;
+type Quote = {
+  sessionId: string;
   amount: number;
   fee: number;
+  total: number;
   transferMode: string;
-  senderName: string;
-  beneficiaryName: string;
-  accountNumber: string;
-  ifsc: string;
-  createdAt: string;
+  message?: string;
+};
+
+type Transfer = {
+  transactionId: string;
+  state: string;
+  transferStatus?: string;
+  refundState: string;
+  amount: number;
+  fee: number;
+  total: number;
+  transferMode: string;
+  referenceId?: string;
+  utr?: string;
+  ackno?: string;
+  txnStatus?: string;
+  message?: string;
+  providerCharge?: number | null;
+  providerGst?: number | null;
+  providerTds?: number | null;
+  providerCommission?: number | null;
+  beneficiaryName?: string;
+  accountMasked?: string;
+  createdAt?: string;
 };
 
 const POPULAR_AMOUNTS = [500, 1000, 2000, 3000, 5000];
+const OPEN = new Set(["HOLD", "PENDING", "IN_PROCESS", "SENT", "ON_HOLD"]);
 
 export function DmtDesk() {
   const token = useSession((s) => s.token);
   const flash = useFlash();
-
-  // Search state
   const [mobileQuery, setMobileQuery] = useState("");
   const [searching, setSearching] = useState(false);
-  const [sender, setSender] = useState<Sender | null>(null);
-
-  // New sender registration
-  const [registerOpen, setRegisterOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [registering, setRegistering] = useState(false);
-
-  // Beneficiaries
+  const [remitter, setRemitter] = useState<Remitter | null>(null);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [loadingBene, setLoadingBene] = useState(false);
   const [selectedBene, setSelectedBene] = useState<Beneficiary | null>(null);
 
-  // Add Beneficiary Modal
   const [addBeneOpen, setAddBeneOpen] = useState(false);
   const [beneName, setBeneName] = useState("");
   const [beneAccount, setBeneAccount] = useState("");
   const [beneIfsc, setBeneIfsc] = useState("");
   const [beneBank, setBeneBank] = useState("");
+  const [beneBankId, setBeneBankId] = useState("");
+  const [bankHits, setBankHits] = useState<{ bank_id: string; bank_name: string }[]>([]);
+  const [beneSession, setBeneSession] = useState<string | null>(null);
+  const [beneOtp, setBeneOtp] = useState("");
   const [addingBene, setAddingBene] = useState(false);
 
-  // Transfer flow
   const [amount, setAmount] = useState("");
   const [transferMode, setTransferMode] = useState<"IMPS" | "NEFT">("IMPS");
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [txnOtp, setTxnOtp] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [receipt, setReceipt] = useState<DmtReceipt | null>(null);
+  const [receipt, setReceipt] = useState<Transfer | null>(null);
+  const [refundOtp, setRefundOtp] = useState("");
+  const [refundReady, setRefundReady] = useState(false);
 
-  // Wallet balance
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [dmtActive, setDmtActive] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (token) {
-      api<{ availableBalance: number }>("/api/v1/wallet", { token })
-        .then((res) => setWalletBalance(res.availableBalance))
-        .catch(() => {});
-    }
-  }, [token, receipt]);
+    if (!token) return;
+    api<{ dmtActive?: boolean }>("/api/v1/me/ekyc", { token })
+      .then((res) => setDmtActive(res.dmtActive === true))
+      .catch(() => setDmtActive(false));
+    api<{ availableBalance: number }>("/api/v1/wallet", { token })
+      .then((res) => setWalletBalance(res.availableBalance))
+      .catch(() => {});
+  }, [token]);
 
-  async function handleSearchSender(e?: FormEvent) {
-    if (e) e.preventDefault();
-    const digits = mobileQuery.replace(/\D/g, "");
-    if (digits.length !== 10) {
-      flash.fail(null, "Please enter a valid 10-digit mobile number");
-      return;
-    }
+  useEffect(() => {
+    if (!token || !addBeneOpen) return;
+    const timer = setTimeout(() => {
+      api<{ bank_id: string; bank_name: string }[]>(`/api/v1/dmt/banks?q=${encodeURIComponent(beneBank)}`, { token })
+        .then((rows) => setBankHits(Array.isArray(rows) ? rows : []))
+        .catch(() => setBankHits([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [token, addBeneOpen, beneBank]);
 
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin || event.data !== "ps-dmt-ao-done") return;
+      if (mobileQuery.length === 10) lookup(mobileQuery);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  });
+
+  async function lookup(digits: string) {
     setSearching(true);
     flash.clear();
-    setSender(null);
     setSelectedBene(null);
     setBeneficiaries([]);
-
+    setQuote(null);
     try {
-      const res = await api<Sender | Sender[]>(`/api/v1/dmt/senders?mobile=${digits}`, { token });
-      const found = Array.isArray(res) ? res[0] : res;
-      if (found && found.id) {
-        setSender(found);
-        loadBeneficiaries(found.id);
-      } else {
-        // Offer registration
-        setRegisterOpen(true);
+      const found = await api<Remitter>(`/api/v1/dmt/remitter?mobile=${digits}`, { token });
+      setRemitter(found);
+      if (found.exists && found.status === "ACTIVE") {
+        await loadBeneficiaries(found.senderId);
       }
-    } catch {
-      // Mock / fallback registration prompt
-      setRegisterOpen(true);
+    } catch (err) {
+      setRemitter(null);
+      flash.fail(err, "Could not look up this customer");
     } finally {
       setSearching(false);
     }
   }
 
-  async function handleRegisterSender(e: FormEvent) {
-    e.preventDefault();
-    const digits = mobileQuery.replace(/\D/g, "");
-    if (!newName.trim() || digits.length !== 10) return;
-
-    setRegistering(true);
-    try {
-      const created = await api<Sender>("/api/v1/dmt/senders", {
-        token,
-        method: "POST",
-        body: JSON.stringify({
-          mobile: digits,
-          fullName: newName.trim(),
-        }),
-      });
-
-      const s = created || {
-        id: "snd_" + Date.now(),
-        mobile: digits,
-        fullName: newName.trim(),
-        full_name: newName.trim(),
-        kyc_status: "VERIFIED",
-        remaining_limit: 25000,
-      };
-
-      setSender(s);
-      setRegisterOpen(false);
-      flash.ok("Sender registered successfully. Now add a beneficiary.");
-      loadBeneficiaries(s.id);
-    } catch (err) {
-      // Fallback local register
-      const mock: Sender = {
-        id: "snd_" + Date.now(),
-        mobile: digits,
-        fullName: newName.trim(),
-        full_name: newName.trim(),
-        remaining_limit: 25000,
-      };
-      setSender(mock);
-      setRegisterOpen(false);
-      flash.ok("Sender record created.");
-    } finally {
-      setRegistering(false);
+  async function handleSearch(e?: FormEvent) {
+    if (e) e.preventDefault();
+    if (mobileQuery.length !== 10) {
+      flash.fail(null, "Enter a valid 10-digit mobile number");
+      return;
     }
+    await lookup(mobileQuery);
   }
 
   async function loadBeneficiaries(senderId: string) {
@@ -187,91 +175,191 @@ export function DmtDesk() {
     try {
       const list = await api<Beneficiary[]>(`/api/v1/dmt/senders/${senderId}/beneficiaries`, { token });
       setBeneficiaries(Array.isArray(list) ? list : []);
-    } catch {
+    } catch (err) {
       setBeneficiaries([]);
+      flash.fail(err, "Could not load beneficiaries");
     } finally {
       setLoadingBene(false);
     }
   }
 
-  async function handleAddBeneficiary(e: FormEvent) {
-    e.preventDefault();
-    if (!sender || !beneName || !beneAccount || !beneIfsc) return;
+  function resetBeneForm() {
+    setBeneName("");
+    setBeneAccount("");
+    setBeneIfsc("");
+    setBeneBank("");
+    setBeneBankId("");
+    setBeneSession(null);
+    setBeneOtp("");
+    setBankHits([]);
+  }
 
+  async function handleBeneOtp(e: FormEvent) {
+    e.preventDefault();
+    if (!remitter || !beneBankId) {
+      flash.fail(null, "Choose the beneficiary bank from the list");
+      return;
+    }
     setAddingBene(true);
     try {
-      const created = await api<Beneficiary>(`/api/v1/dmt/senders/${sender.id}/beneficiaries`, {
-        token,
-        method: "POST",
-        body: JSON.stringify({
-          name: beneName.trim(),
-          accountNumber: beneAccount.trim(),
-          ifsc: beneIfsc.trim().toUpperCase(),
-        }),
-      });
-
-      const nextBene = created || {
-        id: "bene_" + Date.now(),
-        name: beneName.trim(),
-        accountNumber: beneAccount.trim(),
-        account_number: beneAccount.trim(),
-        ifsc: beneIfsc.trim().toUpperCase(),
-        bankName: beneBank || "Bank Account",
-      };
-
-      setBeneficiaries((prev) => [nextBene, ...prev]);
-      setSelectedBene(nextBene);
-      setAddBeneOpen(false);
-      setBeneName("");
-      setBeneAccount("");
-      setBeneIfsc("");
-      setBeneBank("");
-      flash.ok("Beneficiary added successfully.");
+      const res = await api<{ sessionId: string; message?: string }>(
+        `/api/v1/dmt/senders/${remitter.senderId}/beneficiaries/otp`,
+        {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            name: beneName.trim(),
+            accountNumber: beneAccount.trim(),
+            ifsc: beneIfsc.trim().toUpperCase(),
+            bankId: beneBankId,
+          }),
+        },
+      );
+      setBeneSession(res.sessionId);
+      flash.ok(res.message || "OTP sent to the customer");
     } catch (err) {
-      flash.fail(err, "Could not add beneficiary");
+      flash.fail(err, "Could not send the beneficiary OTP");
     } finally {
       setAddingBene(false);
     }
   }
 
-  const numAmount = Number(amount) || 0;
-  const calculatedFee = numAmount > 0 ? (numAmount <= 1000 ? 5 : Math.round(numAmount * 0.005)) : 0;
-  const totalDebit = numAmount + calculatedFee;
-
-  async function handleSendMoney(e: FormEvent) {
+  async function handleAddBeneficiary(e: FormEvent) {
     e.preventDefault();
-    if (!sender || !selectedBene || numAmount <= 0) return;
+    if (!remitter || !beneSession) return;
+    setAddingBene(true);
+    try {
+      const created = await api<Beneficiary>(`/api/v1/dmt/senders/${remitter.senderId}/beneficiaries`, {
+        token,
+        method: "POST",
+        body: JSON.stringify({ sessionId: beneSession, otp: beneOtp.trim() }),
+      });
+      setAddBeneOpen(false);
+      resetBeneForm();
+      await loadBeneficiaries(remitter.senderId);
+      setSelectedBene(created);
+      flash.ok("Beneficiary added");
+    } catch (err) {
+      flash.fail(err, "Could not add the beneficiary");
+    } finally {
+      setAddingBene(false);
+    }
+  }
 
+  async function verifyBene(bene: Beneficiary) {
+    try {
+      await api(`/api/v1/dmt/beneficiaries/${bene.id}/verify`, { token, method: "POST" });
+      if (remitter) await loadBeneficiaries(remitter.senderId);
+      flash.ok("Beneficiary verified");
+    } catch (err) {
+      flash.fail(err, "Could not verify the beneficiary");
+    }
+  }
+
+  async function deleteBene(bene: Beneficiary) {
+    try {
+      await api(`/api/v1/dmt/beneficiaries/${bene.id}`, { token, method: "DELETE" });
+      if (selectedBene?.id === bene.id) setSelectedBene(null);
+      if (remitter) await loadBeneficiaries(remitter.senderId);
+      flash.ok("Beneficiary deleted");
+    } catch (err) {
+      flash.fail(err, "Could not delete the beneficiary");
+    }
+  }
+
+  async function handleTxnOtp(e: FormEvent) {
+    e.preventDefault();
+    if (!remitter || !selectedBene || numAmount <= 0) return;
     setProcessing(true);
     flash.clear();
-
     try {
-      const res = await api<{ transactionId: string; status?: string; utr?: string }>("/api/v1/dmt/transactions", {
+      const res = await api<Quote>("/api/v1/dmt/transactions/otp", {
         token,
         method: "POST",
         body: JSON.stringify({
-          senderId: sender.id,
+          senderId: remitter.senderId,
           beneficiaryId: selectedBene.id,
           amount: numAmount,
           transferMode,
         }),
       });
-
-      setReceipt({
-        transactionId: res.transactionId || "TXN" + Date.now(),
-        utr: res.utr || "RRN" + Math.floor(100000000000 + Math.random() * 900000000000),
-        state: res.status || "SUCCESS",
-        amount: numAmount,
-        fee: calculatedFee,
-        transferMode,
-        senderName: sender.fullName || sender.full_name || sender.mobile,
-        beneficiaryName: selectedBene.name,
-        accountNumber: selectedBene.accountNumber || selectedBene.account_number || "—",
-        ifsc: selectedBene.ifsc,
-        createdAt: new Date().toISOString(),
-      });
+      setQuote(res);
+      setTxnOtp("");
+      flash.ok(res.message || "OTP sent to the customer");
     } catch (err) {
-      flash.fail(err, "Transfer failed. Please check wallet balance and details.");
+      flash.fail(err, "Could not send the transfer OTP");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function handleSend(e: FormEvent) {
+    e.preventDefault();
+    if (!quote) return;
+    setProcessing(true);
+    try {
+      const res = await api<Transfer>("/api/v1/dmt/transactions", {
+        token,
+        method: "POST",
+        idempotencyKey: crypto.randomUUID(),
+        body: JSON.stringify({ sessionId: quote.sessionId, otp: txnOtp.trim() }),
+      });
+      setReceipt(res);
+      setQuote(null);
+      const wallet = await api<{ availableBalance: number }>("/api/v1/wallet", { token });
+      setWalletBalance(wallet.availableBalance);
+    } catch (err) {
+      flash.fail(err, formatApiError(err, "Transfer failed"));
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function refreshStatus() {
+    if (!receipt) return;
+    setProcessing(true);
+    try {
+      const res = await api<Transfer>(`/api/v1/dmt/transactions/${receipt.transactionId}/status`, { token });
+      setReceipt(res);
+    } catch (err) {
+      flash.fail(err, "Could not check the transfer");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function sendRefundOtp() {
+    if (!receipt) return;
+    setProcessing(true);
+    try {
+      const res = await api<{ message?: string }>(`/api/v1/dmt/transactions/${receipt.transactionId}/refund/otp`, {
+        token,
+        method: "POST",
+      });
+      setRefundReady(true);
+      flash.ok(res.message || "Refund OTP sent to the customer");
+    } catch (err) {
+      flash.fail(err, "Could not send the refund OTP");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function claimRefund(e: FormEvent) {
+    e.preventDefault();
+    if (!receipt) return;
+    setProcessing(true);
+    try {
+      const res = await api<Transfer>(`/api/v1/dmt/transactions/${receipt.transactionId}/refund`, {
+        token,
+        method: "POST",
+        body: JSON.stringify({ otp: refundOtp.trim() }),
+      });
+      setReceipt(res);
+      setRefundReady(false);
+      flash.ok("Refund claimed");
+    } catch (err) {
+      flash.fail(err, "Could not claim the refund");
     } finally {
       setProcessing(false);
     }
@@ -280,139 +368,88 @@ export function DmtDesk() {
   function resetFlow() {
     setReceipt(null);
     setAmount("");
+    setQuote(null);
+    setTxnOtp("");
     setSelectedBene(null);
+    setRefundOtp("");
+    setRefundReady(false);
+  }
+
+  const numAmount = Number(amount) || 0;
+  const active = remitter?.exists === true && remitter.status === "ACTIVE";
+  const pendingTransfer = receipt != null && (OPEN.has(receipt.state) || OPEN.has(receipt.transferStatus || ""));
+
+  if (dmtActive === null) {
+    return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
+  }
+  if (!dmtActive) {
+    return <DmtActivation onActivated={() => setDmtActive(true)} />;
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Counter Top Bar */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 p-6 sm:p-8 text-white shadow-xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 p-6 text-white shadow-xl sm:p-8">
+        <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
               <Zap className="h-4 w-4" />
               Direct Retail Desk
             </div>
-            <h1 className="mt-1 font-display text-3xl sm:text-4xl font-bold tracking-tight">
-              Domestic Money Transfer (DMT)
-            </h1>
-            <p className="mt-2 text-sm text-slate-400 max-w-xl">
-              Instant 24x7 bank transfers via IMPS and NEFT. Handover receipts with verified bank UTRs.
-            </p>
+            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">Domestic Money Transfer (DMT)</h1>
+            <p className="mt-2 max-w-xl text-sm text-slate-400">Look up the customer, add a beneficiary with their OTP, then send the transfer OTP.</p>
           </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md min-w-[15rem]">
+          <div className="min-w-[15rem] rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <Wallet className="h-3.5 w-3.5 text-emerald-400" />
-                Counter Float
-              </span>
+              <span className="flex items-center gap-1.5"><Wallet className="h-3.5 w-3.5 text-emerald-400" /> Counter float</span>
               <span className="font-semibold text-emerald-400">Live</span>
             </div>
-            <p className="mt-1 font-display text-2xl font-bold tracking-tight text-white">
-              {walletBalance !== null ? inr(walletBalance) : "—"}
-            </p>
-            <p className="mt-1 text-[10px] text-slate-400">Auto-debited per transfer</p>
+            <p className="mt-1 font-display text-2xl font-bold tracking-tight">{walletBalance !== null ? inr(walletBalance) : "—"}</p>
           </div>
         </div>
       </div>
 
       <Flash message={flash.message} error={flash.error} />
 
-      {/* Success Receipt Modal / View */}
       {receipt ? (
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-10 shadow-2xl space-y-6">
-          <div className="text-center max-w-md mx-auto">
-            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-600 shadow-lg shadow-emerald-500/20">
-              <CheckCircle2 className="h-10 w-10" />
-            </div>
-            <h2 className="mt-4 font-display text-2xl font-bold text-navy-950">Transfer Successful!</h2>
-            <p className="mt-1 text-sm text-slate-500">Funds dispatched instantly to recipient bank account.</p>
-            <p className="mt-4 font-display text-4xl font-extrabold text-emerald-600">{inr(receipt.amount)}</p>
-            <p className="text-xs text-slate-400 mt-1">Fee: {inr(receipt.fee)} • Mode: {receipt.transferMode}</p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 divide-y divide-slate-200/60 max-w-md mx-auto text-sm">
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">Transaction ID</span>
-              <span className="font-mono font-medium text-navy-950">{receipt.transactionId}</span>
-            </div>
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">Bank UTR / Ref</span>
-              <span className="font-mono font-bold text-emerald-700">{receipt.utr}</span>
-            </div>
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">Recipient Name</span>
-              <span className="font-semibold text-navy-950">{receipt.beneficiaryName}</span>
-            </div>
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">Account Number</span>
-              <span className="font-mono text-navy-950">{receipt.accountNumber}</span>
-            </div>
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">IFSC Code</span>
-              <span className="font-mono text-navy-950">{receipt.ifsc}</span>
-            </div>
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">Sender</span>
-              <span className="text-navy-950">{receipt.senderName}</span>
-            </div>
-            <div className="flex justify-between py-2.5">
-              <span className="text-slate-500">Date & Time</span>
-              <span className="text-navy-950">{when(receipt.createdAt)}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 shadow-xs hover:bg-slate-50"
-            >
-              <Printer className="h-4 w-4 text-slate-500" />
-              Print Receipt
-            </button>
-            <button
-              type="button"
-              onClick={resetFlow}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500"
-            >
-              <RotateCcw className="h-4 w-4" />
-              New Transfer
-            </button>
-          </div>
-        </div>
+        <Receipt
+          receipt={receipt}
+          pending={pendingTransfer}
+          processing={processing}
+          refundReady={refundReady}
+          refundOtp={refundOtp}
+          onRefundOtp={setRefundOtp}
+          onCheck={refreshStatus}
+          onSendRefund={sendRefundOtp}
+          onClaim={claimRefund}
+          onReset={resetFlow}
+        />
       ) : (
         <div className="grid gap-6 lg:grid-cols-12">
-          {/* Left Column: Sender & Beneficiary Directory */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Step 1: Customer Lookup */}
+          <div className="space-y-6 lg:col-span-7">
             <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-4">
+              <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Step 1</span>
-                  <h3 className="text-lg font-bold text-navy-950">Customer Mobile</h3>
+                  <h3 className="text-lg font-bold text-navy-950">Customer mobile</h3>
                 </div>
-                {sender && (
+                {remitter && (
                   <button
                     type="button"
+                    className="text-xs font-semibold text-slate-500 hover:text-navy-950"
                     onClick={() => {
-                      setSender(null);
+                      setRemitter(null);
                       setSelectedBene(null);
                       setBeneficiaries([]);
+                      setQuote(null);
                       setMobileQuery("");
                     }}
-                    className="text-xs font-semibold text-slate-500 hover:text-navy-950"
                   >
-                    Change Customer
+                    Change customer
                   </button>
                 )}
               </div>
-
-              {!sender ? (
-                <form onSubmit={handleSearchSender} className="flex gap-2">
+              {!remitter ? (
+                <form onSubmit={handleSearch} className="flex gap-2">
                   <div className="relative flex-1">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">+91</span>
                     <input
@@ -426,231 +463,137 @@ export function DmtDesk() {
                       required
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={searching || mobileQuery.length !== 10}
-                    className="btn-primary shrink-0"
-                  >
+                  <button type="submit" disabled={searching || mobileQuery.length !== 10} className="btn-primary shrink-0">
                     {searching ? "Searching..." : "Lookup"}
                   </button>
                 </form>
               ) : (
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white font-bold">
-                      <User className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-navy-950">{sender.fullName || sender.full_name || "Customer"}</p>
-                      <p className="text-xs text-slate-500 font-mono">+91 {sender.mobile}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Monthly Limit</span>
-                    <p className="font-bold text-emerald-700 text-sm">{inr(sender.remaining_limit ?? 25000)} left</p>
-                  </div>
-                </div>
+                <RemitterCard remitter={remitter} onRecheck={() => lookup(remitter.mobile)} checking={searching} />
               )}
             </div>
 
-            {/* Step 2: Beneficiary Selector */}
-            {sender && (
-              <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-4">
+            {active && (
+              <div className="space-y-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Step 2</span>
-                    <h3 className="text-lg font-bold text-navy-950">Select Recipient Bank</h3>
+                    <h3 className="text-lg font-bold text-navy-950">Select recipient bank</h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAddBeneOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add New Bank
+                  <button type="button" onClick={() => { resetBeneForm(); setAddBeneOpen(true); }} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-600">
+                    <Plus className="h-3.5 w-3.5" /> Add new bank
                   </button>
                 </div>
-
                 {loadingBene ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
-                    ))}
-                  </div>
+                  <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
                 ) : beneficiaries.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
                     <Building2 className="mx-auto h-8 w-8 text-slate-400" />
-                    <p className="mt-2 text-sm font-semibold text-navy-950">No saved beneficiaries</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Add customer's bank account to initiate transfer.</p>
-                    <button
-                      type="button"
-                      onClick={() => setAddBeneOpen(true)}
-                      className="btn-primary mt-4"
-                    >
-                      <Plus className="h-4 w-4 mr-1.5" />
-                      Add Beneficiary
-                    </button>
+                    <p className="mt-2 text-sm font-semibold text-navy-950">No beneficiaries yet</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Adding one sends an OTP to the customer.</p>
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {beneficiaries.map((b) => {
-                      const isPicked = selectedBene?.id === b.id;
-                      const acc = b.accountNumber || b.account_number || "";
-                      return (
-                        <div
-                          key={b.id}
-                          onClick={() => setSelectedBene(b)}
-                          className={`cursor-pointer rounded-2xl border p-4 transition-all duration-200 ${
-                            isPicked
-                              ? "border-emerald-500 bg-emerald-50/50 shadow-md ring-2 ring-emerald-500/20"
-                              : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <p className="font-semibold text-sm text-navy-950 truncate">{b.name}</p>
-                            {isPicked && <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />}
-                          </div>
-                          <p className="mt-1 font-mono text-xs text-slate-600">
-                            A/C •••• {acc.slice(-4) || acc}
-                          </p>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                            <span className="font-mono">{b.ifsc}</span>
-                            <span>{b.bankName || b.bank_name || "Verified"}</span>
-                          </div>
+                    {beneficiaries.map((b) => (
+                      <div
+                        key={b.id}
+                        onClick={() => { setSelectedBene(b); setQuote(null); }}
+                        className={`cursor-pointer rounded-2xl border p-4 ${selectedBene?.id === b.id ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20" : "border-slate-200 bg-white"}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="truncate text-sm font-semibold text-navy-950">{b.name}</p>
+                          {selectedBene?.id === b.id && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />}
                         </div>
-                      );
-                    })}
+                        <p className="mt-1 font-mono text-xs text-slate-600">{b.accountMasked || `•••• ${b.accountLast4 || ""}`}</p>
+                        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                          <span className="font-mono">{b.ifsc}</span>
+                          <span>{b.bankName || b.bankId || "Bank"}</span>
+                        </div>
+                        <div className="mt-3 flex gap-3 text-[11px] font-bold">
+                          <button type="button" className="text-navy-950 underline" onClick={(e) => { e.stopPropagation(); verifyBene(b); }}>Verify</button>
+                          <button type="button" className="inline-flex items-center gap-1 text-rose-700" onClick={(e) => { e.stopPropagation(); deleteBene(b); }}>
+                            <Trash2 className="h-3 w-3" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Right Column: Transfer Form */}
           <div className="lg:col-span-5">
-            <div className="sticky top-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-5">
+            <div className="sticky top-6 space-y-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Step 3</span>
-                <h3 className="text-lg font-bold text-navy-950">Transfer Details</h3>
+                <h3 className="text-lg font-bold text-navy-950">Transfer details</h3>
               </div>
-
               {!selectedBene ? (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-8 text-center text-slate-400">
-                  <CreditCard className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                  <p className="text-xs">Lookup a customer and pick a beneficiary bank account to transfer funds.</p>
+                  <CreditCard className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                  <p className="text-xs">Look up an active customer and pick a beneficiary.</p>
                 </div>
               ) : (
-                <form onSubmit={handleSendMoney} className="space-y-4">
+                <form onSubmit={quote ? handleSend : handleTxnOtp} className="space-y-4">
                   <div className="rounded-2xl border border-emerald-500/20 bg-emerald-50/40 p-3.5">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Recipient</p>
                     <p className="font-bold text-navy-950">{selectedBene.name}</p>
-                    <p className="text-xs font-mono text-slate-500">
-                      {selectedBene.accountNumber || selectedBene.account_number} ({selectedBene.ifsc})
-                    </p>
+                    <p className="font-mono text-xs text-slate-500">{selectedBene.accountMasked || selectedBene.accountLast4} ({selectedBene.ifsc})</p>
                   </div>
-
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                      Transfer Amount (₹)
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">₹</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={25000}
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="field !pl-9 text-2xl font-bold text-navy-950 tracking-tight"
-                        required
-                      />
-                    </div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">Transfer amount (₹)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={amount}
+                      onChange={(e) => { setAmount(e.target.value); setQuote(null); }}
+                      placeholder="0.00"
+                      className="field text-2xl font-bold tracking-tight text-navy-950"
+                      required
+                      disabled={!!quote}
+                    />
                   </div>
-
-                  {/* Quick Amount Buttons */}
-                  <div className="flex flex-wrap gap-2">
-                    {POPULAR_AMOUNTS.map((p) => (
+                  {!quote && (
+                    <div className="flex flex-wrap gap-2">
+                      {POPULAR_AMOUNTS.map((p) => (
+                        <button key={p} type="button" onClick={() => setAmount(String(p))} className={`rounded-xl px-2.5 py-1 text-xs font-semibold ${Number(amount) === p ? "bg-navy-950 text-white" : "bg-slate-100 text-slate-700"}`}>
+                          +{inr(p)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["IMPS", "NEFT"] as const).map((mode) => (
                       <button
-                        key={p}
+                        key={mode}
                         type="button"
-                        onClick={() => setAmount(String(p))}
-                        className={`rounded-xl px-2.5 py-1 text-xs font-semibold transition-colors ${
-                          Number(amount) === p
-                            ? "bg-navy-950 text-white"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
+                        disabled={!!quote}
+                        onClick={() => setTransferMode(mode)}
+                        className={`rounded-2xl border p-3 text-left ${transferMode === mode ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20" : "border-slate-200"}`}
                       >
-                        +{inr(p)}
+                        <p className="text-xs font-bold text-navy-950">{mode}</p>
                       </button>
                     ))}
                   </div>
-
-                  {/* Rail Selector */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Transfer Mode</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTransferMode("IMPS")}
-                        className={`rounded-2xl border p-3 text-left transition-all ${
-                          transferMode === "IMPS"
-                            ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20"
-                            : "border-slate-200 bg-white"
-                        }`}
-                      >
-                        <p className="font-bold text-xs text-navy-950">IMPS (Instant)</p>
-                        <p className="text-[10px] text-slate-400">24x7 Realtime</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTransferMode("NEFT")}
-                        className={`rounded-2xl border p-3 text-left transition-all ${
-                          transferMode === "NEFT"
-                            ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20"
-                            : "border-slate-200 bg-white"
-                        }`}
-                      >
-                        <p className="font-bold text-xs text-navy-950">NEFT</p>
-                        <p className="text-[10px] text-slate-400">Hourly Batch</p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Fee & Calculation Strip */}
-                  {numAmount > 0 && (
-                    <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-3 space-y-1.5 text-xs">
-                      <div className="flex justify-between text-slate-500">
-                        <span>Transfer Amount:</span>
-                        <span>{inr(numAmount)}</span>
+                  {quote && (
+                    <>
+                      <div className="space-y-1.5 rounded-2xl border border-slate-200/80 bg-slate-50 p-3 text-xs">
+                        <div className="flex justify-between text-slate-500"><span>Transfer amount</span><span>{inr(quote.amount)}</span></div>
+                        <div className="flex justify-between text-slate-500"><span>Fee</span><span>{inr(quote.fee)}</span></div>
+                        <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-navy-950"><span>Total deducted</span><span>{inr(quote.total)}</span></div>
                       </div>
-                      <div className="flex justify-between text-slate-500">
-                        <span>Convenience Fee:</span>
-                        <span>{inr(calculatedFee)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-navy-950 pt-1 border-t border-slate-200">
-                        <span>Total Deducted:</span>
-                        <span className="text-emerald-700">{inr(totalDebit)}</span>
-                      </div>
-                    </div>
+                      <Field label="Customer OTP">
+                        <input value={txnOtp} onChange={(e) => setTxnOtp(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" className="field font-mono tracking-widest" required />
+                      </Field>
+                    </>
                   )}
-
-                  <button
-                    type="submit"
-                    disabled={processing || numAmount <= 0 || (walletBalance !== null && totalDebit > walletBalance)}
-                    className="btn-primary w-full py-3.5 text-base justify-center"
-                  >
-                    {processing ? (
-                      "Dispatching Transfer..."
-                    ) : walletBalance !== null && totalDebit > walletBalance ? (
-                      "Insufficient Wallet Balance"
-                    ) : (
-                      <>
-                        Transfer {inr(numAmount)} Now
-                        <ArrowRight className="h-4 w-4 ml-1.5" />
-                      </>
-                    )}
+                  <button type="submit" disabled={processing || numAmount <= 0} className="btn-primary w-full justify-center py-3.5 text-base">
+                    {processing ? "Please wait..." : quote ? "Confirm transfer" : "Send OTP"}
+                    {!processing && <ArrowRight className="ml-1.5 h-4 w-4" />}
                   </button>
+                  {quote && (
+                    <button type="button" className="w-full text-xs font-semibold text-slate-500" onClick={() => setQuote(null)}>Change amount</button>
+                  )}
                 </form>
               )}
             </div>
@@ -658,110 +601,195 @@ export function DmtDesk() {
         </div>
       )}
 
-      {/* Register Sender Modal */}
-      <Modal
-        open={registerOpen}
-        onClose={() => setRegisterOpen(false)}
-        title="Register DMT Customer"
-        description={`No customer record found for mobile +91 ${mobileQuery}. Register once to enable transfers.`}
-      >
-        <form onSubmit={handleRegisterSender} className="space-y-4 pt-2">
-          <Field label="Customer Full Name (as per Aadhaar / PAN)">
-            <input
-              type="text"
-              required
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Ramesh Kumar"
-              className="field"
-            />
-          </Field>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setRegisterOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={registering || !newName.trim()}
-              className="btn-primary"
-            >
-              {registering ? "Registering..." : "Register & Continue"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Add Beneficiary Modal */}
       <Modal
         open={addBeneOpen}
-        onClose={() => setAddBeneOpen(false)}
-        title="Add Recipient Bank Account"
-        description="Enter beneficiary account details for immediate IMPS / NEFT dispatch."
+        onClose={() => { setAddBeneOpen(false); resetBeneForm(); }}
+        title={beneSession ? "Enter the customer OTP" : "Add recipient bank account"}
+        description={beneSession ? "PaySprint sent an OTP to the customer's mobile." : "The customer confirms this account with an OTP."}
       >
-        <form onSubmit={handleAddBeneficiary} className="space-y-3 pt-2">
-          <Field label="Beneficiary Name">
-            <input
-              type="text"
-              required
-              value={beneName}
-              onChange={(e) => setBeneName(e.target.value)}
-              placeholder="e.g. Priya Sharma"
-              className="field"
-            />
-          </Field>
-          <Field label="Bank Account Number">
-            <input
-              type="text"
-              required
-              value={beneAccount}
-              onChange={(e) => setBeneAccount(e.target.value)}
-              placeholder="Account Number"
-              className="field font-mono"
-            />
-          </Field>
-          <Field label="Bank IFSC Code">
-            <input
-              type="text"
-              required
-              maxLength={11}
-              value={beneIfsc}
-              onChange={(e) => setBeneIfsc(e.target.value.toUpperCase())}
-              placeholder="e.g. SBIN0001234"
-              className="field font-mono uppercase"
-            />
-          </Field>
-          <Field label="Bank Name (Optional)">
-            <input
-              type="text"
-              value={beneBank}
-              onChange={(e) => setBeneBank(e.target.value)}
-              placeholder="e.g. State Bank of India"
-              className="field"
-            />
-          </Field>
+        {!beneSession ? (
+          <form onSubmit={handleBeneOtp} className="space-y-3 pt-2">
+            <Field label="Beneficiary name">
+              <input required value={beneName} onChange={(e) => setBeneName(e.target.value)} className="field" />
+            </Field>
+            <Field label="Bank account number">
+              <input required value={beneAccount} onChange={(e) => setBeneAccount(e.target.value)} className="field font-mono" />
+            </Field>
+            <Field label="Bank IFSC code">
+              <input required maxLength={11} value={beneIfsc} onChange={(e) => setBeneIfsc(e.target.value.toUpperCase())} className="field font-mono uppercase" />
+            </Field>
+            <Field label="Bank">
+              <input
+                required
+                value={beneBank}
+                onChange={(e) => { setBeneBank(e.target.value); setBeneBankId(""); }}
+                placeholder="Search bank name or id"
+                className="field"
+              />
+              {beneBankId && <p className="mt-1 text-xs text-emerald-700">Selected bank id {beneBankId}</p>}
+              {!beneBankId && bankHits.length > 0 && (
+                <ul className="mt-2 max-h-40 overflow-auto rounded-xl border border-slate-200 bg-white">
+                  {bankHits.map((bank) => (
+                    <li key={bank.bank_id}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                        onClick={() => { setBeneBank(bank.bank_name); setBeneBankId(bank.bank_id); setBankHits([]); }}
+                      >
+                        <span>{bank.bank_name}</span>
+                        <span className="font-mono text-xs text-slate-400">{bank.bank_id}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Field>
+            <div className="flex justify-end pt-3">
+              <button type="submit" disabled={addingBene || !beneBankId} className="btn-primary">{addingBene ? "Sending..." : "Send OTP"}</button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleAddBeneficiary} className="space-y-3 pt-2">
+            <Field label="OTP from the customer">
+              <input required value={beneOtp} onChange={(e) => setBeneOtp(e.target.value.replace(/\D/g, "").slice(0, 8))} inputMode="numeric" className="field font-mono tracking-widest" />
+            </Field>
+            <div className="flex justify-end gap-2 pt-3">
+              <button type="button" className="btn-secondary" onClick={() => setBeneSession(null)}>Back</button>
+              <button type="submit" disabled={addingBene || !beneOtp} className="btn-primary">{addingBene ? "Adding..." : "Add beneficiary"}</button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </div>
+  );
+}
 
-          <div className="flex justify-end gap-2 pt-3">
+function RemitterCard({ remitter, onRecheck, checking }: { remitter: Remitter; onRecheck: () => void; checking: boolean }) {
+  if (remitter.status === "ACTIVE") {
+    return (
+      <div className="flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white"><User className="h-5 w-5" /></div>
+          <div>
+            <p className="font-semibold text-navy-950">Customer account is active</p>
+            <p className="font-mono text-xs text-slate-500">+91 {remitter.mobile}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Limit</span>
+          <p className="text-sm font-bold text-emerald-700">{remitter.limit != null ? inr(remitter.limit) : "—"}</p>
+        </div>
+      </div>
+    );
+  }
+  if (remitter.status === "NOT_FOUND") {
+    return (
+      <div className="space-y-3">
+        <Alert tone="info">{remitter.message || "This customer does not have an account yet. Share the link so they can open one."}</Alert>
+        {remitter.accountOpeningUrl && (
+          <div className="flex gap-2">
+            <input readOnly value={remitter.accountOpeningUrl} className="field font-mono text-xs" />
             <button
               type="button"
-              className="btn-secondary"
-              onClick={() => setAddBeneOpen(false)}
+              className="btn-secondary inline-flex items-center gap-1"
+              onClick={() => navigator.clipboard.writeText(remitter.accountOpeningUrl || "")}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={addingBene || !beneName || !beneAccount || !beneIfsc}
-              className="btn-primary"
-            >
-              {addingBene ? "Saving..." : "Save Beneficiary"}
+              <Copy className="h-4 w-4" /> Copy
             </button>
           </div>
+        )}
+        <button type="button" className="btn-primary" onClick={onRecheck} disabled={checking}>{checking ? "Checking..." : "Check again"}</button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <Alert tone="error">{remitter.message || "This customer cannot send money yet."}</Alert>
+      {(remitter.rejections || []).map((item, index) => (
+        <p key={index} className="text-sm text-slate-600">
+          <span className="font-semibold">{item.RejectionType || "Update needed"}. </span>
+          {item.Remarks}
+        </p>
+      ))}
+      <button type="button" className="btn-secondary" onClick={onRecheck} disabled={checking}>{checking ? "Checking..." : "Check again"}</button>
+    </div>
+  );
+}
+
+function Receipt({
+  receipt, pending, processing, refundReady, refundOtp, onRefundOtp, onCheck, onSendRefund, onClaim, onReset,
+}: {
+  receipt: Transfer;
+  pending: boolean;
+  processing: boolean;
+  refundReady: boolean;
+  refundOtp: string;
+  onRefundOtp: (value: string) => void;
+  onCheck: () => void;
+  onSendRefund: () => void;
+  onClaim: (e: FormEvent) => void;
+  onReset: () => void;
+}) {
+  const success = receipt.state === "SUCCESS";
+  return (
+    <div className="space-y-6 rounded-[2.5rem] border border-slate-200/80 bg-white p-6 shadow-2xl sm:p-10">
+      <div className="mx-auto max-w-md text-center">
+        <h2 className="font-display text-2xl font-bold text-navy-950">
+          {success ? "Transfer successful" : pending ? "Transfer in progress" : "Transfer update"}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">{receipt.message || (success ? "Funds were sent to the recipient bank." : "Check again in a few minutes.")}</p>
+        <p className="mt-4 font-display text-4xl font-extrabold text-emerald-600">{inr(receipt.amount)}</p>
+        <p className="mt-1 text-xs text-slate-400">Fee {inr(receipt.fee)} · {receipt.transferMode}</p>
+      </div>
+      <div className="mx-auto max-w-md divide-y divide-slate-200/60 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 text-sm">
+        <Row label="Transaction" value={receipt.transactionId} mono />
+        <Row label="Reference" value={receipt.referenceId || "—"} mono />
+        <Row label="UTR" value={receipt.utr || "—"} mono />
+        <Row label="Ack no" value={receipt.ackno || "—"} mono />
+        <Row label="Recipient" value={receipt.beneficiaryName || "—"} />
+        <Row label="Account" value={receipt.accountMasked || "—"} mono />
+        {receipt.providerCharge != null && <Row label="Provider charge" value={inr(receipt.providerCharge)} />}
+        {receipt.providerGst != null && <Row label="GST" value={inr(receipt.providerGst)} />}
+        {receipt.providerTds != null && <Row label="TDS" value={inr(receipt.providerTds)} />}
+        {receipt.providerCommission != null && <Row label="Provider commission" value={inr(receipt.providerCommission)} />}
+        <Row label="Status" value={`${receipt.state}${receipt.refundState && receipt.refundState !== "NONE" ? ` · ${receipt.refundState}` : ""}`} />
+        {receipt.createdAt && <Row label="Time" value={when(receipt.createdAt)} />}
+      </div>
+      {receipt.refundState === "CLAIM_REQUIRED" && (
+        <form onSubmit={onClaim} className="mx-auto max-w-md space-y-3">
+          <Alert tone="info">The transfer failed and the amount is still held. Claim the refund with the customer's OTP.</Alert>
+          {refundReady && (
+            <Field label="Refund OTP">
+              <input value={refundOtp} onChange={(e) => onRefundOtp(e.target.value.replace(/\D/g, "").slice(0, 8))} className="field font-mono" required />
+            </Field>
+          )}
+          <div className="flex justify-center gap-2">
+            {!refundReady ? (
+              <button type="button" className="btn-primary" disabled={processing} onClick={onSendRefund}>Send refund OTP</button>
+            ) : (
+              <button type="submit" className="btn-primary" disabled={processing}>Claim refund</button>
+            )}
+          </div>
         </form>
-      </Modal>
+      )}
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        {pending && <button type="button" className="btn-secondary" disabled={processing} onClick={onCheck}>{processing ? "Checking..." : "Check status"}</button>}
+        <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold">
+          <Printer className="h-4 w-4" /> Print
+        </button>
+        <button type="button" onClick={onReset} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white">
+          <RotateCcw className="h-4 w-4" /> New transfer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex justify-between gap-4 py-2.5">
+      <span className="text-slate-500">{label}</span>
+      <span className={`text-right text-navy-950 ${mono ? "font-mono" : "font-semibold"}`}>{value}</span>
     </div>
   );
 }

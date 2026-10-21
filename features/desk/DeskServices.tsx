@@ -102,7 +102,11 @@ export function RequireCustomerDesk({
   children: ReactNode;
 }) {
   return (
-    <RequireDeskService anyOf={["LEAD_GEN"]} allowFd fallbackHref={fallbackHref}>
+    <RequireDeskService
+      anyOf={["LEAD_GEN", "CREDIT_CARD", "INSTANT_LOAN", "PERSONAL_LOAN", "BUSINESS_LOAN", "SAVINGS"]}
+      allowFd
+      fallbackHref={fallbackHref}
+    >
       {children}
     </RequireDeskService>
   );

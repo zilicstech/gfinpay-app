@@ -24,6 +24,8 @@ const PARTNER_FIELDS: { key: string; label: string }[] = [
   { key: "name", label: "Name" },
   { key: "mobile", label: "Mobile" },
   { key: "pan", label: "PAN" },
+  { key: "executive_status", label: "Executive status" },
+  { key: "executive_remarks", label: "Executive remarks" },
   { key: "product", label: "Product" },
   { key: "referral_link", label: "Referral link" },
   { key: "resume_link", label: "Resume link" },
@@ -58,6 +60,7 @@ export default function AdminSaleDetailPage() {
   const paysprintFd = lead
     && (lead.provider === "PAYSPRINT" || lead.rail === "PAYSPRINT_FD")
     && (lead.category_code === "FD_CARD" || lead.category_name?.toLowerCase().includes("fd"));
+  const paysprintLead = lead?.rail === "PAYSPRINT_LEAD";
 
   async function checkStatus() {
     if (!token || !id) return;
@@ -92,7 +95,7 @@ export default function AdminSaleDetailPage() {
         backLabel="All sales"
         lead={lead}
         extraActions={
-          paysprintFd ? (
+          paysprintFd || paysprintLead ? (
             <button type="button" className={entityPrimaryActionClass} disabled={busy} onClick={checkStatus}>
               <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
               {busy ? "Checking…" : "Check status"}

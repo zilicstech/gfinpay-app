@@ -25,6 +25,7 @@ type EkycState = {
   message?: string;
   allowPastedPid: boolean;
   rdEnv: string;
+  dmtActive?: boolean;
   banks: Bank[];
 };
 
@@ -195,7 +196,7 @@ function DoneCard({ icon, title, detail }: { icon: ReactNode; title: string; det
 }
 
 function BankCard({
-  bank, env, allowPaste, locked, token, requestId, onDone,
+  bank, env, allowPaste, locked, token, requestId, onDone, offerDmt = true,
 }: {
   bank: Bank;
   env: string;
@@ -203,8 +204,11 @@ function BankCard({
   locked: boolean;
   token: string | null;
   requestId: string;
-  onDone: (message: string, next?: { status: string; bankStatus: string }) => void;
+  onDone: (message: string, next?: { status: string; bankStatus: string; dmtActive?: boolean }) => void;
+  /** Cash-out and money-transfer KYC can also turn DMT on. The DMT page always does. */
+  offerDmt?: boolean;
 }) {
+  const [activateDmt, setActivateDmt] = useState(true);
   const [aadhaar, setAadhaar] = useState("");
   const [dob, setDob] = useState("");
   const [pasted, setPasted] = useState("");
@@ -309,7 +313,7 @@ function BankCard({
           token,
           method: "POST",
           headers: { "X-Request-Id": requestId },
-          body: JSON.stringify({ aadhaar, dob, pidData: pid, latitude, longitude }),
+          body: JSON.stringify({ aadhaar, dob, pidData: pid, latitude, longitude, activateDmt: offerDmt ? activateDmt : true }),
         },
       );
       setTone(result.status === "SUCCESS" ? "success" : "info");
@@ -329,11 +333,27 @@ function BankCard({
         <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Still to do</p>
         <h2 className="mt-1 font-display text-xl font-bold text-navy-950">{bank.label}</h2>
         <p className="mt-1 text-sm text-slate-500">
-          {bank.bankName === "bank6"
-            ? "Allow location, then scan a finger. This turns on UPI to cash."
-            : "Scan a finger on this device. This turns on money transfer."}
+          {offerDmt
+            ? bank.bankName === "bank6"
+              ? "Allow location, then scan a finger. This turns on UPI to cash."
+              : "Scan a finger on this device. This turns on money transfer."
+            : "Scan a finger on this device. This turns on domestic money transfer."}
         </p>
       </div>
+      {offerDmt && (
+        <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-navy-950">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4"
+            checked={activateDmt}
+            onChange={(e) => setActivateDmt(e.target.checked)}
+          />
+          <span>
+            <span className="font-semibold">Activate DMT</span>
+            <span className="mt-0.5 block text-slate-500">Send this scan with CASA on, so domestic money transfer is activated too.</span>
+          </span>
+        </label>
+      )}
       <label className="block text-sm font-medium text-navy-800">
         Aadhaar number
         <input className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2" value={aadhaar} onChange={(e) => setAadhaar(e.target.value)} inputMode="numeric" required />
@@ -389,5 +409,56 @@ function BankCard({
         {busy ? "Working…" : "Scan finger"}
       </button>
     </form>
+  );
+}
+
+/** Shown on the DMT desk when this retailer has never been scanned with CASA on. */
+export function DmtActivation({ onActivated }: { onActivated: () => void }) {
+  const token = useSession((s) => s.token);
+  const [state, setState] = useState<EkycState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [requestId] = useState(attemptId);
+
+  useEffect(() => {
+    if (!token) return;
+    api<EkycState>("/api/v1/me/ekyc", { token })
+      .then(setState)
+      .catch((err) => setError(formatApiError(err, "Could not load the DMT check")));
+  }, [token]);
+
+  const bank = state?.banks.find((item) => item.bankName === "bank2");
+  const onboardingOpen = state != null && state.kycStatus !== "COMPLETED";
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-navy-950">Activate DMT</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Domestic money transfer is off for this outlet. A fingerprint scan turns it on.
+        </p>
+      </div>
+      {error && <Alert tone="error">{error}</Alert>}
+      {onboardingOpen && (
+        <section className="space-y-3 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="font-display text-xl font-bold text-navy-950">Finish onboarding first</h2>
+          <p className="text-sm text-slate-600">The DMT scan opens after the onboarding link is complete.</p>
+          <a href="/agent/kyc" className="inline-block rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white">Go to KYC</a>
+        </section>
+      )}
+      {state && !onboardingOpen && bank && (
+        <BankCard
+          bank={{ ...bank, label: "Activate DMT" }}
+          env={state.rdEnv}
+          allowPaste={state.allowPastedPid}
+          locked={false}
+          token={token}
+          requestId={requestId}
+          offerDmt={false}
+          onDone={(_message, next) => {
+            if (next?.status === "SUCCESS" && next.dmtActive) onActivated();
+          }}
+        />
+      )}
+    </div>
   );
 }

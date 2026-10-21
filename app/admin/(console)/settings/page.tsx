@@ -20,9 +20,10 @@ import { EmptyState, Modal, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, TextField, useFlash } from "@/features/admin/AdminChrome";
 import { FdCardsConsole } from "@/features/admin/FdCardsConsole";
 import { BanksDesk } from "@/features/finance/BanksDesk";
+import { DmtBanksConsole } from "@/features/admin/DmtBanksConsole";
 import type { Hub, PlatformService } from "@/features/admin/types";
 
-type Tab = "hubs" | "services" | "fd-cards" | "banks";
+type Tab = "hubs" | "services" | "fd-cards" | "banks" | "dmt-banks";
 
 export default function SettingsPage() {
   const token = useSession((s) => s.token);
@@ -50,6 +51,15 @@ export default function SettingsPage() {
   // Service toggle modal
   const [pendingService, setPendingService] = useState<PlatformService | null>(null);
   const [serviceBusy, setServiceBusy] = useState(false);
+  const [commission, setCommission] = useState<{
+    code: string;
+    name: string;
+    mode: "FLAT" | "PERCENT";
+    retailer: string;
+    distributor: string;
+    hub: string;
+  } | null>(null);
+  const [commissionBusy, setCommissionBusy] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -73,7 +83,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const t = searchParams.get("tab");
-    if (t === "hubs" || t === "services" || t === "fd-cards" || t === "banks") setTab(t);
+    if (t === "hubs" || t === "services" || t === "fd-cards" || t === "banks" || t === "dmt-banks") setTab(t);
   }, [searchParams]);
 
   function selectTab(id: Tab) {
@@ -123,6 +133,49 @@ export default function SettingsPage() {
     }
   }
 
+  async function openCommission(code: string, name: string) {
+    try {
+      const current = await api<{ mode?: string; retailer?: number | null; distributor?: number | null; hub?: number | null }>(
+        `/api/v1/admin/services/${code}/commission`,
+        { token },
+      );
+      setCommission({
+        code,
+        name,
+        mode: current.mode === "PERCENT" ? "PERCENT" : "FLAT",
+        retailer: String(current.retailer ?? 0),
+        distributor: String(current.distributor ?? 0),
+        hub: String(current.hub ?? 0),
+      });
+    } catch (e) {
+      flash.fail(e, "Could not load commission");
+    }
+  }
+
+  async function saveCommission(e: FormEvent) {
+    e.preventDefault();
+    if (!commission) return;
+    setCommissionBusy(true);
+    try {
+      await api(`/api/v1/admin/services/${commission.code}/commission`, {
+        token,
+        method: "PUT",
+        body: JSON.stringify({
+          mode: commission.mode,
+          retailer: Number(commission.retailer || 0),
+          distributor: Number(commission.distributor || 0),
+          hub: Number(commission.hub || 0),
+        }),
+      });
+      flash.ok(`Commission saved for ${commission.name}.`);
+      setCommission(null);
+    } catch (e) {
+      flash.fail(e, "Could not save commission");
+    } finally {
+      setCommissionBusy(false);
+    }
+  }
+
   const filteredHubs = useMemo(() => {
     return hubs.filter((h) => {
       if (statusTab === "ACTIVE" && h.status !== "ACTIVE") return false;
@@ -154,7 +207,7 @@ export default function SettingsPage() {
             Platform Settings
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Manage hub territories, service rails, FD card providers, and collection bank accounts.
+            Manage hub territories, service rails, FD card providers, collection accounts, and DMT banks.
           </p>
         </div>
 
@@ -177,6 +230,7 @@ export default function SettingsPage() {
           ["services", `Service Rails (${services.filter((s) => s.enabled).length}/${services.length})`],
           ["fd-cards", "FD Card Providers"],
           ["banks", "Banks"],
+          ["dmt-banks", "DMT Banks"],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -390,8 +444,14 @@ export default function SettingsPage() {
                     <p className="mt-1 text-xs text-slate-600 leading-relaxed">{svc.description}</p>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-slate-500">Retail availability</span>
+                  <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openCommission(svc.code, svc.name)}
+                      className="text-xs font-bold text-navy-950 underline"
+                    >
+                      Set commission
+                    </button>
                     <button
                       type="button"
                       onClick={() => setPendingService(svc)}
@@ -406,6 +466,26 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ))}
+              <div className="rounded-3xl border border-slate-200/80 bg-slate-50/50 p-6 flex flex-col justify-between gap-4">
+                <div>
+                  <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                    FD_CARD
+                  </span>
+                  <h4 className="mt-2 font-display font-bold text-lg text-navy-950">FD Card</h4>
+                  <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                    Reward credited when a fixed deposit card conversion succeeds.
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => openCommission("FD_CARD", "FD Card")}
+                    className="text-xs font-bold text-navy-950 underline"
+                  >
+                    Set commission
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -414,6 +494,7 @@ export default function SettingsPage() {
       {/* TAB 3: FD CARD PROVIDERS */}
       {tab === "fd-cards" && <FdCardsConsole token={token} />}
       {tab === "banks" && <BanksDesk embedded />}
+      {tab === "dmt-banks" && <DmtBanksConsole />}
 
       {/* CREATE HUB MODAL */}
       <FormModal
@@ -435,6 +516,37 @@ export default function SettingsPage() {
           onChange={setNotes}
         />
       </FormModal>
+
+      <Modal
+        open={commission != null}
+        title="Set commission"
+        description="One reward for the whole service. Flat is rupees. Percentage is of the transaction amount. It is credited to the rewards wallet when the service succeeds."
+      >
+        {commission && (
+          <form onSubmit={saveCommission} className="space-y-4">
+            <p className="text-sm font-bold text-navy-950">{commission.name}</p>
+            <div className="flex gap-2">
+              {(["FLAT", "PERCENT"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setCommission({ ...commission, mode })}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${commission.mode === mode ? "bg-navy-950 text-white" : "border border-slate-200 text-slate-600"}`}
+                >
+                  {mode === "FLAT" ? "Flat amount" : "Percentage"}
+                </button>
+              ))}
+            </div>
+            <TextField label={commission.mode === "FLAT" ? "Retailer (₹)" : "Retailer (%)"} value={commission.retailer} onChange={(retailer) => setCommission({ ...commission, retailer })} />
+            <TextField label={commission.mode === "FLAT" ? "Distributor (₹)" : "Distributor (%)"} value={commission.distributor} onChange={(distributor) => setCommission({ ...commission, distributor })} />
+            <TextField label={commission.mode === "FLAT" ? "Hub (₹)" : "Hub (%)"} value={commission.hub} onChange={(hub) => setCommission({ ...commission, hub })} />
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-secondary text-xs" disabled={commissionBusy} onClick={() => setCommission(null)}>Cancel</button>
+              <button type="submit" className="btn-primary text-xs" disabled={commissionBusy}>{commissionBusy ? "Saving..." : "Save commission"}</button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* SERVICE TOGGLE MODAL */}
       <Modal

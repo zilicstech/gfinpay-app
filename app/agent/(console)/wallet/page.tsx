@@ -44,7 +44,7 @@ export default function WalletPage() {
   const user = useSession((s) => s.user);
   const flash = useFlash();
 
-  const [wallet, setWallet] = useState<{ availableBalance: number; holdBalance: number } | null>(null);
+  const [wallet, setWallet] = useState<{ availableBalance: number; holdBalance: number; rewardsBalance: number } | null>(null);
   const [rows, setRows] = useState<Entry[]>([]);
   const [banks, setBanks] = useState<CollectionAccount[]>([]);
   const [payouts, setPayouts] = useState<PayoutAccount[]>([]);
@@ -62,6 +62,9 @@ export default function WalletPage() {
 
   const [requestTick, setRequestTick] = useState(0);
   const [settleOpen, setSettleOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferBusy, setTransferBusy] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
   const [payoutId, setPayoutId] = useState("");
   const [settleBusy, setSettleBusy] = useState(false);
@@ -72,7 +75,7 @@ export default function WalletPage() {
     setLoading(true);
     try {
       const [w, st, collection, mine] = await Promise.all([
-        api<{ availableBalance: number; holdBalance: number }>("/api/v1/wallet", { token }),
+        api<{ availableBalance: number; holdBalance: number; rewardsBalance: number }>("/api/v1/wallet", { token }),
         api<Entry[]>("/api/v1/wallet/statement", { token }),
         api<CollectionAccount[]>("/api/v1/finance/collection-accounts", { token }),
         api<PayoutAccount[]>("/api/v1/wallet/banks", { token }),
@@ -150,6 +153,28 @@ export default function WalletPage() {
     }
   }
 
+  async function handleTransfer(e: FormEvent) {
+    e.preventDefault();
+    if (!transferAmount || Number(transferAmount) <= 0) return;
+    setTransferBusy(true);
+    try {
+      const next = await api<{ availableBalance: number; rewardsBalance: number }>("/api/v1/wallet/rewards/transfer", {
+        token,
+        method: "POST",
+        body: JSON.stringify({ amount: Number(transferAmount) }),
+      });
+      setWallet((current) => current ? { ...current, availableBalance: next.availableBalance, rewardsBalance: next.rewardsBalance } : current);
+      flash.ok("Rewards moved into the wallet.");
+      setTransferOpen(false);
+      setTransferAmount("");
+      loadData();
+    } catch (err) {
+      flash.fail(err, "Could not move rewards");
+    } finally {
+      setTransferBusy(false);
+    }
+  }
+
   async function addPayout(e: FormEvent) {
     e.preventDefault();
     setSettleBusy(true);
@@ -213,11 +238,21 @@ export default function WalletPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10">
-          <p className="text-emerald-400 font-bold tracking-wider text-xs uppercase">Available balance</p>
-          <p className="mt-2 font-display text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            {wallet ? inr(wallet.availableBalance) : "—"}
-          </p>
+        <div className="relative z-10 grid gap-6 sm:grid-cols-2">
+          <div>
+            <p className="text-emerald-400 font-bold tracking-wider text-xs uppercase">Wallet balance</p>
+            <p className="mt-2 font-display text-4xl sm:text-5xl font-bold text-white tracking-tight">
+              {wallet ? inr(wallet.availableBalance) : "—"}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">Used to pay for services.</p>
+          </div>
+          <div>
+            <p className="text-emerald-400 font-bold tracking-wider text-xs uppercase">Rewards wallet</p>
+            <p className="mt-2 font-display text-4xl sm:text-5xl font-bold text-white tracking-tight">
+              {wallet ? inr(wallet.rewardsBalance) : "—"}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">Commission from completed services.</p>
+          </div>
         </div>
       </section>
 
@@ -310,14 +345,23 @@ export default function WalletPage() {
             <h2 className="font-display text-xl font-bold text-navy-950">Transaction statement</h2>
             <p className="text-xs text-slate-500 mt-0.5">Credits and debits on this wallet.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setSettleOpen(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-navy-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-navy-900"
-          >
-            <ArrowUpRight className="h-4 w-4" />
-            Request withdrawal
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTransferOpen(true)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-navy-950 hover:bg-slate-50"
+            >
+              Move rewards to wallet
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettleOpen(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-navy-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-navy-900"
+            >
+              <ArrowUpRight className="h-4 w-4" />
+              Withdraw rewards
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-2 border-t border-slate-100">
@@ -513,16 +557,53 @@ export default function WalletPage() {
       </Modal>
 
       <Modal
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        title="Move rewards to wallet"
+        description="The amount is added to the wallet you use for services."
+      >
+        <form onSubmit={handleTransfer} className="space-y-4 pt-2">
+          <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rewards balance</span>
+            <p className="font-display text-2xl font-bold text-navy-950 mt-0.5">
+              {wallet ? inr(wallet.rewardsBalance) : "—"}
+            </p>
+          </div>
+          <Field label="Amount (₹)">
+            <input
+              type="number"
+              min={1}
+              max={wallet?.rewardsBalance ?? undefined}
+              required
+              value={transferAmount}
+              onChange={(e) => setTransferAmount(e.target.value)}
+              className="field font-bold text-lg"
+            />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setTransferOpen(false)}>Cancel</button>
+            <button
+              type="submit"
+              disabled={transferBusy || !transferAmount || (wallet !== null && Number(transferAmount) > wallet.rewardsBalance)}
+              className="btn-primary"
+            >
+              {transferBusy ? "Moving..." : "Move to wallet"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
         open={settleOpen}
         onClose={() => setSettleOpen(false)}
-        title="Request withdrawal"
-        description="Choose how much to withdraw and which of your bank accounts should receive it."
+        title="Withdraw rewards"
+        description="This comes out of the rewards wallet. Choose the bank account that should receive it."
       >
         <div className="space-y-4 pt-2">
           <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Available balance</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rewards balance</span>
             <p className="font-display text-2xl font-bold text-navy-950 mt-0.5">
-              {wallet ? inr(wallet.availableBalance) : "—"}
+              {wallet ? inr(wallet.rewardsBalance) : "—"}
             </p>
           </div>
 
@@ -558,7 +639,7 @@ export default function WalletPage() {
                   <input
                     type="number"
                     min={1}
-                    max={wallet?.availableBalance ?? undefined}
+                    max={wallet?.rewardsBalance ?? undefined}
                     required
                     value={settleAmount}
                     onChange={(e) => setSettleAmount(e.target.value)}
@@ -566,12 +647,12 @@ export default function WalletPage() {
                   />
                 </div>
               </Field>
-              {wallet && wallet.availableBalance > 0 && (
+              {wallet && wallet.rewardsBalance > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    { label: "25%", val: Math.floor(wallet.availableBalance * 0.25) },
-                    { label: "50%", val: Math.floor(wallet.availableBalance * 0.5) },
-                    { label: "All", val: wallet.availableBalance },
+                    { label: "25%", val: Math.floor(wallet.rewardsBalance * 0.25) },
+                    { label: "50%", val: Math.floor(wallet.rewardsBalance * 0.5) },
+                    { label: "All", val: wallet.rewardsBalance },
                   ].map((p) => (
                     <button
                       key={p.label}
@@ -601,7 +682,7 @@ export default function WalletPage() {
                 <button type="button" className="btn-secondary" onClick={() => setSettleOpen(false)}>Cancel</button>
                 <button
                   type="submit"
-                  disabled={settleBusy || !settleAmount || !payoutId || (wallet !== null && Number(settleAmount) > wallet.availableBalance)}
+                  disabled={settleBusy || !settleAmount || !payoutId || (wallet !== null && Number(settleAmount) > wallet.rewardsBalance)}
                   className="btn-primary"
                 >
                   {settleBusy ? "Submitting..." : "Submit withdrawal"}

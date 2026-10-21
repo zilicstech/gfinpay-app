@@ -32,8 +32,10 @@ export function fdCardsEnabled(fdProviders: FdProviderRow[]): boolean {
   return fdProviders.length > 0;
 }
 
+export const LEAD_SERVICE_CODES = ["CREDIT_CARD", "INSTANT_LOAN", "PERSONAL_LOAN", "BUSINESS_LOAN", "SAVINGS"] as const;
+
 export function leadGenEnabled(codes: Set<string>): boolean {
-  return codes.has("LEAD_GEN");
+  return codes.has("LEAD_GEN") || LEAD_SERVICE_CODES.some((code) => codes.has(code));
 }
 
 export function customerDeskEnabled(codes: Set<string>, fdProviders: FdProviderRow[]): boolean {

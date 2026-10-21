@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowRight,
   Clock,
@@ -15,8 +15,9 @@ import {
   Phone,
   Store,
 } from "lucide-react";
-import { api, formatApiError } from "@/lib/api-client";
+import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { inr, when } from "@/lib/format";
+import { useLoader } from "@/stores/loader.store";
 import { useSession } from "@/stores/session.store";
 import { Alert, EmptyState, StatusPill } from "@/components/ui/primitives";
 import { EkycBadge } from "@/features/sales/EkycBadge";
@@ -24,6 +25,9 @@ import { Flash, FormModal, useFlash } from "@/features/admin/AdminChrome";
 import { CustomerFields, type CustomerDraft } from "@/features/sales/customer-form";
 import { AddProductModal } from "@/features/sales/AddProductModal";
 import { SellFdCardModal } from "@/features/sales/SellFdCardModal";
+import { fdCardsEnabled } from "@/features/desk/retailer-services";
+import { useDeskServices } from "@/features/desk/DeskServices";
+import type { CatalogCategory } from "@/features/sales/CatalogView";
 import { ManageMenu, type ManageAction } from "@/features/console/EntityChrome";
 import { funnelStepLabel, type SalesLead } from "@/features/sales/SalesTable";
 import { productTitle } from "@/features/sales/CatalogShowcase";
@@ -60,8 +64,27 @@ type Customer = {
 
 type TabType = "products" | "transactions";
 
+const LEAD_OFFERS = [
+  { code: "CREDIT_CARD", label: "Sell credit card" },
+  { code: "INSTANT_LOAN", label: "Sell instant loan" },
+  { code: "PERSONAL_LOAN", label: "Sell personal loan" },
+  { code: "BUSINESS_LOAN", label: "Sell business loan" },
+  { code: "SAVINGS", label: "Open bank account" },
+] as const;
+
+function DeskFlags({ onChange }: { onChange: (flags: { fd: boolean; leads: string[] }) => void }) {
+  const { codes, fdProviders } = useDeskServices();
+  const fd = fdCardsEnabled(fdProviders);
+  const leadKey = LEAD_OFFERS.map((offer) => offer.code).filter((code) => codes.has(code)).join("|");
+  useEffect(() => {
+    onChange({ fd, leads: leadKey ? leadKey.split("|") : [] });
+  }, [fd, leadKey, onChange]);
+  return null;
+}
+
 export function CustomerHistory({ basePath, manage = false }: { basePath: string; manage?: boolean }) {
   const token = useSession((s) => s.token);
+  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const flash = useFlash();
 
@@ -71,6 +94,8 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
 
   // Modals & form state
   const [addOpen, setAddOpen] = useState(false);
+  const [deskFlags, setDeskFlags] = useState<{ fd: boolean; leads: string[] }>({ fd: false, leads: [] });
+  const [selling, setSelling] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CustomerDraft | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -138,12 +163,52 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
     setTimeout(() => setCopied(false), 1600);
   }
 
+  async function sellLead(categoryCode: string) {
+    if (!customer || !id || !token) return;
+    if (!customer.email) {
+      flash.fail(new Error("Add the customer's email before generating this link"), "Add the customer's email before generating this link");
+      startEdit();
+      return;
+    }
+    setSelling(true);
+    try {
+      const catalog = await api<CatalogCategory[]>("/api/v1/catalog", { token });
+      const item = catalog
+        .flatMap((category) => category.items)
+        .find((row) => row.category_code === categoryCode && row.rail === "PAYSPRINT_LEAD" && row.active);
+      if (!item) {
+        flash.fail(new Error("This product is not available"), "This product is not available");
+        return;
+      }
+      const lead = await api<{ id?: string }>(`/api/v1/customers/${id}/leads`, {
+        token,
+        method: "POST",
+        holdLoader: true,
+        body: JSON.stringify({ catalogItemId: item.id, budget: 1 }),
+      });
+      if (!lead.id) {
+        useLoader.getState().end();
+        flash.fail(new Error("The sale was not created"), "The sale was not created");
+        return;
+      }
+      const salesBase = basePath.startsWith("/distributor") ? "/distributor/sales" : "/agent/sales";
+      openDetails(`${salesBase}/${lead.id}`, (href) => router.push(href));
+    } catch (err) {
+      flash.fail(err, "Could not generate the link");
+    } finally {
+      setSelling(false);
+    }
+  }
+
   if (error) return <Alert tone="error">{error}</Alert>;
   if (!customer) return <div className="card h-64 animate-pulse bg-slate-100" />;
 
   const volume = customer.transactions.reduce((sum, txn) => sum + Number(txn.amount ?? 0), 0);
   const place = [customer.city, customer.state].filter(Boolean).join(", ");
-  const sellFd = basePath === "/agent/customers";
+  const desk = basePath.startsWith("/agent") || basePath.startsWith("/distributor");
+  const sellFd = desk && deskFlags.fd;
+  const sellLeads = desk && deskFlags.leads.length > 0;
+  const leadOffers = LEAD_OFFERS.filter((offer) => deskFlags.leads.includes(offer.code));
   const salesBase = basePath.startsWith("/distributor")
     ? "/distributor/sales"
     : basePath.startsWith("/admin")
@@ -166,11 +231,27 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
       icon: <Pencil className="h-4 w-4" />,
       onClick: startEdit,
     },
-    ...(canAddLead
+    ...(canAddLead && sellFd
       ? [
           {
-            label: sellFd ? "Sell FD Card" : "Add service lead",
-            icon: sellFd ? <CreditCard className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />,
+            label: "Sell FD Card",
+            icon: <CreditCard className="h-4 w-4" />,
+            onClick: () => setAddOpen(true),
+          },
+        ]
+      : []),
+    ...(canAddLead && sellLeads
+      ? leadOffers.map((offer) => ({
+          label: offer.label,
+          icon: <LayoutGrid className="h-4 w-4" />,
+          onClick: () => sellLead(offer.code),
+        }))
+      : []),
+    ...(canAddLead && !desk
+      ? [
+          {
+            label: "Add service lead",
+            icon: <LayoutGrid className="h-4 w-4" />,
             onClick: () => setAddOpen(true),
           },
         ]
@@ -179,6 +260,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {desk && <DeskFlags onChange={setDeskFlags} />}
       {/* Top Navigation */}
       <div>
         <Link
@@ -305,14 +387,39 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
               </p>
             </div>
             {canAddLead && (
-              <button
-                type="button"
-                className="btn-primary !py-2 !px-4 text-xs font-bold inline-flex items-center gap-1.5 shrink-0"
-                onClick={() => setAddOpen(true)}
-              >
-                {sellFd ? <CreditCard className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-                <span>{sellFd ? "Sell FD Card" : "Add Product Lead"}</span>
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {sellFd && (
+                  <button
+                    type="button"
+                    className="btn-primary !py-2 !px-4 text-xs font-bold inline-flex items-center gap-1.5 shrink-0"
+                    onClick={() => setAddOpen(true)}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    <span>Sell FD Card</span>
+                  </button>
+                )}
+                {sellLeads && leadOffers.map((offer) => (
+                  <button
+                    key={offer.code}
+                    type="button"
+                    disabled={selling}
+                    className="btn-secondary !py-2 !px-4 text-xs font-bold"
+                    onClick={() => sellLead(offer.code)}
+                  >
+                    {offer.label}
+                  </button>
+                ))}
+                {!desk && (
+                  <button
+                    type="button"
+                    className="btn-primary !py-2 !px-4 text-xs font-bold inline-flex items-center gap-1.5 shrink-0"
+                    onClick={() => setAddOpen(true)}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    <span>Add Product Lead</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -322,14 +429,14 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
                 title="No sales leads yet"
                 body="Banking products and cards initiated for this customer will appear here with live pipeline progress."
               />
-              {canAddLead && (
+              {canAddLead && (sellFd || sellLeads || !desk) && (
                 <button
                   type="button"
                   className="btn-primary text-xs inline-flex items-center gap-1.5"
-                  onClick={() => setAddOpen(true)}
+                  onClick={() => (sellFd ? setAddOpen(true) : sellLeads && leadOffers[0] ? sellLead(leadOffers[0].code) : setAddOpen(true))}
                 >
                   <LayoutGrid className="h-4 w-4" />
-                  <span>Start First Application</span>
+                  <span>{sellLeads && leadOffers[0] ? leadOffers[0].label : sellFd ? "Sell FD Card" : "Start First Application"}</span>
                 </button>
               )}
             </div>
@@ -468,14 +575,15 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
       )}
 
       {/* MODALS */}
-      {canAddLead && id && (sellFd ? (
+      {canAddLead && id && sellFd && (
         <SellFdCardModal
           open={addOpen}
           customerId={id}
           salesPath={salesBase}
           onClose={() => setAddOpen(false)}
         />
-      ) : (
+      )}
+      {canAddLead && id && !desk && (
         <AddProductModal
           open={addOpen}
           customerId={id}
@@ -483,7 +591,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
           salesPath={salesBase}
           onClose={() => setAddOpen(false)}
         />
-      ))}
+      )}
 
       {draft && (
         <FormModal

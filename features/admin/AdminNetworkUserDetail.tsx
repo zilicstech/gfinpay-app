@@ -10,6 +10,7 @@ import {
   Building2,
   Clock,
   Copy,
+  Fingerprint,
   KeyRound,
   Lock,
   MapPin,
@@ -59,7 +60,7 @@ const primaryActionClass =
 
 type DistributorModal = "hub" | "password" | "adjust" | "freeze" | "inactivate" | "retailer" | null;
 
-type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "reactivate" | "activation" | null;
+type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "reactivate" | "activation" | "redo-bank2" | "redo-bank6" | null;
 
 export function AdminDistributorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -699,6 +700,19 @@ export function AdminRetailerDetail() {
     }
   }
 
+  async function redoEkyc(bank: "bank2" | "bank6") {
+    try {
+      await api(`/api/v1/admin/users/${id}/ekyc/${bank}/redo`, { token, method: "POST" });
+      setModal(null);
+      await load();
+      flash.ok(bank === "bank6"
+        ? "Cash out eKYC is open again. The retailer can scan on the KYC page."
+        : "Money transfer eKYC is open again. The retailer can scan on the KYC page.");
+    } catch (e) {
+      flash.fail(e, "Could not reopen this eKYC");
+    }
+  }
+
   async function copyMobile() {
     if (!user) return;
     await navigator.clipboard.writeText(user.mobile);
@@ -725,6 +739,7 @@ export function AdminRetailerDetail() {
   const ekycVerified = agentEkycVerified(user);
   const ekycLinkOpened = agentEkycLinkOpened(user);
   const isFrozen = user.wallet?.status === "FROZEN";
+  const bankDone = (name: string) => user.kyc?.banks?.some((bank) => bank.bank_name === name && bank.status === "SUCCESS") ?? false;
   const manageActions: ManageAction[] = [
     ...(!ekycVerified
       ? [
@@ -734,6 +749,20 @@ export function AdminRetailerDetail() {
             onClick: () => (ekycLinkOpened ? setStatusOpen(true) : setEkycOpen(true)),
           },
         ]
+      : []),
+    ...(bankDone("bank2")
+      ? [{
+          label: "Redo money transfer eKYC",
+          icon: <Fingerprint className="h-4 w-4" />,
+          onClick: () => setModal("redo-bank2"),
+        }]
+      : []),
+    ...(bankDone("bank6")
+      ? [{
+          label: "Redo cash out eKYC",
+          icon: <Fingerprint className="h-4 w-4" />,
+          onClick: () => setModal("redo-bank6"),
+        }]
       : []),
     {
       label: "Transfer distributor",
@@ -1052,6 +1081,26 @@ export function AdminRetailerDetail() {
       </FormModal>
       <FormModal open={modal === "password"} title="Reset password" onClose={() => setModal(null)} onSubmit={resetPassword} submitLabel="Reset password">
         <TextField label="New password" required type="password" value={password} onChange={setPassword} />
+      </FormModal>
+      <FormModal
+        open={modal === "redo-bank2"}
+        title="Redo money transfer eKYC"
+        description="Onboarding stays complete. The retailer will see the money transfer scan again on the KYC page."
+        onClose={() => setModal(null)}
+        onSubmit={(e) => { e.preventDefault(); redoEkyc("bank2"); }}
+        submitLabel="Ask for a new scan"
+      >
+        <p className="text-sm text-navy-600">The next scan sends CASA as on for bank 2.</p>
+      </FormModal>
+      <FormModal
+        open={modal === "redo-bank6"}
+        title="Redo cash out eKYC"
+        description="Onboarding stays complete. The retailer will see the cash out scan again on the KYC page."
+        onClose={() => setModal(null)}
+        onSubmit={(e) => { e.preventDefault(); redoEkyc("bank6"); }}
+        submitLabel="Ask for a new scan"
+      >
+        <p className="text-sm text-navy-600">The next scan sends CASA as on for bank 6. Cash out stays closed until that scan succeeds.</p>
       </FormModal>
       <FormModal open={modal === "adjust"} title="Adjust wallet" onClose={() => setModal(null)} onSubmit={adjust} submitLabel="Post adjustment">
         <SelectField label="Direction" required value={direction} onChange={setDirection} options={[{ value: "CREDIT", label: "Credit" }, { value: "DEBIT", label: "Debit" }]} />
