@@ -157,19 +157,7 @@ export function MerchantEkycDesk() {
           token={token}
           requestId={requestId}
           onDone={(message, next) => {
-            setState((current) => current && ({
-              ...current,
-              bankStatus: next?.bankStatus || current.bankStatus,
-              dmtActive: next?.dmtActive ?? current.dmtActive,
-              banks: current.banks.map((item) => item.bankName === bank.bankName
-                ? {
-                    ...item,
-                    status: next?.status || item.status,
-                    dmtActive: next?.status === "SUCCESS" ? Boolean(next.dmtActive) : item.dmtActive,
-                    message,
-                  }
-                : item),
-            }));
+            setState((current) => current && applyScan(current, bank.bankName, message, next));
           }}
         />
       ))}
@@ -182,6 +170,25 @@ export function MerchantEkycDesk() {
 
 function casaOn(bank: Bank) {
   return bank.status === "SUCCESS" && bank.dmtActive === true;
+}
+
+type ScanResult = { pipe?: string; status: string; bankStatus: string; dmtActive?: boolean; pipeDmtActive?: boolean };
+
+function applyScan(current: EkycState, scannedBank: string, message: string, next?: ScanResult): EkycState {
+  const pipe = next?.pipe || scannedBank;
+  return {
+    ...current,
+    bankStatus: next?.bankStatus || current.bankStatus,
+    dmtActive: next?.dmtActive ?? current.dmtActive,
+    banks: current.banks.map((item) => item.bankName === pipe
+      ? {
+          ...item,
+          status: next?.status || item.status,
+          dmtActive: next?.status === "SUCCESS" ? Boolean(next.pipeDmtActive) : item.dmtActive,
+          message,
+        }
+      : item),
+  };
 }
 
 function headline(onboardingOpen: boolean, neededCount: number, openBanks: Bank[]) {
@@ -215,7 +222,7 @@ function BankCard({
   locked: boolean;
   token: string | null;
   requestId: string;
-  onDone: (message: string, next?: { status: string; bankStatus: string; dmtActive?: boolean }) => void;
+  onDone: (message: string, next?: ScanResult) => void;
   /** Cash-out and money-transfer KYC can also turn DMT on. The DMT page always does. */
   offerDmt?: boolean;
 }) {
@@ -318,18 +325,39 @@ function BankCard({
       }
       const latitude = bank.needsLocation ? point?.latitude ?? "" : "";
       const longitude = bank.needsLocation ? point?.longitude ?? "" : "";
-      const result = await api<{ message: string; bankStatus: string; status: string; dmtActive?: boolean }>(
+      const result = await api<{
+        message: string;
+        bankStatus: string;
+        status: string;
+        pipe?: string;
+        dmtActive?: boolean;
+        pipeDmtActive?: boolean;
+      }>(
         `/api/v1/me/ekyc/${bank.bankName}/activate`,
         {
           token,
           method: "POST",
           headers: { "X-Request-Id": requestId },
-          body: JSON.stringify({ aadhaar, dob, pidData: pid, latitude, longitude, activateDmt: offerDmt ? activateDmt : true }),
+          body: JSON.stringify({
+            aadhaar,
+            dob,
+            pidData: pid,
+            latitude,
+            longitude,
+            activateDmt: offerDmt ? activateDmt : true,
+            pipe: bank.bankName,
+          }),
         },
       );
       setTone(result.status === "SUCCESS" ? "success" : "info");
       setMessage(result.message);
-      onDone(result.message, { status: result.status, bankStatus: result.bankStatus, dmtActive: result.dmtActive });
+      onDone(result.message, {
+        pipe: result.pipe || bank.bankName,
+        status: result.status,
+        bankStatus: result.bankStatus,
+        dmtActive: result.dmtActive,
+        pipeDmtActive: result.pipeDmtActive,
+      });
     } catch (err) {
       setTone("error");
       setMessage(err instanceof RdError ? err.message : formatApiError(err, "eKYC could not be completed"));
@@ -487,21 +515,7 @@ export function DmtActivation({ onActivated }: { onActivated: () => void }) {
           requestId={requestId}
           offerDmt={false}
           onDone={(_message, next) => {
-            setState((current) => {
-              if (!current) return current;
-              const nextBanks = current.banks.map((item) => item.bankName === bank.bankName
-                ? {
-                    ...item,
-                    status: next?.status || item.status,
-                    dmtActive: next?.status === "SUCCESS" ? Boolean(next.dmtActive) : item.dmtActive,
-                  }
-                : item);
-              return {
-                ...current,
-                dmtActive: next?.dmtActive ?? nextBanks.filter((item) => item.needed).every(casaOn),
-                banks: nextBanks,
-              };
-            });
+            setState((current) => current && applyScan(current, bank.bankName, _message, next));
             if (next?.status === "SUCCESS" && next.dmtActive) onActivated();
           }}
         />
