@@ -15,6 +15,7 @@ type Bank = {
   wadh: string;
   status: string;
   message: string;
+  dmtActive?: boolean;
 };
 
 type EkycState = {
@@ -79,8 +80,8 @@ export function MerchantEkycDesk() {
   const loaded = state != null;
   const onboardingOpen = loaded && state.kycStatus !== "COMPLETED";
   const neededBanks = state?.banks.filter((bank) => bank.needed) ?? [];
-  const doneBanks = neededBanks.filter((bank) => bank.status === "SUCCESS");
-  const openBanks = neededBanks.filter((bank) => bank.status !== "SUCCESS");
+  const doneBanks = neededBanks.filter((bank) => casaOn(bank));
+  const openBanks = neededBanks.filter((bank) => !casaOn(bank));
   const allDone = !onboardingOpen && neededBanks.length > 0 && openBanks.length === 0;
 
   return (
@@ -137,10 +138,10 @@ export function MerchantEkycDesk() {
         <DoneCard
           key={bank.bankName}
           icon={bank.bankName === "bank6" ? <Banknote className="h-6 w-6" /> : <ArrowLeftRight className="h-6 w-6" />}
-          title={bank.bankName === "bank6" ? "UPI to cash activated" : "Money transfer activated"}
+          title={bank.bankName === "bank6" ? "Bank 6 DMT CASA is on" : "Bank 2 DMT CASA is on"}
           detail={bank.bankName === "bank6"
-            ? "Customers can pay by UPI and take cash from this counter."
-            : "Customers can send money from this counter."}
+            ? "Cash out eKYC is done and this scan was sent with CASA on."
+            : "Money transfer eKYC is done and this scan was sent with CASA on."}
         />
       ))}
       {loaded && !onboardingOpen && openBanks.length > 0 && (
@@ -159,8 +160,14 @@ export function MerchantEkycDesk() {
             setState((current) => current && ({
               ...current,
               bankStatus: next?.bankStatus || current.bankStatus,
+              dmtActive: next?.dmtActive ?? current.dmtActive,
               banks: current.banks.map((item) => item.bankName === bank.bankName
-                ? { ...item, status: next?.status || item.status, message }
+                ? {
+                    ...item,
+                    status: next?.status || item.status,
+                    dmtActive: next?.status === "SUCCESS" ? Boolean(next.dmtActive) : item.dmtActive,
+                    message,
+                  }
                 : item),
             }));
           }}
@@ -173,11 +180,15 @@ export function MerchantEkycDesk() {
   );
 }
 
+function casaOn(bank: Bank) {
+  return bank.status === "SUCCESS" && bank.dmtActive === true;
+}
+
 function headline(onboardingOpen: boolean, neededCount: number, openBanks: Bank[]) {
   if (onboardingOpen) return "Finish onboarding with the link below. Bank checks open after that.";
-  if (neededCount > 0 && openBanks.length === 0) return "Onboarding and both bank checks are active.";
-  if (openBanks.length === neededCount) return "Onboarding is done. Complete both bank checks below.";
-  return `${openBanks.map((bank) => bank.label).join(" and ")} is the only step left.`;
+  if (neededCount > 0 && openBanks.length === 0) return "Onboarding and DMT CASA are active on both banks.";
+  if (openBanks.length === neededCount) return "Onboarding is done. Activate DMT CASA on bank 2 and bank 6 below.";
+  return `${openBanks.map((bank) => bank.label).join(" and ")} still needs DMT CASA.`;
 }
 
 function DoneCard({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
@@ -307,7 +318,7 @@ function BankCard({
       }
       const latitude = bank.needsLocation ? point?.latitude ?? "" : "";
       const longitude = bank.needsLocation ? point?.longitude ?? "" : "";
-      const result = await api<{ message: string; bankStatus: string; status: string }>(
+      const result = await api<{ message: string; bankStatus: string; status: string; dmtActive?: boolean }>(
         `/api/v1/me/ekyc/${bank.bankName}/activate`,
         {
           token,
@@ -318,7 +329,7 @@ function BankCard({
       );
       setTone(result.status === "SUCCESS" ? "success" : "info");
       setMessage(result.message);
-      onDone(result.message, { status: result.status, bankStatus: result.bankStatus });
+      onDone(result.message, { status: result.status, bankStatus: result.bankStatus, dmtActive: result.dmtActive });
     } catch (err) {
       setTone("error");
       setMessage(err instanceof RdError ? err.message : formatApiError(err, "eKYC could not be completed"));
@@ -333,11 +344,13 @@ function BankCard({
         <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Still to do</p>
         <h2 className="mt-1 font-display text-xl font-bold text-navy-950">{bank.label}</h2>
         <p className="mt-1 text-sm text-slate-500">
-          {offerDmt
-            ? bank.bankName === "bank6"
-              ? "Allow location, then scan a finger. This turns on UPI to cash."
-              : "Scan a finger on this device. This turns on money transfer."
-            : "Scan a finger on this device. This turns on domestic money transfer."}
+          {bank.bankName === "bank6"
+            ? bank.status === "SUCCESS" && !bank.dmtActive
+              ? "This bank check is already done. Scan again with CASA on to activate DMT here too."
+              : "Allow location, then scan a finger. Leave Activate DMT on so bank 6 is sent with CASA."
+            : bank.status === "SUCCESS" && !bank.dmtActive
+              ? "This bank check is already done. Scan again with CASA on to activate DMT on bank 2."
+              : "Scan a finger on this device. Leave Activate DMT on so bank 2 is sent with CASA."}
         </p>
       </div>
       {offerDmt && (
@@ -350,7 +363,11 @@ function BankCard({
           />
           <span>
             <span className="font-semibold">Activate DMT</span>
-            <span className="mt-0.5 block text-slate-500">Send this scan with CASA on, so domestic money transfer is activated too.</span>
+            <span className="mt-0.5 block text-slate-500">
+              {bank.bankName === "bank6"
+                ? "Send bank 6 with CASA on. Cash out eKYC and DMT are both activated."
+                : "Send bank 2 with CASA on. Money transfer eKYC and DMT are both activated."}
+            </span>
           </span>
         </label>
       )}
@@ -412,7 +429,7 @@ function BankCard({
   );
 }
 
-/** Shown on the DMT desk when this retailer has never been scanned with CASA on. */
+/** Shown on the DMT desk until bank 2 and bank 6 have been scanned with CASA on. */
 export function DmtActivation({ onActivated }: { onActivated: () => void }) {
   const token = useSession((s) => s.token);
   const [state, setState] = useState<EkycState | null>(null);
@@ -426,15 +443,16 @@ export function DmtActivation({ onActivated }: { onActivated: () => void }) {
       .catch((err) => setError(formatApiError(err, "Could not load the DMT check")));
   }, [token]);
 
-  const bank = state?.banks.find((item) => item.bankName === "bank2");
   const onboardingOpen = state != null && state.kycStatus !== "COMPLETED";
+  const pendingBanks = (state?.banks ?? []).filter((bank) => bank.needed && !casaOn(bank));
+  const readyBanks = (state?.banks ?? []).filter((bank) => bank.needed && casaOn(bank));
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-navy-950">Activate DMT</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Domestic money transfer is off for this outlet. A fingerprint scan turns it on.
+          Domestic money transfer needs a fingerprint scan with CASA on for bank 2 and bank 6.
         </p>
       </div>
       {error && <Alert tone="error">{error}</Alert>}
@@ -445,9 +463,23 @@ export function DmtActivation({ onActivated }: { onActivated: () => void }) {
           <a href="/agent/kyc" className="inline-block rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white">Go to KYC</a>
         </section>
       )}
-      {state && !onboardingOpen && bank && (
+      {state && !onboardingOpen && readyBanks.map((bank) => (
+        <DoneCard
+          key={bank.bankName}
+          icon={bank.bankName === "bank6" ? <Banknote className="h-6 w-6" /> : <ArrowLeftRight className="h-6 w-6" />}
+          title={bank.bankName === "bank6" ? "Bank 6 DMT CASA is on" : "Bank 2 DMT CASA is on"}
+          detail={bank.bankName === "bank6"
+            ? "This cash out check was sent with CASA on."
+            : "This money transfer check was sent with CASA on."}
+        />
+      ))}
+      {state && !onboardingOpen && pendingBanks.map((bank) => (
         <BankCard
-          bank={{ ...bank, label: "Activate DMT" }}
+          key={bank.bankName}
+          bank={{
+            ...bank,
+            label: bank.bankName === "bank6" ? "Activate DMT on bank 6" : "Activate DMT on bank 2",
+          }}
           env={state.rdEnv}
           allowPaste={state.allowPastedPid}
           locked={false}
@@ -455,9 +487,33 @@ export function DmtActivation({ onActivated }: { onActivated: () => void }) {
           requestId={requestId}
           offerDmt={false}
           onDone={(_message, next) => {
+            setState((current) => {
+              if (!current) return current;
+              const nextBanks = current.banks.map((item) => item.bankName === bank.bankName
+                ? {
+                    ...item,
+                    status: next?.status || item.status,
+                    dmtActive: next?.status === "SUCCESS" ? Boolean(next.dmtActive) : item.dmtActive,
+                  }
+                : item);
+              return {
+                ...current,
+                dmtActive: next?.dmtActive ?? nextBanks.filter((item) => item.needed).every(casaOn),
+                banks: nextBanks,
+              };
+            });
             if (next?.status === "SUCCESS" && next.dmtActive) onActivated();
           }}
         />
+      ))}
+      {state && !onboardingOpen && pendingBanks.length === 0 && readyBanks.length > 0 && (
+        <button
+          type="button"
+          onClick={onActivated}
+          className="rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white"
+        >
+          Continue to money transfer
+        </button>
       )}
     </div>
   );
