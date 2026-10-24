@@ -53,7 +53,9 @@ export function SiteFooter() {
           <div className="pt-2 text-xs text-slate-400 space-y-1">
             <p className="flex items-center gap-2">
               <Phone className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Toll Free: 1800 890 4040</span>
+              <a className="hover:text-emerald-400 transition" href={SITE.phoneHref}>
+                {SITE.phone}
+              </a>
             </p>
             <p className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-emerald-400" />

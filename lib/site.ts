@@ -2,13 +2,19 @@ export const SITE = {
   name: "Gfinpay",
   legalName: "GATEWAYLINE FINTECH PRIVATE LIMITED",
   cin: "U62099WB2024PTC268915",
+  roc: "ROC Kolkata II",
+  registrationNumber: "268915",
+  incorporatedOn: "5 March 2024",
+  registeredAddress:
+    "PS Abacus, Unit 308, Plot No. IIE/23, New Town, PS ECO PARK, North 24 Parganas, West Bengal, India, 700161",
   tagline: "Send money, pay bills, and give cash from the neighbourhood retailer",
   description:
     "Gfinpay helps kirana retailers send money, pay BBPS bills, recharge mobile and DTH, top up FASTag, collect LIC premiums, give cash against UPI or Aadhaar, keep a wallet, and help customers take an FD card. Banks keep the deposits. Retailers run the counter.",
   url: "https://gfinpay.com",
   email: "info@gfinpay.com",
   partnerEmail: "partners@gfinpay.com",
-  phone: "1800 890 4040",
+  phone: "+91 88810 02111",
+  phoneHref: "tel:+918881002111",
   address: "Kolkata · Mumbai · Bengaluru · Hyderabad",
 } as const;
 

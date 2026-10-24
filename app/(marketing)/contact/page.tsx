@@ -6,18 +6,10 @@ import {
   CheckCircle2,
   Headphones,
   Mail,
-  MapPin,
   Phone,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { SITE } from "@/lib/site";
-
-const HUBS = [
-  { city: "Kolkata", note: "Registered HQ & Eastern Operations" },
-  { city: "Mumbai", note: "Banking & Sponsor Bank Switch" },
-  { city: "Bengaluru", note: "Product & Engineering Hub" },
-  { city: "Hyderabad", note: "Southern Distribution Centre" },
-];
 
 export default function ContactPage() {
   const [sent, setSent] = useState(false);
@@ -78,8 +70,10 @@ export default function ContactPage() {
                   <Phone className="h-5 w-5 transition-colors duration-300" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-medium">Toll-Free Retailer Helpline</p>
-                  <p className="font-display text-base font-bold text-navy-950">{SITE.phone}</p>
+                  <p className="text-xs text-slate-400 font-medium">Contact and grievance</p>
+                  <a className="font-display text-base font-bold text-navy-950 hover:text-emerald-700" href={SITE.phoneHref}>
+                    {SITE.phone}
+                  </a>
                   <p className="text-[11px] text-slate-400">Monday - Saturday (9:00 AM - 7:00 PM IST)</p>
                 </div>
               </div>
@@ -93,22 +87,6 @@ export default function ContactPage() {
                   <p className="font-display text-sm font-bold text-navy-950">{SITE.email}</p>
                   <p className="text-[11px] text-slate-400">Direct response within 24 business hours</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Regional Hubs */}
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Our Regional Hubs</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {HUBS.map((h) => (
-                  <div key={h.city} className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
-                    <p className="font-bold text-navy-950 flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                      {h.city}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">{h.note}</p>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

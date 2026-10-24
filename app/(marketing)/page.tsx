@@ -668,7 +668,7 @@ export default function HomePage() {
                 className="btn border border-white/20 bg-white/10 text-white hover:bg-white/20 !px-6 !py-3.5 text-sm font-bold"
               >
                 <PhoneCall className="h-4 w-4" />
-                <span>Call Us (1800 890 4040)</span>
+                <span>Call Us ({SITE.phone})</span>
               </Link>
             </div>
           </div>

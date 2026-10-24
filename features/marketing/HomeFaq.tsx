@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { SITE } from "@/lib/site";
 
 type FaqItem = {
   q: string;
@@ -27,7 +28,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Can I become a Master Distributor in my city?",
-    a: "Yes! Master Distributors onboard local Kirana stores, allocate float, and manage regional operations across their network. Call 1800 890 4040 to apply.",
+    a: `Yes! Master Distributors onboard local Kirana stores, allocate float, and manage regional operations across their network. Call ${SITE.phone} to apply.`,
   },
 ];
 
