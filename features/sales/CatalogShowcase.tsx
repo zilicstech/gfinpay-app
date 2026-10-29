@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   Building2,
   Check,
   CreditCard,
+  HeartPulse,
   Landmark,
   PiggyBank,
   ShieldCheck,
@@ -13,9 +15,14 @@ import {
   Wallet,
   Zap,
 } from "lucide-react";
-import type { CatalogCategory } from "@/features/sales/CatalogView";
+import type { CatalogCategory, CatalogItem } from "@/features/sales/CatalogView";
+import { useDeskServices } from "@/features/desk/DeskServices";
+import { useSession } from "@/stores/session.store";
+import { api } from "@/lib/api-client";
+import { inr } from "@/lib/format";
+import { hospiMoney, type HospiOffer } from "@/features/hospi/offer";
 
-type Accent = "emerald" | "amber" | "sky" | "violet" | "teal" | "rose";
+type Accent = "emerald" | "amber" | "sky" | "violet" | "teal" | "rose" | "mint";
 
 type Pitch = {
   title: string;
@@ -125,6 +132,16 @@ const PITCH: Record<string, Pitch> = {
   },
 };
 
+const HOSPI_ITEM: CatalogItem = {
+  id: "hospi-cash",
+  code: "HOSPI_CASH",
+  category_code: "HOSPI_CASH",
+  name: "Hospi Cash",
+  provider: "Gfinpay",
+  rail: "HOSPI",
+  active: true,
+};
+
 const ACCENT: Record<Accent, { wash: string; icon: string; chip: string; ring: string }> = {
   emerald: {
     wash: "from-emerald-400 via-emerald-200 to-white",
@@ -162,6 +179,12 @@ const ACCENT: Record<Accent, { wash: string; icon: string; chip: string; ring: s
     chip: "bg-rose-50 text-rose-950",
     ring: "hover:border-rose-300",
   },
+  mint: {
+    wash: "from-emerald-300 via-teal-100 to-white",
+    icon: "bg-emerald-950 text-emerald-200",
+    chip: "bg-emerald-50 text-emerald-950",
+    ring: "hover:border-emerald-300",
+  },
 };
 
 const CATEGORY_ACCENT: Record<string, Accent> = {
@@ -171,6 +194,7 @@ const CATEGORY_ACCENT: Record<string, Accent> = {
   PERSONAL_LOAN: "sky",
   BUSINESS_LOAN: "teal",
   SAVINGS: "rose",
+  HOSPI_CASH: "mint",
 };
 
 const CATEGORY_ICON: Record<string, ReactNode> = {
@@ -180,6 +204,7 @@ const CATEGORY_ICON: Record<string, ReactNode> = {
   PERSONAL_LOAN: <Wallet className="h-5 w-5" />,
   BUSINESS_LOAN: <Building2 className="h-5 w-5" />,
   SAVINGS: <PiggyBank className="h-5 w-5" />,
+  HOSPI_CASH: <HeartPulse className="h-5 w-5" />,
 };
 
 export type FdBankFace = {
@@ -259,6 +284,19 @@ export function productTitle(code: string, fallback: string) {
 }
 
 export function CatalogShowcase({ categories }: { categories: CatalogCategory[] }) {
+  const { ready, codes } = useDeskServices();
+  const role = useSession((s) => s.user?.userType);
+  const token = useSession((s) => s.token);
+  const hospi = ready && codes.has("HOSPI_CASH");
+  const hospiHref = role === "RETAILER" ? "/agent/hospi-cash" : role === "MASTER_DISTRIBUTOR" ? "/distributor/hospi-cash" : null;
+  const [offer, setOffer] = useState<HospiOffer | null>(null);
+  useEffect(() => {
+    if (!token || !hospi) return;
+    api<HospiOffer>("/api/v1/hospi-cash/offer", { token })
+      .then(setOffer)
+      .catch(() => setOffer(null));
+  }, [token, hospi]);
+  const hospiPrice = hospiMoney(offer);
   const visible = useMemo(() => {
     const rows = categories
       .map((category) => ({
@@ -275,8 +313,11 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
       fd.length > 0
         ? fd.map((category) => ({ ...category, name: "FD Credit Card" }))
         : [{ code: "FD_CARD", name: "FD Credit Card", items: [] }];
-    return [...lead, ...rest];
-  }, [categories]);
+    const hospiCategory = hospi
+      ? [{ code: "HOSPI_CASH", name: "Hospi Cash", items: [HOSPI_ITEM] }]
+      : [];
+    return [...lead, ...hospiCategory, ...rest];
+  }, [categories, hospi]);
   const [categoryCode, setCategoryCode] = useState("ALL");
   const shown = categoryCode === "ALL" ? visible : visible.filter((category) => category.code === categoryCode);
   const offerCount = visible.reduce((n, category) => n + (category.code === "FD_CARD" ? 3 : category.items.length), 0);
@@ -303,7 +344,9 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
           </p>
           <h1 className="mt-4 font-display text-4xl tracking-tight sm:text-5xl">What would you like today?</h1>
           <p className="mt-3 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">
-            Credit cards, loans, and savings accounts. You apply on your phone. The bank decides approval, and the money stays with the bank.
+            {hospi
+              ? "Credit cards, a hospital cash card, loans, and savings accounts. Cards and accounts are applied for on your phone. Hospi Cash is paid at this counter."
+              : "Credit cards, loans, and savings accounts. You apply on your phone. The bank decides approval, and the money stays with the bank."}
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-300 px-3 py-1.5 font-semibold text-black">
@@ -350,7 +393,7 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
             </div>
             <div className="grid gap-5 lg:grid-cols-2">
               {category.items.map((item) => {
-                const pitch = PITCH[item.code];
+                const pitch = item.code === "HOSPI_CASH" ? hospiPitch(hospiPrice) : PITCH[item.code];
                 const tone = ACCENT[pitch?.accent ?? CATEGORY_ACCENT[category.code] ?? "emerald"];
                 const title = pitch?.title ?? item.name;
                 const features = pitch?.features ?? [];
@@ -385,6 +428,13 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
                         ))}
                       </ul>
                     )}
+                    {item.code === "HOSPI_CASH" && hospiHref && (
+                      <div className="px-6 pb-6">
+                        <Link href={hospiHref} className="btn-primary inline-flex text-sm">
+                          {role === "RETAILER" ? "Sell Hospi Cash" : "View Hospi Cash sales"}
+                        </Link>
+                      </div>
+                    )}
                   </article>
                 );
               })}
@@ -394,7 +444,9 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
       })}
 
       <p className="text-center text-xs text-navy-500">
-        After the customer picks a product, start the application from their customer record.
+        {hospi
+          ? `Hospi Cash is sold at the counter for ${inr(hospiPrice.payable)}. Other products start from the customer record.`
+          : "After the customer picks a product, start the application from their customer record."}
       </p>
     </div>
   );
@@ -450,6 +502,24 @@ function FilterChip({
   );
 }
 
+function hospiPitch(price: { sellingPrice: number; discount: number; payable: number }): Pitch {
+  const collected = price.discount > 0
+    ? `Premium is ${inr(price.sellingPrice)}, discount ${inr(price.discount)}, collected here`
+    : `Premium is ${inr(price.payable)}, collected here`;
+  return {
+    title: "Hospi Cash",
+    promise: `A hospital cash card. Pay ${inr(price.payable)} at this counter. The benefit is fixed when you are admitted.`,
+    banks: `${inr(price.payable)} at the counter`,
+    accent: "mint",
+    features: [
+      "Cash benefit for a hospital stay",
+      collected,
+      "Add a nominee before you leave",
+      "The card is activated after the partner confirms",
+    ],
+  };
+}
+
 function categoryHeadline(code: string) {
   switch (code) {
     case "CREDIT_CARD":
@@ -464,6 +534,8 @@ function categoryHeadline(code: string) {
       return "Capital for the shop";
     case "SAVINGS":
       return "A new savings account";
+    case "HOSPI_CASH":
+      return "Cash when you are in hospital";
     default:
       return "Available to offer";
   }

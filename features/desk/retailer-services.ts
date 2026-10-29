@@ -39,7 +39,7 @@ export function leadGenEnabled(codes: Set<string>): boolean {
 }
 
 export function customerDeskEnabled(codes: Set<string>, fdProviders: FdProviderRow[]): boolean {
-  return leadGenEnabled(codes) || fdCardsEnabled(fdProviders);
+  return leadGenEnabled(codes) || fdCardsEnabled(fdProviders) || codes.has("HOSPI_CASH");
 }
 
 export function buildAgentNav(codes: Set<string>, fdProviders: FdProviderRow[]): NavItem[] {
@@ -58,6 +58,7 @@ export function buildAgentNav(codes: Set<string>, fdProviders: FdProviderRow[]):
   if (customerDeskEnabled(codes, fdProviders)) {
     nav.push({ href: "/agent/sales", label: "Sales" });
   }
+  if (codes.has("HOSPI_CASH")) nav.push({ href: "/agent/hospi-cash", label: "Hospi Cash" });
   nav.push({ href: "/agent/reports", label: "Reports" });
   nav.push({ href: "/agent/settings", label: "Settings" });
   return nav;
@@ -88,6 +89,7 @@ export const QUICK_TILES: QuickTile[] = [
   { code: "AEPS", href: "/agent/aeps", label: "AePS cash out", hint: "Biometric Withdrawal" },
   { code: "LEAD_GEN", href: "/agent/catalog", label: "Sell a product", hint: "Cards, Loans & Accounts", needsLeadGen: true },
   { code: "FD_MODULE", href: "/agent/customers", label: "FD cards", hint: "Secured Credit Cards", needsFd: true },
+  { code: "HOSPI_CASH", href: "/agent/hospi-cash", label: "Hospi Cash", hint: "Hospital cash card" },
 ];
 
 export function filterQuickTiles(codes: Set<string>, fdProviders: FdProviderRow[]): QuickTile[] {
@@ -119,6 +121,9 @@ export function buildMoreItems(codes: Set<string>, fdProviders: FdProviderRow[])
   );
   if (customerDeskEnabled(codes, fdProviders)) {
     items.push({ href: "/agent/sales", label: "Sales", hint: "Links you have shared" });
+  }
+  if (codes.has("HOSPI_CASH")) {
+    items.push({ href: "/agent/hospi-cash", label: "Hospi Cash", hint: "Sell a hospital cash card" });
   }
   items.push(
     { href: "/agent/transactions", label: "Transactions", hint: "Receipts and history" },
@@ -154,6 +159,7 @@ export function buildDistributorNav(codes: Set<string>, fdProviders: FdProviderR
   if (customerDeskEnabled(codes, fdProviders)) {
     nav.push({ href: "/distributor/sales", label: "Sales" });
   }
+  if (codes.has("HOSPI_CASH")) nav.push({ href: "/distributor/hospi-cash", label: "Hospi Cash" });
   nav.push(
     { href: "/distributor/transactions", label: "Transactions" },
     { href: "/distributor/earnings", label: "Earnings" },

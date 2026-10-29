@@ -17,6 +17,11 @@ const badgeStyles: Record<string, BadgeStyle> = {
   VERIFIED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
   COMPLETED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
   ACTIVATED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+  COLLECTED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
+  SOLD: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  EXPORTED: { container: "bg-sky-50 text-sky-800 ring-sky-500/25", dot: "bg-sky-500", ping: false },
+  UNPAID: { container: "bg-amber-50 text-amber-800 ring-amber-500/25", dot: "bg-amber-500", ping: true },
+  NOT_REQUIRED: { container: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400", ping: false },
   CONVERTED: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
   CREDIT: { container: "bg-emerald-50 text-emerald-800 ring-emerald-500/25", dot: "bg-emerald-500", ping: false },
 

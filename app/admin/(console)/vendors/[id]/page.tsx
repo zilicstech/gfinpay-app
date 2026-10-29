@@ -16,7 +16,7 @@ import {
   UserX
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
-import { maskMobile, when } from "@/lib/format";
+import { inr, maskMobile, when } from "@/lib/format";
 import { partnerStatusLabel } from "@/lib/partner-status";
 import { useSession } from "@/stores/session.store";
 import { DataTable, EmptyState, Modal, StatusPill } from "@/components/ui/primitives";
@@ -60,6 +60,19 @@ function affiliateDeskUrl(vendor: Vendor, affiliate: Affiliate): string | undefi
   return `${origin}/a/${gfin}`;
 }
 
+type VendorHospi = {
+  id: string;
+  gfin_sale_code: string;
+  customer_name?: string;
+  mobile?: string;
+  premium_amount?: number;
+  vendor_payment_status?: string;
+  activation_status?: string;
+  employee_name?: string;
+  employee_code?: string;
+  created_at?: string;
+};
+
 type VendorSale = {
   customer_mobile?: string;
   customer_name?: string;
@@ -83,6 +96,7 @@ type Vendor = {
   created_at?: string;
   affiliates?: Affiliate[];
   sales?: VendorSale[];
+  hospi_cash?: VendorHospi[];
 };
 
 function vendorConsoleShareText(vendor: Vendor) {
@@ -125,7 +139,7 @@ export default function VendorDetailPage() {
   const flash = useFlash();
 
   const [vendor, setVendor] = useState<Vendor | null>(null);
-  const [tab, setTab] = useState<"details" | "employees" | "sales">("details");
+  const [tab, setTab] = useState<"details" | "employees" | "sales" | "hospi">("details");
   const [urlCopied, setUrlCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedMobile, setCopiedMobile] = useState(false);
@@ -379,19 +393,23 @@ export default function VendorDetailPage() {
       {/* Tabs & Table */}
       <section className="space-y-4">
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1 w-fit">
-          {(["details", "employees", "sales"] as const).map((key) => {
+          {(["details", "employees", "sales", "hospi"] as const).map((key) => {
             const isActive = tab === key;
             const count =
               key === "employees"
                 ? vendor.affiliates?.length ?? 0
                 : key === "sales"
                 ? vendor.sales?.length ?? 0
+                : key === "hospi"
+                ? vendor.hospi_cash?.length ?? 0
                 : undefined;
             const label =
               key === "details"
                 ? "Agency Details"
                 : key === "employees"
                 ? "Employees"
+                : key === "hospi"
+                ? "Hospi Cash"
                 : "Sales Leads";
             return (
               <button
@@ -567,6 +585,54 @@ export default function VendorDetailPage() {
                   ),
                 ];
               })}
+            />
+          )
+        ) : tab === "hospi" ? (
+          !vendor.hospi_cash?.length ? (
+            <EmptyState
+              title="No Hospi Cash cards"
+              body="Cards recorded on this vendor’s field desks show up here, with payment and activation."
+            />
+          ) : (
+            <DataTable
+              columns={["Sale", "Customer", "Mobile", "Employee", "Premium", "Payment", "Activation", "When"]}
+              rows={vendor.hospi_cash.map((card) => [
+                <span key={`${card.id}-code`} className="font-mono text-xs font-semibold text-navy-950">
+                  {card.gfin_sale_code}
+                </span>,
+                <span key={`${card.id}-name`} className="font-semibold text-navy-950">
+                  {card.customer_name ?? "—"}
+                </span>,
+                <span key={`${card.id}-mobile`} className="font-mono text-xs text-slate-600">
+                  {card.mobile ? maskMobile(card.mobile) : "—"}
+                </span>,
+                <div key={`${card.id}-emp`} className="text-xs">
+                  <p className="font-medium text-navy-950">{card.employee_name ?? "—"}</p>
+                  {card.employee_code && (
+                    <span className="font-mono text-[10px] text-slate-400">({card.employee_code})</span>
+                  )}
+                </div>,
+                <span key={`${card.id}-premium`} className="font-mono text-xs text-slate-600">
+                  {inr(card.premium_amount)}
+                </span>,
+                <StatusPill
+                  key={`${card.id}-pay`}
+                  value={card.vendor_payment_status === "UNPAID" ? "UNPAID" : "COLLECTED"}
+                  label={card.vendor_payment_status === "UNPAID" ? "Unpaid" : "Collected"}
+                />,
+                <StatusPill
+                  key={`${card.id}-act`}
+                  value={card.activation_status || "PENDING"}
+                  label={
+                    card.activation_status === "SUCCESS"
+                      ? "Success"
+                      : card.activation_status === "FAILED"
+                      ? "Failed"
+                      : "Pending"
+                  }
+                />,
+                when(card.created_at),
+              ])}
             />
           )
         ) : (

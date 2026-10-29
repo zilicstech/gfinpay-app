@@ -25,6 +25,8 @@ import { Flash, FormModal, useFlash } from "@/features/admin/AdminChrome";
 import { CustomerFields, type CustomerDraft } from "@/features/sales/customer-form";
 import { AddProductModal } from "@/features/sales/AddProductModal";
 import { SellFdCardModal } from "@/features/sales/SellFdCardModal";
+import { SellHospiCashModal } from "@/features/hospi/SellHospiCashModal";
+import { HeartPulse } from "lucide-react";
 import { fdCardsEnabled } from "@/features/desk/retailer-services";
 import { useDeskServices } from "@/features/desk/DeskServices";
 import type { CatalogCategory } from "@/features/sales/CatalogView";
@@ -72,13 +74,14 @@ const LEAD_OFFERS = [
   { code: "SAVINGS", label: "Open bank account" },
 ] as const;
 
-function DeskFlags({ onChange }: { onChange: (flags: { fd: boolean; leads: string[] }) => void }) {
+function DeskFlags({ onChange }: { onChange: (flags: { fd: boolean; leads: string[]; hospi: boolean }) => void }) {
   const { codes, fdProviders } = useDeskServices();
   const fd = fdCardsEnabled(fdProviders);
+  const hospi = codes.has("HOSPI_CASH");
   const leadKey = LEAD_OFFERS.map((offer) => offer.code).filter((code) => codes.has(code)).join("|");
   useEffect(() => {
-    onChange({ fd, leads: leadKey ? leadKey.split("|") : [] });
-  }, [fd, leadKey, onChange]);
+    onChange({ fd, hospi, leads: leadKey ? leadKey.split("|") : [] });
+  }, [fd, hospi, leadKey, onChange]);
   return null;
 }
 
@@ -94,7 +97,12 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
 
   // Modals & form state
   const [addOpen, setAddOpen] = useState(false);
-  const [deskFlags, setDeskFlags] = useState<{ fd: boolean; leads: string[] }>({ fd: false, leads: [] });
+  const [hospiOpen, setHospiOpen] = useState(false);
+  const [deskFlags, setDeskFlags] = useState<{ fd: boolean; leads: string[]; hospi: boolean }>({
+    fd: false,
+    leads: [],
+    hospi: false,
+  });
   const [selling, setSelling] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CustomerDraft | null>(null);
@@ -207,6 +215,7 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
   const place = [customer.city, customer.state].filter(Boolean).join(", ");
   const desk = basePath.startsWith("/agent") || basePath.startsWith("/distributor");
   const sellFd = desk && deskFlags.fd;
+  const sellHospi = desk && deskFlags.hospi;
   const sellLeads = desk && deskFlags.leads.length > 0;
   const leadOffers = LEAD_OFFERS.filter((offer) => deskFlags.leads.includes(offer.code));
   const salesBase = basePath.startsWith("/distributor")
@@ -237,6 +246,15 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
             label: "Sell FD Card",
             icon: <CreditCard className="h-4 w-4" />,
             onClick: () => setAddOpen(true),
+          },
+        ]
+      : []),
+    ...(canAddLead && sellHospi
+      ? [
+          {
+            label: "Sell Hospi Cash",
+            icon: <HeartPulse className="h-4 w-4" />,
+            onClick: () => setHospiOpen(true),
           },
         ]
       : []),
@@ -581,6 +599,19 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
           customerId={id}
           salesPath={salesBase}
           onClose={() => setAddOpen(false)}
+        />
+      )}
+      {canAddLead && sellHospi && customer && (
+        <SellHospiCashModal
+          open={hospiOpen}
+          initial={{
+            customerName: customer.full_name,
+            mobile: customer.mobile,
+            email: customer.email ?? "",
+            pincode: customer.pincode ?? "",
+            address: [customer.city, customer.state].filter(Boolean).join(", "),
+          }}
+          onClose={() => setHospiOpen(false)}
         />
       )}
       {canAddLead && id && !desk && (

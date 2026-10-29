@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Users, Store, PieChart, Percent, Wallet, ArrowLeftRight,
   Landmark, LogOut, MessageSquare, Settings, Shield, ShieldCheck, Receipt, Scale, LayoutGrid,
   ClipboardList,
+  HeartPulse,
   ChevronDown, UserRound, Zap, Smartphone, Tv, CarFront, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -50,6 +51,9 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/transactions": Receipt,
   "/admin/recon": Scale,
   "/admin/sales": Receipt,
+  "/admin/hospi-cash": HeartPulse,
+  "/agent/hospi-cash": HeartPulse,
+  "/distributor/hospi-cash": HeartPulse,
   "/admin/settings": Settings,
   "/admin/profile": UserRound,
   "/agent/dashboard": LayoutDashboard,

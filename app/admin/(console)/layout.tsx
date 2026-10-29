@@ -16,6 +16,7 @@ const SUPER_NAV = [
   { href: "/admin/auditors", label: "Auditors" },
   { href: "/admin/finance", label: "Finance" },
   { href: "/admin/sales", label: "Sales" },
+  { href: "/admin/hospi-cash", label: "Hospi Cash" },
   { href: "/admin/recon", label: "Recon" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/audit", label: "Audit" },

@@ -23,6 +23,16 @@ import { Logo } from "@/components/brand/Logo";
 import { browserApiPath } from "@/lib/api-base";
 import { Modal } from "@/components/ui/primitives";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import {
+  EMPTY_HOSPI,
+  GOOD_HEALTH,
+  HospiCashFields,
+  HospiHealthCheck,
+  hospiPayload,
+  hospiReady,
+  type HospiDraft,
+} from "@/features/hospi/HospiCashFields";
+import { hospiCollectLine, type HospiOffer } from "@/features/hospi/offer";
 
 type Product = { id: string; name: string; product_key?: string; code?: string };
 type AffiliatePublic = {
@@ -30,7 +40,19 @@ type AffiliatePublic = {
   employee_name: string;
   employee_gfin_code?: string;
   products: Product[];
+  hospi_cash_enabled?: boolean;
+  hospi_cash_selling_price?: number;
+  hospi_cash_discount?: number;
+  hospi_cash_payable?: number;
 };
+
+function vendorHospiOffer(data: AffiliatePublic): HospiOffer {
+  return {
+    sellingPrice: Number(data.hospi_cash_selling_price ?? 1000),
+    discount: Number(data.hospi_cash_discount ?? 0),
+    payable: Number(data.hospi_cash_payable ?? data.hospi_cash_selling_price ?? 1000),
+  };
+}
 
 function firstName(full: string) {
   return full.trim().split(/\s+/)[0] || "Customer";
@@ -76,6 +98,9 @@ export default function VendorEmployeeDeskPage() {
   const [generatedLabel, setGeneratedLabel] = useState("");
   const [copiedMessage, setCopiedMessage] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [product, setProduct] = useState<"card" | "hospi">("card");
+  const [hospi, setHospi] = useState<HospiDraft>(EMPTY_HOSPI);
+  const [hospiCode, setHospiCode] = useState("");
 
   useEffect(() => {
     fetch(browserApiPath(`/api/v1/public/affiliates/${encodeURIComponent(token)}`), { cache: "no-store" })
@@ -134,6 +159,28 @@ export default function VendorEmployeeDeskPage() {
     setCopiedMessage(false);
     setCopiedLink(false);
     setShareModalOpen(true);
+  }
+
+  async function sellHospi(e: React.FormEvent) {
+    e.preventDefault();
+    if (!hospiReady(hospi)) {
+      setError("Fill every field on the attachment form");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    const res = await fetch(browserApiPath(`/api/v1/public/affiliates/${encodeURIComponent(token)}/hospi-cash`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(hospiPayload(hospi)),
+    });
+    const json = await res.json();
+    setSubmitting(false);
+    if (json.error || !json.data?.gfin_sale_code) {
+      setError(json.error?.message ?? "Could not record the card");
+      return;
+    }
+    setHospiCode(json.data.gfin_sale_code as string);
   }
 
   async function copyMessage() {
@@ -210,7 +257,7 @@ export default function VendorEmployeeDeskPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 px-4 py-8 sm:py-12">
-      <div className="mx-auto max-w-md space-y-6">
+      <div className={`mx-auto space-y-6 ${product === "hospi" ? "max-w-lg" : "max-w-md"}`}>
         {/* Header Branding */}
         <div className="flex items-center justify-between">
           <Logo compact />
@@ -248,12 +295,47 @@ export default function VendorEmployeeDeskPage() {
         {/* Form Card */}
         <div className="rounded-[2.5rem] border border-slate-200/90 bg-white p-6 sm:p-8 shadow-xl space-y-6">
           <div>
-            <h2 className="font-display text-lg font-bold text-navy-950">Generate Customer Link</h2>
+            <h2 className="font-display text-lg font-bold text-navy-950">
+              {product === "hospi" ? "Sell Hospi Cash" : "Generate Customer Link"}
+            </h2>
             <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-              Enter customer details and choose a financial product. We will generate a secure onboarding link you can share directly.
+              {product === "hospi"
+                ? `Capture the attachment form. ${hospiCollectLine(vendorHospiOffer(data))} No wallet is charged on this desk. Payment is collected offline before the card is sent for activation.`
+                : "Enter customer details and choose a financial product. We will generate a secure onboarding link you can share directly."}
             </p>
           </div>
 
+          {data.hospi_cash_enabled && (
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className={product === "card" ? "btn-primary" : "btn-secondary"} onClick={() => setProduct("card")}>
+                Card link
+              </button>
+              <button type="button" className={product === "hospi" ? "btn-primary" : "btn-secondary"} onClick={() => setProduct("hospi")}>
+                Hospi Cash
+              </button>
+            </div>
+          )}
+
+          {product === "hospi" ? (
+            hospiCode ? (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                Card recorded. Sale id <strong>{hospiCode}</strong>. It will be sent for activation after payment is collected.
+              </p>
+            ) : (
+              <form className="space-y-4" onSubmit={sellHospi}>
+                <HospiCashFields value={hospi} onChange={setHospi} />
+                <div className="flex items-center justify-between gap-4">
+                  <HospiHealthCheck
+                    checked={hospi.goodHealth === GOOD_HEALTH}
+                    onChange={(checked) => setHospi({ ...hospi, goodHealth: checked ? GOOD_HEALTH : "" })}
+                  />
+                  <button type="submit" className="btn-primary shrink-0" disabled={submitting || !hospiReady(hospi)}>
+                    {submitting ? "Saving…" : "Record Hospi Cash"}
+                  </button>
+                </div>
+              </form>
+            )
+          ) : (
           <form className="space-y-4" onSubmit={generateLink}>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5">
@@ -351,6 +433,7 @@ export default function VendorEmployeeDeskPage() {
               {submitting ? "Generating Link…" : "Generate Customer Link"}
             </button>
           </form>
+          )}
 
           {error ? (
             <p className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-center text-xs font-semibold text-rose-700">

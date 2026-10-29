@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { api, openDetails } from "@/lib/api-client";
+import { inr } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { EmptyState, Modal, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, TextField, useFlash } from "@/features/admin/AdminChrome";
@@ -58,18 +59,42 @@ export default function SettingsPage() {
     retailer: string;
     distributor: string;
     hub: string;
+    vendorCommission?: string;
   } | null>(null);
   const [commissionBusy, setCommissionBusy] = useState(false);
+  const [hospiPrice, setHospiPrice] = useState<{
+    sellingPrice: string;
+    discount: string;
+  } | null>(null);
+  const [hospiSaved, setHospiSaved] = useState<{
+    sellingPrice: number;
+    discount: number;
+    payable: number;
+    vendorCommission: number;
+  } | null>(null);
+  const [hospiBusy, setHospiBusy] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const [h, s] = await Promise.all([
+      const [h, s, price] = await Promise.all([
         api<Hub[]>("/api/v1/admin/hubs", { token }),
         api<PlatformService[]>("/api/v1/admin/services", { token }),
+        api<{ sellingPrice?: number; discount?: number; payable?: number; vendorCommission?: number }>(
+          "/api/v1/admin/hospi-cash/pricing",
+          { token },
+        ).catch(() => null),
       ]);
       setHubs(Array.isArray(h) ? h : []);
       setServices(Array.isArray(s) ? s : []);
+      if (price) {
+        setHospiSaved({
+          sellingPrice: Number(price.sellingPrice ?? 0),
+          discount: Number(price.discount ?? 0),
+          payable: Number(price.payable ?? 0),
+          vendorCommission: Number(price.vendorCommission ?? 0),
+        });
+      }
     } catch (e) {
       flash.fail(e, "Failed to load settings");
     } finally {
@@ -135,10 +160,13 @@ export default function SettingsPage() {
 
   async function openCommission(code: string, name: string) {
     try {
-      const current = await api<{ mode?: string; retailer?: number | null; distributor?: number | null; hub?: number | null }>(
-        `/api/v1/admin/services/${code}/commission`,
-        { token },
-      );
+      const current = await api<{
+        mode?: string;
+        retailer?: number | null;
+        distributor?: number | null;
+        hub?: number | null;
+        vendorCommission?: number | null;
+      }>(`/api/v1/admin/services/${code}/commission`, { token });
       setCommission({
         code,
         name,
@@ -146,9 +174,48 @@ export default function SettingsPage() {
         retailer: String(current.retailer ?? 0),
         distributor: String(current.distributor ?? 0),
         hub: String(current.hub ?? 0),
+        vendorCommission: code === "HOSPI_CASH" ? String(current.vendorCommission ?? 0) : undefined,
       });
     } catch (e) {
       flash.fail(e, "Could not load commission");
+    }
+  }
+
+  function openHospiPrice() {
+    setHospiPrice({
+      sellingPrice: String(hospiSaved?.sellingPrice ?? 1000),
+      discount: String(hospiSaved?.discount ?? 0),
+    });
+  }
+
+  async function saveHospiPrice(e: FormEvent) {
+    e.preventDefault();
+    if (!hospiPrice) return;
+    setHospiBusy(true);
+    try {
+      const saved = await api<{ sellingPrice?: number; discount?: number; payable?: number; vendorCommission?: number }>(
+        "/api/v1/admin/hospi-cash/pricing",
+        {
+          token,
+          method: "PUT",
+          body: JSON.stringify({
+            sellingPrice: Number(hospiPrice.sellingPrice || 0),
+            discount: Number(hospiPrice.discount || 0),
+          }),
+        },
+      );
+      setHospiSaved({
+        sellingPrice: Number(saved.sellingPrice ?? 0),
+        discount: Number(saved.discount ?? 0),
+        payable: Number(saved.payable ?? 0),
+        vendorCommission: Number(saved.vendorCommission ?? 0),
+      });
+      setHospiPrice(null);
+      flash.ok("Hospi Cash price saved. New sales use this amount.");
+    } catch (err) {
+      flash.fail(err, "Could not save the Hospi Cash price");
+    } finally {
+      setHospiBusy(false);
     }
   }
 
@@ -157,7 +224,7 @@ export default function SettingsPage() {
     if (!commission) return;
     setCommissionBusy(true);
     try {
-      await api(`/api/v1/admin/services/${commission.code}/commission`, {
+      const saved = await api<{ vendorCommission?: number }>(`/api/v1/admin/services/${commission.code}/commission`, {
         token,
         method: "PUT",
         body: JSON.stringify({
@@ -165,8 +232,16 @@ export default function SettingsPage() {
           retailer: Number(commission.retailer || 0),
           distributor: Number(commission.distributor || 0),
           hub: Number(commission.hub || 0),
+          ...(commission.code === "HOSPI_CASH"
+            ? { vendorCommission: Number(commission.vendorCommission || 0) }
+            : {}),
         }),
       });
+      if (commission.code === "HOSPI_CASH") {
+        setHospiSaved((current) =>
+          current ? { ...current, vendorCommission: Number(saved.vendorCommission ?? 0) } : current,
+        );
+      }
       flash.ok(`Commission saved for ${commission.name}.`);
       setCommission(null);
     } catch (e) {
@@ -442,16 +517,35 @@ export default function SettingsPage() {
                     </div>
                     <h4 className="font-display font-bold text-lg text-navy-950">{svc.name}</h4>
                     <p className="mt-1 text-xs text-slate-600 leading-relaxed">{svc.description}</p>
+                    {svc.code === "HOSPI_CASH" && hospiSaved && (
+                      <p className="mt-2 text-xs font-semibold text-navy-950">
+                        {inr(hospiSaved.sellingPrice)}
+                        {hospiSaved.discount > 0 ? ` · discount ${inr(hospiSaved.discount)} · collect ${inr(hospiSaved.payable)}` : ""}
+                        {" · vendor "}
+                        {inr(hospiSaved.vendorCommission)}
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => openCommission(svc.code, svc.name)}
-                      className="text-xs font-bold text-navy-950 underline"
-                    >
-                      Set commission
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                      {svc.code === "HOSPI_CASH" && (
+                        <button
+                          type="button"
+                          onClick={openHospiPrice}
+                          className="text-xs font-bold text-navy-950 underline"
+                        >
+                          Set price
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openCommission(svc.code, svc.name)}
+                        className="text-xs font-bold text-navy-950 underline"
+                      >
+                        Set commission
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setPendingService(svc)}
@@ -518,6 +612,37 @@ export default function SettingsPage() {
       </FormModal>
 
       <Modal
+        open={hospiPrice != null}
+        title="Hospi Cash price"
+        description="New sales collect the selling price minus any discount."
+      >
+        {hospiPrice && (
+          <form onSubmit={saveHospiPrice} className="space-y-4">
+            <TextField
+              label="Selling price (₹)"
+              required
+              inputMode="numeric"
+              value={hospiPrice.sellingPrice}
+              onChange={(sellingPrice) => setHospiPrice({ ...hospiPrice, sellingPrice })}
+            />
+            <TextField
+              label="Discount (₹)"
+              inputMode="numeric"
+              value={hospiPrice.discount}
+              onChange={(discount) => setHospiPrice({ ...hospiPrice, discount })}
+            />
+            <p className="text-xs text-slate-600">
+              Customer pays {inr(Math.max(0, Number(hospiPrice.sellingPrice || 0) - Number(hospiPrice.discount || 0)))}.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-secondary text-xs" disabled={hospiBusy} onClick={() => setHospiPrice(null)}>Cancel</button>
+              <button type="submit" className="btn-primary text-xs" disabled={hospiBusy}>{hospiBusy ? "Saving..." : "Save price"}</button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
         open={commission != null}
         title="Set commission"
         description="One reward for the whole service. Flat is rupees. Percentage is of the transaction amount. It is credited to the rewards wallet when the service succeeds."
@@ -540,6 +665,19 @@ export default function SettingsPage() {
             <TextField label={commission.mode === "FLAT" ? "Retailer (₹)" : "Retailer (%)"} value={commission.retailer} onChange={(retailer) => setCommission({ ...commission, retailer })} />
             <TextField label={commission.mode === "FLAT" ? "Distributor (₹)" : "Distributor (%)"} value={commission.distributor} onChange={(distributor) => setCommission({ ...commission, distributor })} />
             <TextField label={commission.mode === "FLAT" ? "Hub (₹)" : "Hub (%)"} value={commission.hub} onChange={(hub) => setCommission({ ...commission, hub })} />
+            {commission.code === "HOSPI_CASH" && (
+              <>
+                <TextField
+                  label="Vendor commission (₹)"
+                  inputMode="numeric"
+                  value={commission.vendorCommission ?? "0"}
+                  onChange={(vendorCommission) => setCommission({ ...commission, vendorCommission })}
+                />
+                <p className="text-xs text-slate-600">
+                  Vendor commission is a flat amount. It is written when activation is Success and settled offline.
+                </p>
+              </>
+            )}
             <div className="flex justify-end gap-2">
               <button type="button" className="btn-secondary text-xs" disabled={commissionBusy} onClick={() => setCommission(null)}>Cancel</button>
               <button type="submit" className="btn-primary text-xs" disabled={commissionBusy}>{commissionBusy ? "Saving..." : "Save commission"}</button>
