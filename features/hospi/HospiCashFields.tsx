@@ -133,10 +133,6 @@ export function HospiCashFields({
         <input className="field" type="email" value={value.email} onChange={(e) => set("email", e.target.value)} />
       </label>
       <label>
-        <Label>Insured relationship</Label>
-        <input className="field" value="Self" readOnly />
-      </label>
-      <label>
         <Label>Nominee name</Label>
         <input className="field" value={value.nomineeName} onChange={(e) => set("nomineeName", e.target.value)} />
       </label>
