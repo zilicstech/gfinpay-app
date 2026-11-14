@@ -140,7 +140,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* 1. Welcome Card */}
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
@@ -165,54 +165,54 @@ export default function AnalyticsPage() {
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-          <div>
-            <h2 className="text-xl font-bold text-navy-950">{hubAdmin ? "Your hubs" : "Hubs"}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {hubAdmin
-                ? "Counts are limited to the hubs assigned to you."
-                : "Every hub on the platform."}
-            </p>
-          </div>
-          {loading ? (
-            <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-          ) : assignedHubs.length === 0 ? (
-            <EmptyState
-              title={hubAdmin ? "No hubs assigned" : "No hubs yet"}
-              body={hubAdmin ? "Ask a platform admin to assign you to a hub." : "Create a hub from Settings to see it here."}
-            />
-          ) : (
-            <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
-                  <tr>
-                    <th className="px-5 py-3.5">Hub</th>
-                    <th className="px-5 py-3.5">Location</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Distributors</th>
-                    <th className="px-5 py-3.5">Retailers</th>
-                    <th className="px-5 py-3.5">Customers</th>
+        <div>
+          <h2 className="text-xl font-bold text-navy-950">{hubAdmin ? "Your hubs" : "Hubs"}</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {hubAdmin
+              ? "Counts are limited to the hubs assigned to you."
+              : "Every hub on the platform."}
+          </p>
+        </div>
+        {loading ? (
+          <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+        ) : assignedHubs.length === 0 ? (
+          <EmptyState
+            title={hubAdmin ? "No hubs assigned" : "No hubs yet"}
+            body={hubAdmin ? "Ask a platform admin to assign you to a hub." : "Create a hub from Settings to see it here."}
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
+                <tr>
+                  <th className="px-5 py-3.5">Hub</th>
+                  <th className="px-5 py-3.5">Location</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Distributors</th>
+                  <th className="px-5 py-3.5">Retailers</th>
+                  <th className="px-5 py-3.5">Customers</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {assignedHubs.map((hub) => (
+                  <tr key={hub.id} className="hover:bg-slate-50/60">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-navy-950">{hub.name}</p>
+                      <p className="font-mono text-[11px] text-slate-400">{hub.code}</p>
+                    </td>
+                    <td className="px-5 py-4 text-xs text-slate-500">
+                      {[hub.city, hub.state].filter(Boolean).join(", ") || "—"}
+                    </td>
+                    <td className="px-5 py-4"><StatusPill value={hub.status ?? "—"} /></td>
+                    <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.distributors)}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.retailers)}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.customers)}</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {assignedHubs.map((hub) => (
-                    <tr key={hub.id} className="hover:bg-slate-50/60">
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-navy-950">{hub.name}</p>
-                        <p className="font-mono text-[11px] text-slate-400">{hub.code}</p>
-                      </td>
-                      <td className="px-5 py-4 text-xs text-slate-500">
-                        {[hub.city, hub.state].filter(Boolean).join(", ") || "—"}
-                      </td>
-                      <td className="px-5 py-4"><StatusPill value={hub.status ?? "—"} /></td>
-                      <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.distributors)}</td>
-                      <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.retailers)}</td>
-                      <td className="px-5 py-4 text-xs font-bold text-navy-950">{n(hub.customers)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* 3. Sales Trend Charts (Daily, Weekly, Monthly) */}
@@ -243,11 +243,10 @@ export default function AnalyticsPage() {
                     setActiveRange(rangeKey);
                     setHoveredIndex(null);
                   }}
-                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    active
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${active
                       ? "bg-white text-navy-950 shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                 </button>
@@ -309,20 +308,17 @@ export default function AnalyticsPage() {
                     key={p.period}
                     onMouseEnter={() => setHoveredIndex(idx)}
                     onMouseLeave={() => setHoveredIndex(null)}
-                    className={`flex h-full min-w-0 flex-1 items-end justify-center gap-0.5 rounded-md p-0.5 transition-all cursor-pointer ${
-                      isHovered ? "bg-slate-100" : ""
-                    }`}
+                    className={`flex h-full min-w-0 flex-1 items-end justify-center gap-0.5 rounded-md p-0.5 transition-all cursor-pointer ${isHovered ? "bg-slate-100" : ""
+                      }`}
                   >
                     <div
-                      className={`w-1/2 rounded-t-sm transition-all ${
-                        created > 0 ? "bg-emerald-500" : "bg-slate-200"
-                      }`}
+                      className={`w-1/2 rounded-t-sm transition-all ${created > 0 ? "bg-emerald-500" : "bg-slate-200"
+                        }`}
                       style={{ height: `${createdHeight}%` }}
                     />
                     <div
-                      className={`w-1/2 rounded-t-sm transition-all ${
-                        activated > 0 ? "bg-navy-900" : "bg-slate-200"
-                      }`}
+                      className={`w-1/2 rounded-t-sm transition-all ${activated > 0 ? "bg-navy-900" : "bg-slate-200"
+                        }`}
                       style={{ height: `${activatedHeight}%` }}
                     />
                   </div>

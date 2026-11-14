@@ -2,16 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { 
-  Activity, 
-  ArrowLeftRight, 
-  ArrowRight, 
-  CreditCard, 
-  IndianRupee, 
-  Landmark, 
-  Users, 
-  Wallet, 
-  Zap 
+import {
+  Activity,
+  ArrowLeftRight,
+  ArrowRight,
+  Banknote,
+  CreditCard,
+  HeartPulse,
+  IndianRupee,
+  Landmark,
+  Users,
+  Wallet,
+  Zap
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { inr, when } from "@/lib/format";
@@ -21,16 +23,20 @@ import { useDeskServices } from "@/features/desk/DeskServices";
 import type { DeskOverview } from "@/features/desk/types";
 import { filterQuickTiles } from "@/features/desk/retailer-services";
 import { n, type OverviewSnapshot, type SalesTrendPoint } from "@/features/console/OverviewMetrics";
+import { PartnerOnboardingActionCards } from "@/features/verification/PartnerOnboardingActionCards";
 
 type TrendRange = "daily" | "weekly" | "monthly";
 
 type RetailerOverview = DeskOverview & OverviewSnapshot;
 
 const TILE_ICONS: Record<string, typeof ArrowLeftRight> = {
+  LOANS: Banknote,
   DMT: ArrowLeftRight,
   BBPS: Zap,
   UPI_CASHOUT: Landmark,
   AEPS: Landmark,
+  PAYOUT: Landmark,
+  HOSPI_CASH: HeartPulse,
   LEAD_GEN: CreditCard,
   FD_MODULE: CreditCard,
 };
@@ -56,20 +62,12 @@ function formatPeriodLabel(period: string, range: TrendRange) {
 export default function AgentDashboard() {
   const token = useSession((s) => s.token);
   const user = useSession((s) => s.user);
-  const { codes, fdProviders } = useDeskServices();
+  const { codes, fdProviders, access } = useDeskServices();
   const [data, setData] = useState<RetailerOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeRange, setActiveRange] = useState<TrendRange>("daily");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [kycOpen, setKycOpen] = useState(false);
-
-  useEffect(() => {
-    if (!token) return;
-    api<{ kycStatus?: string; bankStatus?: string }>("/api/v1/me/ekyc", { token })
-      .then((res) => setKycOpen(res.kycStatus !== "COMPLETED" || res.bankStatus !== "VERIFIED"))
-      .catch(() => setKycOpen(false));
-  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -132,11 +130,11 @@ export default function AgentDashboard() {
     },
   }[activeRange];
 
-  const tiles = filterQuickTiles(codes, fdProviders);
+  const tiles = filterQuickTiles(codes, fdProviders, access);
 
   if (loading && !data) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         <div className="h-36 rounded-[2.5rem] animate-pulse bg-slate-100" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -153,7 +151,7 @@ export default function AgentDashboard() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* 1. Welcome Card */}
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
@@ -170,16 +168,11 @@ export default function AgentDashboard() {
               Your digital retail desk is live. Manage customer services, monitor counter float, and track transactions.
             </p>
           </div>
-          {kycOpen && (
-            <Link
-              href="/agent/kyc"
-              className="shrink-0 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-navy-950"
-            >
-              Complete KYC
-            </Link>
-          )}
         </div>
       </section>
+
+      {/* 1b. Onboarding & Activation Action Cards (Business Registration, Agreement Signature, Bank Verification) */}
+      <PartnerOnboardingActionCards role="RETAILER" />
 
       {/* 2. Counter Cards */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -353,11 +346,10 @@ export default function AgentDashboard() {
                     setActiveRange(rangeKey);
                     setHoveredIndex(null);
                   }}
-                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                    active
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${active
                       ? "bg-white text-navy-950 shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                 </button>
@@ -425,20 +417,17 @@ export default function AgentDashboard() {
                       key={p.period}
                       onMouseEnter={() => setHoveredIndex(idx)}
                       onMouseLeave={() => setHoveredIndex(null)}
-                      className={`flex h-full min-w-0 flex-1 items-end justify-center gap-0.5 rounded-md p-0.5 transition-all cursor-pointer ${
-                        isHovered ? "bg-slate-100" : ""
-                      }`}
+                      className={`flex h-full min-w-0 flex-1 items-end justify-center gap-0.5 rounded-md p-0.5 transition-all cursor-pointer ${isHovered ? "bg-slate-100" : ""
+                        }`}
                     >
                       <div
-                        className={`w-1/2 rounded-t-sm transition-all ${
-                          created > 0 ? "bg-emerald-500" : "bg-slate-200"
-                        }`}
+                        className={`w-1/2 rounded-t-sm transition-all ${created > 0 ? "bg-emerald-500" : "bg-slate-200"
+                          }`}
                         style={{ height: `${createdHeight}%` }}
                       />
                       <div
-                        className={`w-1/2 rounded-t-sm transition-all ${
-                          activated > 0 ? "bg-navy-900" : "bg-slate-200"
-                        }`}
+                        className={`w-1/2 rounded-t-sm transition-all ${activated > 0 ? "bg-navy-900" : "bg-slate-200"
+                          }`}
                         style={{ height: `${activatedHeight}%` }}
                       />
                     </div>

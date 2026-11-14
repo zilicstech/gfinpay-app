@@ -45,23 +45,32 @@ const STATUSES: Record<string, string> = {
 
 const FIELD_LABELS: Record<string, string> = {
   amount: "Amount",
+  onboardingFee: "Fee",
   utr: "UTR",
   narration: "Note",
   remarks: "Note",
   notes: "Note",
+  note: "Note",
   reason: "Reason",
+  providerCode: "Provider",
+  cin: "CIN",
+  gstin: "GSTIN",
+  udyamNumber: "Udyam",
+  signatoryName: "Signatory",
   city: "City",
   state: "State",
   pincode: "PIN code",
   decision: "Decision",
-  fullName: "Name",
   email: "Email",
 };
 
 const HIDDEN_FIELDS = new Set([
-  "code", "name", "role", "status", "previousStatus", "currentStatus",
-  "userType", "identifier", "multipart", "body", "password", "mobile",
-  "direction", "frozen",
+  "code", "name", "fullName", "applicantName", "role", "status", "previousStatus", "currentStatus",
+  "userType", "identifier", "multipart", "body", "password", "newPassword", "currentPassword",
+  "pin", "newPin", "currentPin", "aadhaarNumber", "panNumber", "mobile",
+  "direction", "frozen", "approve", "matched", "active", "enabled",
+  "documentName", "shopName", "agreementNo", "bankName", "accountMasked",
+  "address", "locationSource", "latitude", "longitude", "accuracy", "hubId",
 ]);
 
 function clean(value: unknown): string {
@@ -93,12 +102,42 @@ function story(row: ActivityRow) {
   const current = statusWord(clean(detail.currentStatus) || clean(detail.status));
   if (previous && current) return `Changed from ${previous} to ${current}`;
   if (current && /status/i.test(row.action)) return `Changed to ${current}`;
-  if (row.action === "User Login" && !row.actorCode) {
+  if (
+    (row.action === "User Login" ||
+      row.action === "User OTP Login" ||
+      row.action === "Login OTP Sent" ||
+      row.action === "Password Reset OTP Sent" ||
+      row.action === "Password Reset OTP Verified") &&
+    !row.actorCode
+  ) {
     const identifier = clean(detail.identifier);
-    if (identifier) return `Sign-in attempt for ${identifier}`;
+    if (identifier) return row.action === "User Login" ? `Sign-in attempt for ${identifier}` : `Identifier: ${identifier}`;
   }
   if (clean(detail.frozen) === "true") return "Wallet frozen";
   if (clean(detail.frozen) === "false") return "Wallet opened";
+  if (clean(detail.matched) === "true") return "Face matched with Aadhaar";
+  if (clean(detail.matched) === "false") return "Face mismatch flagged";
+  const docName = clean(detail.documentName);
+  if (clean(detail.approve) === "true") {
+    return docName ? `Approved · ${docName}` : "Approved";
+  }
+  if (clean(detail.approve) === "false") {
+    return docName ? `Rejected · ${docName}` : "Rejected";
+  }
+  if (docName) return docName;
+  if (clean(detail.enabled) === "true") return "Channel enabled";
+  if (clean(detail.enabled) === "false") return "Channel disabled";
+  if (clean(detail.active) === "true") return "Marked active";
+  if (clean(detail.active) === "false") return "Marked inactive";
+  const shopName = clean(detail.shopName);
+  if (shopName) return `Shop: ${shopName}`;
+  const agreementNo = clean(detail.agreementNo);
+  if (agreementNo) return `Agreement ${agreementNo}`;
+  const bankName = clean(detail.bankName);
+  if (bankName) {
+    const masked = clean(detail.accountMasked);
+    return masked ? `${bankName} (${masked})` : bankName;
+  }
   return "";
 }
 
@@ -112,7 +151,8 @@ function extras(detail?: Record<string, unknown> | null) {
     if (HIDDEN_FIELDS.has(key)) continue;
     const value = clean(detail[key]);
     if (!value || (value.includes("-") && value.length > 30)) continue;
-    parts.push(key === "amount" ? `${label}: ${inr(value)}` : `${label}: ${value}`);
+    if (key === "state" && value.length > 24 && !value.includes(" ")) continue;
+    parts.push(key === "amount" || key === "onboardingFee" ? `${label}: ${inr(value)}` : `${label}: ${value}`);
   }
   return parts.join(" · ");
 }
@@ -199,6 +239,10 @@ export function ActivityHistory({
                   const summary = story(row);
                   const more = extras(row.detail);
                   const who = person(row.subjectName, row.subjectCode) || person(clean(row.detail?.name), clean(row.detail?.code));
+                  const doneBy = row.actorCode || clean(row.detail?.applicantName) || clean(row.detail?.signatoryName) || "—";
+                  const doneByRole =
+                    roleLabel(row.actorUserType) ||
+                    (!row.actorCode && clean(row.detail?.signatoryName) ? "Authorized Signatory" : "");
                   const ok = row.outcome === "SUCCESS";
                   return (
                     <tr key={row.id} className="transition-colors hover:bg-slate-50/60">
@@ -207,9 +251,9 @@ export function ActivityHistory({
                       </td>
                       <td className="px-6 py-4 font-semibold text-navy-950">{row.action}</td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-navy-950">{row.actorCode || "—"}</p>
-                        {roleLabel(row.actorUserType) && (
-                          <p className="mt-0.5 text-[11px] text-slate-400">{roleLabel(row.actorUserType)}</p>
+                        <p className="font-semibold text-navy-950">{doneBy}</p>
+                        {doneByRole && (
+                          <p className="mt-0.5 text-[11px] text-slate-400">{doneByRole}</p>
                         )}
                       </td>
                       <td className="px-6 py-4 text-navy-800">{who || "—"}</td>

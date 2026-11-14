@@ -1,28 +1,26 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { 
-  ArrowRight, 
+import {
+  ArrowRight,
   BadgeCheck,
-  Building2, 
-  Copy, 
-  Plus, 
-  Search, 
-  ShieldAlert 
+  Building2,
+  Copy,
+  Link2,
+  Search,
+  ShieldAlert
 } from "lucide-react";
-import { api, openDetails } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { EmptyState, StatusPill } from "@/components/ui/primitives";
-import { Flash, FormModal, useFlash } from "@/features/admin/AdminChrome";
-import { emptyRetailerDraft, RetailerOnboardFields, retailerDraftReady, type RetailerDraft } from "@/features/admin/retailer-form";
+import { Flash, useFlash } from "@/features/admin/AdminChrome";
+import { InviteModal } from "@/features/onboarding/InviteModal";
 import type { OutletRow } from "@/features/desk/types";
 
 export default function NetworkPage() {
   const token = useSession((s) => s.token);
-  const router = useRouter();
   const flash = useFlash();
 
   const [retailers, setRetailers] = useState<OutletRow[]>([]);
@@ -34,8 +32,7 @@ export default function NetworkPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Modal state
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<RetailerDraft>(emptyRetailerDraft);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -55,7 +52,7 @@ export default function NetworkPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("onboard") === "1") {
-      setOpen(true);
+      setInviteOpen(true);
     }
   }, []);
 
@@ -63,29 +60,6 @@ export default function NetworkPage() {
     navigator.clipboard.writeText(text);
     setCopiedCode(text);
     setTimeout(() => setCopiedCode(null), 1800);
-  }
-
-  async function create(e: FormEvent) {
-    e.preventDefault();
-    try {
-      const created = await api<OutletRow>("/api/v1/desk/outlets", {
-        token,
-        method: "POST",
-        holdLoader: true,
-        body: JSON.stringify({
-          fullName: draft.fullName.trim(),
-          mobile: draft.mobile,
-          email: draft.email.trim(),
-          password: draft.password,
-          city: draft.city.trim(),
-          state: draft.state,
-          pincode: draft.pincode,
-        }),
-      });
-      openDetails(`/distributor/agents/${created.id}`, (href) => router.push(href));
-    } catch (err) {
-      flash.fail(err, "Could not create retailer");
-    }
   }
 
   const filteredRetailers = useMemo(() => {
@@ -106,7 +80,7 @@ export default function NetworkPage() {
   }, [retailers, statusTab, query]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -117,18 +91,26 @@ export default function NetworkPage() {
             Retailers
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Create retailer profiles, then submit an activation payment for finance review before the outlet can go live.
+            Send self-service onboarding links to retailers under your network and monitor their outlet status.
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn-primary inline-flex items-center gap-2"
-          onClick={() => setOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          New Retailer
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/distributor/onboarding"
+            className="btn-secondary inline-flex items-center gap-1.5 text-xs"
+          >
+            Onboarding Funnel
+          </Link>
+          <button
+            type="button"
+            className="btn-primary inline-flex items-center gap-2"
+            onClick={() => setInviteOpen(true)}
+          >
+            <Link2 className="h-4 w-4" />
+            Invite Retailer
+          </button>
+        </div>
       </div>
 
       <Flash message={flash.message} error={flash.error} />
@@ -153,11 +135,10 @@ export default function NetworkPage() {
                   key={key}
                   type="button"
                   onClick={() => setStatusTab(key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    isActive
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${isActive
                       ? "bg-navy-950 text-white shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                   {isActive && ` (${filteredRetailers.length})`}
@@ -188,7 +169,7 @@ export default function NetworkPage() {
         ) : filteredRetailers.length === 0 ? (
           <EmptyState
             title="No retailers found"
-            body={query || statusTab !== "ALL" ? "Try clearing search filters." : "Create a retailer profile. Activation happens after payment is verified."}
+            body={query || statusTab !== "ALL" ? "Try clearing search filters." : "Invite a retailer using an onboarding link. They will appear here once they complete self-service onboarding."}
           />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
@@ -301,18 +282,12 @@ export default function NetworkPage() {
         )}
       </div>
 
-      {/* Onboarding Modal */}
-      <FormModal
-        open={open}
-        title="Create retailer profile"
-        description="This only creates the profile. An activation payment must be submitted and verified before the outlet can sign in to the desk."
-        onClose={() => setOpen(false)}
-        onSubmit={create}
-        submitLabel="Create profile"
-        submitDisabled={!retailerDraftReady(draft)}
-      >
-        <RetailerOnboardFields value={draft} onChange={setDraft} />
-      </FormModal>
+      <InviteModal
+        open={inviteOpen}
+        role="RETAILER"
+        onClose={() => setInviteOpen(false)}
+        onCreated={() => flash.ok("Retailer onboarding invite link created and dispatched.")}
+      />
     </div>
   );
 }

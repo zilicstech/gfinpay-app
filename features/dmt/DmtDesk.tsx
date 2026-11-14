@@ -20,7 +20,7 @@ import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { Alert, Field, Modal } from "@/components/ui/primitives";
 import { Flash, useFlash } from "@/features/admin/AdminChrome";
-import { DmtActivation } from "@/features/ekyc/MerchantEkycDesk";
+import Link from "next/link";
 
 type Remitter = {
   senderId: string;
@@ -114,12 +114,17 @@ export function DmtDesk() {
 
   useEffect(() => {
     if (!token) return;
-    api<{ dmtActive?: boolean }>("/api/v1/me/ekyc", { token })
-      .then((res) => setDmtActive(res.dmtActive === true))
+    api<{ businessStatus?: string; agreementStatus?: string; servicesUnlocked?: boolean }>("/api/v1/verification", { token })
+      .then((res) =>
+        setDmtActive(
+          res.servicesUnlocked === true ||
+            (res.businessStatus === "BUSINESS_VERIFIED" && res.agreementStatus === "SIGNED"),
+        ),
+      )
       .catch(() => setDmtActive(false));
     api<{ availableBalance: number }>("/api/v1/wallet", { token })
       .then((res) => setWalletBalance(res.availableBalance))
-      .catch(() => {});
+      .catch(() => { });
   }, [token]);
 
   useEffect(() => {
@@ -383,11 +388,17 @@ export function DmtDesk() {
     return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
   }
   if (!dmtActive) {
-    return <DmtActivation onActivated={() => setDmtActive(true)} />;
+    return (
+      <div className="card max-w-lg space-y-3 p-6">
+        <h1 className="font-display text-2xl font-bold text-navy-950">DMT</h1>
+        <p className="text-sm text-slate-500">Business Verified is required before money transfer.</p>
+        <Link href="/agent/profile?tab=business" className="btn-primary inline-flex">Open profile</Link>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 p-6 text-white shadow-xl sm:p-8">
         <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>

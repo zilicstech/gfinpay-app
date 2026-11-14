@@ -94,14 +94,7 @@ export default function AdminSaleDetailPage() {
         backHref="/admin/sales"
         backLabel="All sales"
         lead={lead}
-        extraActions={
-          paysprintFd || paysprintLead ? (
-            <button type="button" className={entityPrimaryActionClass} disabled={busy} onClick={checkStatus}>
-              <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
-              {busy ? "Checking…" : "Check status"}
-            </button>
-          ) : null
-        }
+        extraActions={null}
       />
       <Modal
         open={statusOpen}

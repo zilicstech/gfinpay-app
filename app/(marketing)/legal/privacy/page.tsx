@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { CompanyIdentity } from "@/features/legal/CompanyIdentity";
 import { seo } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -134,33 +134,15 @@ export default function Page() {
         <section className="space-y-4 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-card sm:p-8">
           <h2 className="font-display text-xl font-bold text-navy-950">8. Grievance and privacy contact</h2>
           <p>
-            Partners who have a privacy or service complaint can call or write to the partner grievance desk. Other
-            privacy requests may use the general desk. We aim to acknowledge within two working days.
+            Partners and visitors who have a privacy or service complaint can write to our grievance and privacy desk.
+            We aim to acknowledge within two working days.
           </p>
           <div className="space-y-2 pt-2 text-sm font-semibold text-emerald-700">
             <p className="flex items-center gap-3">
-              <Phone className="h-4 w-4" />
-              <span>
-                Contact and grievance:{" "}
-                <a className="hover:underline" href={SITE.phoneHref}>
-                  {SITE.phone}
-                </a>
-              </span>
-            </p>
-            <p className="flex items-center gap-3">
               <Mail className="h-4 w-4" />
               <span>
-                Partner grievance:{" "}
-                <a className="hover:underline" href={`mailto:${SITE.partnerEmail}`}>
-                  {SITE.partnerEmail}
-                </a>
-              </span>
-            </p>
-            <p className="flex items-center gap-3">
-              <Mail className="h-4 w-4" />
-              <span>
-                Privacy and general:{" "}
-                <a className="hover:underline" href={`mailto:${SITE.email}`}>
+                Contact, privacy &amp; grievance:{" "}
+                <a className="hover:underline" href={SITE.emailHref}>
                   {SITE.email}
                 </a>
               </span>

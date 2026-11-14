@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { 
-  Building2, 
+import {
+  Building2,
   CheckCircle2,
-  Clock, 
-  Copy, 
-  ExternalLink, 
-  Mail, 
-  Phone, 
-  Share2, 
+  Clock,
+  Copy,
+  ExternalLink,
+  Mail,
+  Phone,
+  Share2,
   Users,
   UserX
 } from "lucide-react";
@@ -258,31 +258,31 @@ export default function VendorDetailPage() {
     },
     ...(vendor.public_url
       ? [
-          {
-            label: "Open public console",
-            icon: <ExternalLink className="h-4 w-4" />,
-            onClick: () => window.open(vendor.public_url, "_blank"),
-          },
-        ]
+        {
+          label: "Open public console",
+          icon: <ExternalLink className="h-4 w-4" />,
+          onClick: () => window.open(vendor.public_url, "_blank"),
+        },
+      ]
       : []),
     isVendorActive
       ? {
-          label: "Inactivate agency",
-          icon: <UserX className="h-4 w-4" />,
-          onClick: () => {
-            setStatusError(null);
-            setStatusModal("INACTIVATE");
-          },
-          tone: "danger" as const,
-        }
-      : {
-          label: "Activate agency",
-          icon: <CheckCircle2 className="h-4 w-4" />,
-          onClick: () => {
-            setStatusError(null);
-            setStatusModal("ACTIVATE");
-          },
+        label: "Inactivate agency",
+        icon: <UserX className="h-4 w-4" />,
+        onClick: () => {
+          setStatusError(null);
+          setStatusModal("INACTIVATE");
         },
+        tone: "danger" as const,
+      }
+      : {
+        label: "Activate agency",
+        icon: <CheckCircle2 className="h-4 w-4" />,
+        onClick: () => {
+          setStatusError(null);
+          setStatusModal("ACTIVATE");
+        },
+      },
   ];
 
   const shareWaMobile = shareTarget.kind === "vendor" ? shareTarget.mobile : undefined;
@@ -294,7 +294,7 @@ export default function VendorDetailPage() {
       : "Send this desk link to the employee on WhatsApp. It is signed from the Gfinpay Team.";
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Top Navigation */}
       <div>
         <Link
@@ -399,27 +399,26 @@ export default function VendorDetailPage() {
               key === "employees"
                 ? vendor.affiliates?.length ?? 0
                 : key === "sales"
-                ? vendor.sales?.length ?? 0
-                : key === "hospi"
-                ? vendor.hospi_cash?.length ?? 0
-                : undefined;
+                  ? vendor.sales?.length ?? 0
+                  : key === "hospi"
+                    ? vendor.hospi_cash?.length ?? 0
+                    : undefined;
             const label =
               key === "details"
                 ? "Agency Details"
                 : key === "employees"
-                ? "Employees"
-                : key === "hospi"
-                ? "Hospi Cash"
-                : "Sales Leads";
+                  ? "Employees"
+                  : key === "hospi"
+                    ? "Hospi Cash"
+                    : "Sales Leads";
             return (
               <button
                 key={key}
                 type="button"
-                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                  isActive
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${isActive
                     ? "bg-navy-950 text-white shadow-xs"
                     : "text-slate-600 hover:text-navy-950"
-                }`}
+                  }`}
                 onClick={() => setTab(key)}
               >
                 {label}
@@ -627,8 +626,8 @@ export default function VendorDetailPage() {
                     card.activation_status === "SUCCESS"
                       ? "Success"
                       : card.activation_status === "FAILED"
-                      ? "Failed"
-                      : "Pending"
+                        ? "Failed"
+                        : "Pending"
                   }
                 />,
                 when(card.created_at),
@@ -751,8 +750,8 @@ export default function VendorDetailPage() {
               {updatingStatus
                 ? "Updating..."
                 : statusModal === "INACTIVATE"
-                ? "Inactivate Agency"
-                : "Activate Agency"}
+                  ? "Inactivate Agency"
+                  : "Activate Agency"}
             </button>
           </div>
         </div>

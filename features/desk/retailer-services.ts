@@ -14,14 +14,21 @@ export type FdProviderRow = {
 
 export type NavItem = { href: string; label: string };
 
+export type ServiceAccess = {
+  personal: boolean;
+  business: boolean;
+  identity?: boolean;
+  bank?: boolean;
+};
+
 const ALWAYS: NavItem[] = [
   { href: "/agent/dashboard", label: "Home" },
+  { href: "/agent/loans", label: "Loans" },
   { href: "/agent/wallet", label: "Wallet" },
   { href: "/agent/transactions", label: "Transactions" },
   { href: "/agent/customers", label: "Customers" },
   { href: "/agent/catalog", label: "Catalog" },
   { href: "/agent/reports", label: "Reports" },
-  { href: "/agent/settings", label: "Settings" },
 ];
 
 export function enabledCodes(services: PlatformServiceRow[]): Set<string> {
@@ -42,32 +49,46 @@ export function customerDeskEnabled(codes: Set<string>, fdProviders: FdProviderR
   return leadGenEnabled(codes) || fdCardsEnabled(fdProviders) || codes.has("HOSPI_CASH");
 }
 
-export function buildAgentNav(codes: Set<string>, fdProviders: FdProviderRow[]): NavItem[] {
+export function buildAgentNav(
+  codes: Set<string>,
+  fdProviders: FdProviderRow[],
+  access: ServiceAccess = { personal: false, business: false, identity: false, bank: false },
+): NavItem[] {
+  const identityOk = Boolean(access.identity ?? access.personal);
+  const fullServiceOk = Boolean(access.business && (access.bank ?? true));
+  const cashAndPayoutOk = fullServiceOk;
   const nav: NavItem[] = [
     { href: "/agent/dashboard", label: "Home" },
-    { href: "/agent/kyc", label: "KYC" },
+    { href: "/agent/loans", label: "Loans" },
   ];
-  if (codes.has("DMT")) nav.push({ href: "/agent/dmt", label: "DMT" });
-  if (codes.has("BBPS")) nav.push({ href: "/agent/bbps", label: "Bills" });
-  if (codes.has("UPI_CASHOUT")) nav.push({ href: "/agent/cash-out/upi", label: "Cash" });
-  if (codes.has("AEPS")) nav.push({ href: "/agent/aeps", label: "AePS" });
+  if (codes.has("DMT") && fullServiceOk) nav.push({ href: "/agent/dmt", label: "DMT" });
+  if (codes.has("BBPS") && identityOk) nav.push({ href: "/agent/bbps", label: "Bills" });
+  if ((codes.has("UPI_CASHOUT") || codes.has("AEPS")) && cashAndPayoutOk) {
+    nav.push({ href: "/agent/cash", label: "Cash" });
+  }
+  if (codes.has("PAYOUT") && cashAndPayoutOk) nav.push({ href: "/agent/payout", label: "Payout" });
   nav.push({ href: "/agent/wallet", label: "Wallet" });
   nav.push({ href: "/agent/transactions", label: "Transactions" });
   nav.push({ href: "/agent/customers", label: "Customers" });
   nav.push({ href: "/agent/catalog", label: "Catalog" });
-  if (customerDeskEnabled(codes, fdProviders)) {
+  if (customerDeskEnabled(codes, fdProviders) && identityOk) {
     nav.push({ href: "/agent/sales", label: "Sales" });
   }
-  if (codes.has("HOSPI_CASH")) nav.push({ href: "/agent/hospi-cash", label: "Hospi Cash" });
+  if (codes.has("HOSPI_CASH") && identityOk) nav.push({ href: "/agent/hospi-cash", label: "Hospi Cash" });
   nav.push({ href: "/agent/reports", label: "Reports" });
-  nav.push({ href: "/agent/settings", label: "Settings" });
   return nav;
 }
 
-export function buildAgentMobileNav(codes: Set<string>, fdProviders: FdProviderRow[]): NavItem[] {
+export function buildAgentMobileNav(
+  codes: Set<string>,
+  fdProviders: FdProviderRow[],
+  access: ServiceAccess = { personal: false, business: false, identity: false, bank: false },
+): NavItem[] {
+  const identityOk = Boolean(access.identity ?? access.personal);
+  const fullServiceOk = Boolean(access.business && (access.bank ?? true));
   const nav: NavItem[] = [{ href: "/agent/dashboard", label: "Home" }];
-  if (codes.has("DMT")) nav.push({ href: "/agent/dmt", label: "Send" });
-  if (codes.has("BBPS")) nav.push({ href: "/agent/bbps", label: "Bills" });
+  if (codes.has("DMT") && fullServiceOk) nav.push({ href: "/agent/dmt", label: "Send" });
+  if (codes.has("BBPS") && identityOk) nav.push({ href: "/agent/bbps", label: "Bills" });
   nav.push({ href: "/agent/wallet", label: "Wallet" });
   nav.push({ href: "/agent/more", label: "More" });
   return nav;
@@ -83,74 +104,86 @@ export type QuickTile = {
 };
 
 export const QUICK_TILES: QuickTile[] = [
+  { code: "LOANS", href: "/agent/loans", label: "Loans", hint: "Up to ₹1,00,000 working capital" },
   { code: "DMT", href: "/agent/dmt", label: "Send money", hint: "Instant IMPS / NEFT" },
   { code: "BBPS", href: "/agent/bbps", label: "Pay a bill", hint: "Electricity, Fastag, DTH" },
-  { code: "UPI_CASHOUT", href: "/agent/cash-out/upi", label: "Give cash", hint: "Dynamic QR Cashout" },
-  { code: "AEPS", href: "/agent/aeps", label: "AePS cash out", hint: "Biometric Withdrawal" },
-  { code: "LEAD_GEN", href: "/agent/catalog", label: "Sell a product", hint: "Cards, Loans & Accounts", needsLeadGen: true },
-  { code: "FD_MODULE", href: "/agent/customers", label: "FD cards", hint: "Secured Credit Cards", needsFd: true },
+  { code: "UPI_CASHOUT", href: "/agent/cash", label: "Cash", hint: "UPI or AePS" },
+  { code: "PAYOUT", href: "/agent/payout", label: "Payout", hint: "Send to a bank account" },
   { code: "HOSPI_CASH", href: "/agent/hospi-cash", label: "Hospi Cash", hint: "Hospital cash card" },
 ];
 
-export function filterQuickTiles(codes: Set<string>, fdProviders: FdProviderRow[]): QuickTile[] {
-  const fd = fdCardsEnabled(fdProviders);
-  const lead = leadGenEnabled(codes);
-  const seen = new Set<string>();
+export function filterQuickTiles(
+  codes: Set<string>,
+  _fdProviders: FdProviderRow[],
+  access: ServiceAccess = { personal: false, business: false, identity: false, bank: false },
+): QuickTile[] {
+  const identityOk = Boolean(access.identity ?? access.personal);
+  const fullServiceOk = Boolean(access.business && (access.bank ?? true));
+  const cashAndPayoutOk = fullServiceOk;
   return QUICK_TILES.filter((t) => {
-    if (t.needsFd && !fd) return false;
-    if (t.needsLeadGen && !lead) return false;
-    if (!t.needsFd && !t.needsLeadGen && !codes.has(t.code)) return false;
-    if (t.code === "LEAD_GEN" || t.code === "FD_MODULE") {
-      const key = t.href;
-      if (seen.has(key)) return false;
-      seen.add(key);
-    }
-    return true;
+    if (t.code === "LOANS") return true;
+    if (t.code === "UPI_CASHOUT") return (codes.has("UPI_CASHOUT") || codes.has("AEPS")) && cashAndPayoutOk;
+    if (t.code === "PAYOUT") return codes.has("PAYOUT") && cashAndPayoutOk;
+    if (!codes.has(t.code)) return false;
+    if (t.code === "BBPS" || t.code === "HOSPI_CASH") return identityOk;
+    return fullServiceOk;
   });
 }
 
-export function buildMoreItems(codes: Set<string>, fdProviders: FdProviderRow[]) {
-  const items: { href: string; label: string; hint: string }[] = [];
-  if (codes.has("BBPS")) items.push({ href: "/agent/bbps", label: "Bill pay", hint: "Fetch and pay BBPS bills" });
-  if (codes.has("UPI_CASHOUT")) items.push({ href: "/agent/cash-out/upi", label: "UPI to cash", hint: "Dynamic QR Cashout" });
-  if (codes.has("AEPS")) items.push({ href: "/agent/aeps", label: "AePS cash out", hint: "Biometric Withdrawal" });
+export function buildMoreItems(
+  codes: Set<string>,
+  fdProviders: FdProviderRow[],
+  access: ServiceAccess = { personal: false, business: false, identity: false, bank: false },
+) {
+  const identityOk = Boolean(access.identity ?? access.personal);
+  const fullServiceOk = Boolean(access.business && (access.bank ?? true));
+  const cashAndPayoutOk = fullServiceOk;
+  const items: { href: string; label: string; hint: string }[] = [
+    { href: "/agent/loans", label: "Loans", hint: "Microfinance & working capital loans up to ₹1,00,000" },
+  ];
+  if (codes.has("BBPS") && identityOk) items.push({ href: "/agent/bbps", label: "Bill pay", hint: "Fetch and pay BBPS bills" });
+  if ((codes.has("UPI_CASHOUT") || codes.has("AEPS")) && cashAndPayoutOk) {
+    items.push({ href: "/agent/cash", label: "Cash", hint: "UPI or AePS" });
+  }
+  if (codes.has("PAYOUT") && cashAndPayoutOk) items.push({ href: "/agent/payout", label: "Payout", hint: "Send to a bank account" });
   items.push(
-    { href: "/agent/kyc", label: "KYC", hint: "Finish onboarding, then scan a finger" },
     { href: "/agent/customers", label: "Customers", hint: "People you added and their history" },
     { href: "/agent/catalog", label: "Catalog", hint: "Services you can sell" },
   );
-  if (customerDeskEnabled(codes, fdProviders)) {
+  if (customerDeskEnabled(codes, fdProviders) && identityOk) {
     items.push({ href: "/agent/sales", label: "Sales", hint: "Links you have shared" });
   }
-  if (codes.has("HOSPI_CASH")) {
+  if (codes.has("HOSPI_CASH") && identityOk) {
     items.push({ href: "/agent/hospi-cash", label: "Hospi Cash", hint: "Sell a hospital cash card" });
   }
   items.push(
     { href: "/agent/transactions", label: "Transactions", hint: "Receipts and history" },
     { href: "/agent/reports", label: "Reports", hint: "Your commission" },
-    { href: "/agent/profile", label: "My profile", hint: "Name, email, password" },
-    { href: "/agent/settings", label: "Settings", hint: "Bank accounts for withdrawals" },
+    { href: "/agent/profile", label: "My profile", hint: "Identity, business, agreement, bank details, password, and PIN" },
   );
   return items;
 }
 
 export const FALLBACK_DISTRIBUTOR_NAV: NavItem[] = [
   { href: "/distributor/overview", label: "Overview" },
+  { href: "/distributor/onboarding", label: "Onboarding" },
+  { href: "/distributor/verification", label: "Verification" },
   { href: "/distributor/agents", label: "Retailers" },
   { href: "/distributor/inquiries", label: "Inquiries" },
-  { href: "/distributor/finance", label: "Finance" },
   { href: "/distributor/customers", label: "Customers" },
   { href: "/distributor/catalog", label: "Catalog" },
   { href: "/distributor/transactions", label: "Transactions" },
   { href: "/distributor/earnings", label: "Earnings" },
+  { href: "/distributor/profile", label: "My profile" },
 ];
 
 export function buildDistributorNav(codes: Set<string>, fdProviders: FdProviderRow[]): NavItem[] {
   const nav: NavItem[] = [
     { href: "/distributor/overview", label: "Overview" },
+    { href: "/distributor/onboarding", label: "Onboarding" },
+    { href: "/distributor/verification", label: "Verification" },
     { href: "/distributor/agents", label: "Retailers" },
     { href: "/distributor/inquiries", label: "Inquiries" },
-    { href: "/distributor/finance", label: "Finance" },
   ];
   nav.push(
     { href: "/distributor/customers", label: "Customers" },
@@ -163,6 +196,7 @@ export function buildDistributorNav(codes: Set<string>, fdProviders: FdProviderR
   nav.push(
     { href: "/distributor/transactions", label: "Transactions" },
     { href: "/distributor/earnings", label: "Earnings" },
+    { href: "/distributor/profile", label: "My profile" },
   );
   return nav;
 }

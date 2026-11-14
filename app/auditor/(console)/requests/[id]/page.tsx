@@ -112,7 +112,7 @@ export default function AuditorRequestDetailPage() {
   const selectedBank = banks.find((item) => item.id === transferBank);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6">
       <Link href="/auditor/requests" className="inline-flex text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950">
         ← All requests
       </Link>

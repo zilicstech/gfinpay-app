@@ -412,7 +412,7 @@ export default function VendorConsolePage() {
                 Generate Field Staff Link
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Enter your staff name and internal ID. We generate their personal desk URL to issue FD cards from any phone.
+                Enter your staff name and internal ID. We generate their personal desk URL for Hospi Cash.
               </p>
             </div>
 

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { 
-  ArrowUpRight, 
-  CheckCircle2, 
-  Layers, 
-  Search, 
-  TrendingUp 
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  Layers,
+  Search,
+  TrendingUp
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { useSession } from "@/stores/session.store";
@@ -58,7 +58,7 @@ export default function AgentSalesPage() {
 
   return (
     <RequireCustomerDesk fallbackHref="/agent/dashboard">
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
           <div>
@@ -113,11 +113,10 @@ export default function AgentSalesPage() {
                   key={s}
                   type="button"
                   onClick={() => setStatusFilter(s)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    statusFilter === s
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${statusFilter === s
                       ? "bg-navy-950 text-white shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {s === "ALL" ? "All Leads" : s}
                 </button>

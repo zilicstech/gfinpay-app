@@ -12,9 +12,7 @@ export const SITE = {
     "Gfinpay helps kirana retailers send money, pay BBPS bills, recharge mobile and DTH, top up FASTag, collect LIC premiums, give cash against UPI or Aadhaar, keep a wallet, and help customers take an FD card. Banks keep the deposits. Retailers run the counter.",
   url: "https://gfinpay.com",
   email: "info@gfinpay.com",
-  partnerEmail: "partners@gfinpay.com",
-  phone: "+91 88810 02111",
-  phoneHref: "tel:+918881002111",
+  emailHref: "mailto:info@gfinpay.com",
   address: "Kolkata · Mumbai · Bengaluru · Hyderabad",
 } as const;
 

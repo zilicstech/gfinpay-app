@@ -73,11 +73,17 @@ function formatErrorMessage(error: ApiError) {
 
 export async function api<T>(
   path: string,
-  options: RequestInit & { token?: string | null; idempotencyKey?: string; agentId?: string; holdLoader?: boolean } = {},
+  options: RequestInit & {
+    token?: string | null;
+    idempotencyKey?: string;
+    agentId?: string;
+    holdLoader?: boolean;
+    silent?: boolean;
+  } = {},
 ): Promise<T> {
   const { begin, end } = useLoader.getState();
-  const { holdLoader, token, idempotencyKey, agentId, ...init } = options;
-  begin();
+  const { holdLoader, silent, token, idempotencyKey, agentId, ...init } = options;
+  if (!silent) begin();
   let held = false;
   try {
     const send = async (bearer: string | null | undefined) => {
@@ -110,24 +116,24 @@ export async function api<T>(
       }
       throw new ApiClientError(res.status, err);
     }
-    held = holdLoader === true;
+    held = !silent && holdLoader === true;
     return json.data as T;
   } finally {
-    if (!held) end();
+    if (!silent && !held) end();
   }
 }
 
 export async function apiForm<T>(
   path: string,
   form: FormData,
-  options: { token?: string | null; holdLoader?: boolean } = {},
+  options: { token?: string | null; holdLoader?: boolean; headers?: HeadersInit } = {},
 ): Promise<T> {
   const { begin, end } = useLoader.getState();
   begin();
   let held = false;
   try {
     const send = async (bearer: string | null | undefined) => {
-      const headers = new Headers();
+      const headers = new Headers(options.headers);
       if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
       const res = await fetch(`${BASE}${path}`, { method: "POST", headers, body: form });
       return { res, json: (await res.json()) as ApiEnvelope<T> };
@@ -153,3 +159,40 @@ export async function apiForm<T>(
     if (!held) end();
   }
 }
+
+export async function apiBlob(
+  path: string,
+  options: { token?: string | null; headers?: HeadersInit } = {},
+): Promise<{ blob: Blob; contentType: string }> {
+  const send = async (bearer: string | null | undefined) => {
+    const headers = new Headers(options.headers);
+    if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
+    return fetch(`${BASE}${path}`, { method: "GET", headers });
+  };
+
+  let res = await send(options.token);
+  if (options.token && res.status === 401) {
+    const refreshed = await recoverSession();
+    if (refreshed) {
+      res = await send(refreshed);
+    }
+  }
+  if (!res.ok) {
+    let err: ApiError = {
+      code: "HTTP_ERROR",
+      message: `Request failed (${res.status})`,
+      retriable: res.status >= 500,
+    };
+    try {
+      const json = (await res.json()) as ApiEnvelope<unknown>;
+      if (json.error) err = json.error;
+    } catch {
+      /* non-json error response */
+    }
+    throw new ApiClientError(res.status, err);
+  }
+  const contentType = res.headers.get("content-type") || "application/octet-stream";
+  const blob = await res.blob();
+  return { blob, contentType };
+}
+

@@ -3,18 +3,18 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { 
-  ArrowRight, 
-  CheckCircle2, 
-  Clock, 
-  Copy, 
-  MapPin, 
-  Phone, 
-  Plus, 
-  Search, 
-  ShieldCheck, 
-  Store, 
-  Users 
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Copy,
+  MapPin,
+  Phone,
+  Plus,
+  Search,
+  ShieldCheck,
+  Store,
+  Users
 } from "lucide-react";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { useSession } from "@/stores/session.store";
@@ -124,7 +124,7 @@ export function DeskCustomersPage({ basePath }: { basePath: "/agent/customers" |
   const ready = draft.mobile.length === 10 && draft.fullName.trim() && draft.city.trim() && draft.state && draft.pincode.length === 6;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -188,11 +188,10 @@ export function DeskCustomersPage({ basePath }: { basePath: "/agent/customers" |
                 key={key}
                 type="button"
                 onClick={() => setStatusTab(key)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  statusTab === key
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${statusTab === key
                     ? "bg-navy-950 text-white shadow-xs"
                     : "text-slate-600 hover:text-navy-950"
-                }`}
+                  }`}
               >
                 {label}
               </button>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, FileText, Mail, Phone } from "lucide-react";
+import { ArrowLeft, FileText, Mail } from "lucide-react";
 import { CompanyIdentity } from "@/features/legal/CompanyIdentity";
 import { seo } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -145,31 +145,19 @@ export default function Page() {
         <section className="space-y-4 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-card sm:p-8">
           <h2 className="font-display text-xl font-bold text-navy-950">10. Partner grievance</h2>
           <p>
-            Partners who have a complaint about onboarding, settlement, a transaction, or these terms can call or
-            write to the partner grievance desk. We aim to acknowledge within two working days and to close the
-            complaint within fifteen working days where the facts are with us.
+            Partners who have a complaint about onboarding, settlement, a transaction, or these terms can write to our
+            partner grievance desk. We aim to acknowledge within two working days and to close the complaint within
+            fifteen working days where the facts are with us.
           </p>
           <div className="space-y-2 pt-2 text-sm font-semibold text-emerald-700">
             <p className="flex items-center gap-3">
-              <Phone className="h-4 w-4" />
-              <a className="hover:underline" href={SITE.phoneHref}>
-                {SITE.phone}
-              </a>
-            </p>
-            <p className="flex items-center gap-3">
               <Mail className="h-4 w-4" />
-              <a className="hover:underline" href={`mailto:${SITE.partnerEmail}`}>
-                {SITE.partnerEmail}
+              <a className="hover:underline" href={SITE.emailHref}>
+                {SITE.email}
               </a>
             </p>
             <p className="font-normal text-slate-600">
               Registered office: {SITE.registeredAddress}
-            </p>
-            <p className="font-normal text-slate-600">
-              General enquiries:{" "}
-              <a className="font-semibold text-emerald-700 hover:underline" href={`mailto:${SITE.email}`}>
-                {SITE.email}
-              </a>
             </p>
           </div>
         </section>

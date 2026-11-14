@@ -4,7 +4,7 @@ import { useEffect, useMemo, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppShell } from "@/features/shell/AppShell";
 import { DeskServicesProvider, useDeskServices } from "@/features/desk/DeskServices";
-import { retailerAwaitingActivation, useSession } from "@/stores/session.store";
+import { partnerNeedsReverification, retailerAwaitingActivation, useSession } from "@/stores/session.store";
 import {
   FALLBACK_AGENT_NAV,
   buildAgentMobileNav,
@@ -30,16 +30,16 @@ function PendingActivationGate({ children }: { children: ReactNode }) {
 }
 
 function AgentConsoleNav({ children }: { children: ReactNode }) {
-  const { ready, codes, fdProviders } = useDeskServices();
+  const { ready, codes, fdProviders, access } = useDeskServices();
 
   const nav = useMemo(
-    () => (ready ? buildAgentNav(codes, fdProviders) : FALLBACK_AGENT_NAV),
-    [codes, fdProviders, ready],
+    () => (ready ? buildAgentNav(codes, fdProviders, access) : FALLBACK_AGENT_NAV),
+    [codes, fdProviders, access, ready],
   );
 
   const mobileNav = useMemo(
-    () => (ready ? buildAgentMobileNav(codes, fdProviders) : buildAgentMobileNav(new Set(), [])),
-    [codes, fdProviders, ready],
+    () => (ready ? buildAgentMobileNav(codes, fdProviders, access) : buildAgentMobileNav(new Set(), [])),
+    [codes, fdProviders, access, ready],
   );
 
   return (
@@ -50,8 +50,20 @@ function AgentConsoleNav({ children }: { children: ReactNode }) {
 }
 
 export function AgentConsoleShell({ children }: { children: ReactNode }) {
-  const status = useSession((s) => s.user?.status);
-  if (retailerAwaitingActivation("RETAILER", status)) {
+  const user = useSession((s) => s.user);
+  const router = useRouter();
+  const needsReverify = partnerNeedsReverification(user);
+
+  useEffect(() => {
+    if (needsReverify) {
+      router.replace("/reverify");
+    }
+  }, [needsReverify, router]);
+
+  if (needsReverify) {
+    return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
+  }
+  if (retailerAwaitingActivation("RETAILER", user?.status)) {
     return <PendingActivationGate>{children}</PendingActivationGate>;
   }
   return (

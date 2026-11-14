@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, CheckCircle2, Lock, Mail, Phone, Sparkles } from "lucide-react";
+import { ArrowUpRight, Lock, Mail } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { NAV, SITE } from "@/lib/site";
 
@@ -50,16 +50,12 @@ export function SiteFooter() {
             {SITE.tagline}. Enabling neighborhood kirana outlets to deliver institutional-grade digital banking and payment rails.
           </p>
 
-          <div className="pt-2 text-xs text-slate-400 space-y-1">
-            <p className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 text-emerald-400" />
-              <a className="hover:text-emerald-400 transition" href={SITE.phoneHref}>
-                {SITE.phone}
-              </a>
-            </p>
+          <div className="pt-2 text-xs text-slate-400">
             <p className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-emerald-400" />
-              <span>{SITE.email}</span>
+              <a className="hover:text-emerald-400 transition" href={SITE.emailHref}>
+                {SITE.email}
+              </a>
             </p>
           </div>
         </div>

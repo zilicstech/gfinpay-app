@@ -52,7 +52,7 @@ export default function AuditorRequestsPage() {
   const pendingCount = rows.filter((r) => r.status === "PENDING").length;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <div className="border-b border-slate-200/80 pb-6">
         <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
           Finance operations
@@ -196,9 +196,8 @@ function ChipGroup<T extends string>({
           key={key}
           type="button"
           onClick={() => onChange(key)}
-          className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-            value === key ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950"
-          }`}
+          className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${value === key ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950"
+            }`}
         >
           {label}
         </button>

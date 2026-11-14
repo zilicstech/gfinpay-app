@@ -19,12 +19,13 @@ import { inr } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { EmptyState, Modal, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, TextField, useFlash } from "@/features/admin/AdminChrome";
-import { FdCardsConsole } from "@/features/admin/FdCardsConsole";
 import { BanksDesk } from "@/features/finance/BanksDesk";
 import { DmtBanksConsole } from "@/features/admin/DmtBanksConsole";
+import { FdCardsConsole } from "@/features/admin/FdCardsConsole";
+import { ProviderRoutingConsole } from "@/features/admin/ProviderRoutingConsole";
 import type { Hub, PlatformService } from "@/features/admin/types";
 
-type Tab = "hubs" | "services" | "fd-cards" | "banks" | "dmt-banks";
+type Tab = "hubs" | "services" | "providers" | "fd-cards" | "banks" | "dmt-banks";
 
 export default function SettingsPage() {
   const token = useSession((s) => s.token);
@@ -108,7 +109,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const t = searchParams.get("tab");
-    if (t === "hubs" || t === "services" || t === "fd-cards" || t === "banks" || t === "dmt-banks") setTab(t);
+    if (t === "hubs" || t === "services" || t === "providers" || t === "fd-cards" || t === "banks" || t === "dmt-banks") setTab(t);
   }, [searchParams]);
 
   function selectTab(id: Tab) {
@@ -271,7 +272,7 @@ export default function SettingsPage() {
   }, [hubs, statusTab, hubQuery]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -303,18 +304,18 @@ export default function SettingsPage() {
         {([
           ["hubs", `Regional Hubs (${hubs.length})`],
           ["services", `Service Rails (${services.filter((s) => s.enabled).length}/${services.length})`],
-          ["fd-cards", "FD Card Providers"],
+          ["providers", "Provider Routing"],
+          ["fd-cards", "FD Cards"],
           ["banks", "Banks"],
           ["dmt-banks", "DMT Banks"],
         ] as const).map(([id, label]) => (
           <button
             key={id}
             type="button"
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-              tab === id
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === id
                 ? "bg-navy-950 text-white shadow-sm"
                 : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
-            }`}
+              }`}
             onClick={() => selectTab(id)}
           >
             {label}
@@ -341,11 +342,10 @@ export default function SettingsPage() {
                     key={key}
                     type="button"
                     onClick={() => setStatusTab(key)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                      isActive
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${isActive
                         ? "bg-navy-950 text-white shadow-xs"
                         : "text-slate-600 hover:text-navy-950"
-                    }`}
+                      }`}
                   >
                     {label}
                     {isActive && ` (${filteredHubs.length})`}
@@ -501,16 +501,14 @@ export default function SettingsPage() {
                         {svc.code}
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                          svc.enabled
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${svc.enabled
                             ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                             : "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}
+                          }`}
                       >
                         <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            svc.enabled ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-                          }`}
+                          className={`h-1.5 w-1.5 rounded-full ${svc.enabled ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                            }`}
                         />
                         {svc.enabled ? "Live in Desks" : "Disabled"}
                       </span>
@@ -585,7 +583,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* TAB 3: FD CARD PROVIDERS */}
+      {tab === "providers" && <ProviderRoutingConsole />}
       {tab === "fd-cards" && <FdCardsConsole token={token} />}
       {tab === "banks" && <BanksDesk embedded />}
       {tab === "dmt-banks" && <DmtBanksConsole />}
@@ -724,8 +722,8 @@ export default function SettingsPage() {
             {serviceBusy
               ? "Saving…"
               : pendingService?.enabled
-              ? "Yes, Disable Rail"
-              : "Yes, Enable Rail"}
+                ? "Yes, Disable Rail"
+                : "Yes, Enable Rail"}
           </button>
         </div>
       </Modal>

@@ -44,7 +44,7 @@ export default function AuditorCustomersPage() {
   }, [rows, query]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <div className="border-b border-slate-200/80 pb-6">
         <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
           Directory

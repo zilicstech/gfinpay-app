@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Headphones,
   Mail,
-  Phone,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { SITE } from "@/lib/site";
@@ -63,28 +62,17 @@ export default function ContactPage() {
               </p>
             </div>
 
-            {/* Direct Contact Cards */}
+            {/* Direct Contact Card */}
             <div className="space-y-3">
-              <div className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-50 text-emerald-600 ring-1 ring-inset ring-slate-100 transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white group-hover:ring-emerald-500 group-hover:[&_*]:!text-white group-hover:[&_svg]:!text-white">
-                  <Phone className="h-5 w-5 transition-colors duration-300" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 font-medium">Contact and grievance</p>
-                  <a className="font-display text-base font-bold text-navy-950 hover:text-emerald-700" href={SITE.phoneHref}>
-                    {SITE.phone}
-                  </a>
-                  <p className="text-[11px] text-slate-400">Monday - Saturday (9:00 AM - 7:00 PM IST)</p>
-                </div>
-              </div>
-
               <div className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md">
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-50 text-emerald-600 ring-1 ring-inset ring-slate-100 transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white group-hover:ring-emerald-500 group-hover:[&_*]:!text-white group-hover:[&_svg]:!text-white">
                   <Mail className="h-5 w-5 transition-colors duration-300" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-medium">Become a partner</p>
-                  <p className="font-display text-sm font-bold text-navy-950">{SITE.email}</p>
+                  <p className="text-xs text-slate-400 font-medium">Partner enquiries, support &amp; grievance</p>
+                  <a className="font-display text-base font-bold text-navy-950 hover:text-emerald-700" href={SITE.emailHref}>
+                    {SITE.email}
+                  </a>
                   <p className="text-[11px] text-slate-400">Direct response within 24 business hours</p>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Compass, Home, PhoneCall } from "lucide-react";
+import { Compass, Home, Mail } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { SITE } from "@/lib/site";
 
@@ -49,8 +49,13 @@ export default function NotFound() {
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4 border-t border-slate-100 pt-6 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
-              <PhoneCall className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Need help? Call <strong>{SITE.phone}</strong></span>
+              <Mail className="h-3.5 w-3.5 text-emerald-600" />
+              <span>
+                Need help? Email{" "}
+                <a className="font-bold text-navy-950 hover:text-emerald-700" href={SITE.emailHref}>
+                  {SITE.email}
+                </a>
+              </span>
             </span>
           </div>
         </div>

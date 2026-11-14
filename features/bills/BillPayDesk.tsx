@@ -3,24 +3,24 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
+import {
   ArrowRight,
-  Car, 
-  CheckCircle2, 
-  Copy, 
-  CreditCard, 
-  Droplets, 
-  Flame, 
-  Lightbulb, 
-  Phone, 
-  Printer, 
-  RefreshCw, 
-  Search, 
-  ShieldCheck, 
-  Smartphone, 
-  Tv, 
-  Wifi, 
-  Zap 
+  Car,
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  Droplets,
+  Flame,
+  Lightbulb,
+  Phone,
+  Printer,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Smartphone,
+  Tv,
+  Wifi,
+  Zap
 } from "lucide-react";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { inr } from "@/lib/format";
@@ -375,7 +375,7 @@ export function BillPayDesk() {
 
   if (categories.length === 0 && !loadError) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         <div className="h-36 rounded-[2.5rem] animate-pulse bg-slate-100" />
         <div className="h-64 rounded-3xl animate-pulse bg-slate-100" />
       </div>
@@ -383,7 +383,7 @@ export function BillPayDesk() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* 1. Header Banner */}
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
@@ -458,17 +458,15 @@ export function BillPayDesk() {
                 key={c.id}
                 type="button"
                 onClick={() => pickCategory(c)}
-                className={`group relative flex flex-col items-center justify-center rounded-2xl p-4 text-center transition-all duration-200 border ${
-                  isSelected
+                className={`group relative flex flex-col items-center justify-center rounded-2xl p-4 text-center transition-all duration-200 border ${isSelected
                     ? "border-navy-950 bg-navy-950 text-white shadow-md shadow-navy-950/20"
                     : "border-slate-200/80 bg-slate-50/50 text-navy-900 hover:border-emerald-500/40 hover:bg-white hover:shadow-md hover:-translate-y-0.5"
-                }`}
+                  }`}
               >
-                <div className={`grid h-12 w-12 place-items-center rounded-xl mb-2.5 transition-all duration-300 group-hover:scale-110 ${
-                  isSelected 
-                    ? "bg-white/10 text-emerald-400" 
+                <div className={`grid h-12 w-12 place-items-center rounded-xl mb-2.5 transition-all duration-300 group-hover:scale-110 ${isSelected
+                    ? "bg-white/10 text-emerald-400"
                     : "bg-white text-slate-700 ring-1 ring-inset ring-slate-200/80 group-hover:bg-emerald-500 group-hover:text-white group-hover:ring-emerald-500 group-hover:[&_*]:!text-white group-hover:[&_svg]:!text-white"
-                }`}>
+                  }`}>
                   <Icon className="h-6 w-6" />
                 </div>
                 <span className="text-xs font-bold leading-tight">{c.name}</span>

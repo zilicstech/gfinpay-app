@@ -3,13 +3,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  ArrowRight, 
-  Building2, 
-  Copy, 
-  ExternalLink, 
-  Plus, 
-  Search 
+import {
+  ArrowRight,
+  Building2,
+  Copy,
+  ExternalLink,
+  Plus,
+  Search
 } from "lucide-react";
 import { api, openDetails } from "@/lib/api-client";
 import { maskMobile, when } from "@/lib/format";
@@ -111,7 +111,7 @@ export default function VendorsPage() {
   }, [vendors, statusTab, query]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -153,11 +153,10 @@ export default function VendorsPage() {
                   key={key}
                   type="button"
                   onClick={() => setStatusTab(key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    isActive
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${isActive
                       ? "bg-navy-950 text-white shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                   {isActive && ` (${filteredVendors.length})`}

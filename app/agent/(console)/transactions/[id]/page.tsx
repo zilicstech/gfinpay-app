@@ -32,6 +32,8 @@ export default function AgentTxnDetailPage() {
         backHref="/agent/transactions"
         backLabel="All transactions"
         txn={txn}
+        verifyEndpoint={`/api/v1/desk/transactions/${id}/verify-status`}
+        onTransactionUpdated={setTxn}
         flash={<Flash message={flash.message} error={flash.error} />}
       />
     </>

@@ -9,6 +9,7 @@ import { useSession } from "@/stores/session.store";
 import { Alert, EmptyState, StatCard, StatusPill } from "@/components/ui/primitives";
 import type { DeskOverview } from "@/features/desk/types";
 import { n, type OverviewSnapshot, type SalesTrendPoint } from "@/features/console/OverviewMetrics";
+import { PartnerOnboardingActionCards } from "@/features/verification/PartnerOnboardingActionCards";
 
 type TrendRange = "daily" | "weekly" | "monthly";
 
@@ -104,7 +105,7 @@ export default function DistributorOverviewPage() {
 
   if (loading && !data) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         <div className="h-36 rounded-[2.5rem] animate-pulse bg-slate-100" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -123,7 +124,7 @@ export default function DistributorOverviewPage() {
   const network = data.network;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* 1. Welcome Card */}
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
@@ -140,6 +141,9 @@ export default function DistributorOverviewPage() {
           </p>
         </div>
       </section>
+
+      {/* 1b. Onboarding & Activation Action Cards */}
+      <PartnerOnboardingActionCards role="MASTER_DISTRIBUTOR" />
 
       {/* 2. Counter Cards */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

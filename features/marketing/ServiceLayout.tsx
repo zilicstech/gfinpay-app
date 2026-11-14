@@ -7,7 +7,7 @@ import {
   Coins,
   CreditCard,
   Landmark,
-  PhoneCall,
+  Mail,
   ShieldCheck,
   Sparkles,
   Zap,
@@ -100,10 +100,10 @@ export function ServiceLayout({
                   <span>Start at Counter</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-                <Link href="/contact" className="btn-secondary !px-5 !py-3.5 text-sm font-bold">
-                  <PhoneCall className="h-4 w-4 text-slate-500" />
-                  <span>Call Support</span>
-                </Link>
+                <a href={SITE.emailHref} className="btn-secondary !px-5 !py-3.5 text-sm font-bold">
+                  <Mail className="h-4 w-4 text-slate-500" />
+                  <span>{SITE.email}</span>
+                </a>
               </div>
 
               {/* 3 Trust Signals */}

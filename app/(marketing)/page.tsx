@@ -9,7 +9,7 @@ import {
   HelpCircle,
   Landmark,
   Layers,
-  PhoneCall,
+  Mail,
   QrCode,
   Radio,
   Receipt,
@@ -663,13 +663,13 @@ export default function HomePage() {
                 <span>Partner Login</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                href="/contact"
+              <a
+                href={SITE.emailHref}
                 className="btn border border-white/20 bg-white/10 text-white hover:bg-white/20 !px-6 !py-3.5 text-sm font-bold"
               >
-                <PhoneCall className="h-4 w-4" />
-                <span>Call Us ({SITE.phone})</span>
-              </Link>
+                <Mail className="h-4 w-4" />
+                <span>Email Us ({SITE.email})</span>
+              </a>
             </div>
           </div>
         </div>

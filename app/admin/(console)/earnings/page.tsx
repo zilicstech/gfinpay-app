@@ -1,17 +1,17 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { 
-  Building2, 
-  Download, 
-  IndianRupee, 
-  Percent, 
-  PieChart, 
-  SlidersHorizontal, 
-  Store, 
-  TrendingUp, 
-  Users, 
-  Wallet 
+import {
+  Building2,
+  Download,
+  IndianRupee,
+  Percent,
+  PieChart,
+  SlidersHorizontal,
+  Store,
+  TrendingUp,
+  Users,
+  Wallet
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { inr, when } from "@/lib/format";
@@ -134,7 +134,7 @@ export default function AdminEarningsPage() {
   const showHubFilter = (userType === "SUPER_ADMIN" || userType === "ADMIN") && hubOptions.length > 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>

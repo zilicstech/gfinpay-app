@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   BadgeCheck,
-  RefreshCw,
   Building2,
   Clock,
   Copy,
@@ -14,13 +13,10 @@ import {
   Phone,
   Unlock,
   User,
-  UserCheck,
   Users,
   UserX,
 } from "lucide-react";
 import { EkycBadge } from "@/features/sales/EkycBadge";
-import { BankEkycSummary } from "@/features/ekyc/BankEkycSummary";
-import { AgentEkycModal, AgentEkycStatusModal, agentEkycLinkOpened, agentEkycVerified, agentKycStatus } from "@/features/admin/AgentEkycModal";
 import { api, formatApiError } from "@/lib/api-client";
 import { inr, maskMobile, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -45,7 +41,7 @@ type RetailerCustomer = {
   created_by_code?: string;
 };
 
-type RetailerModal = "freeze" | "inactivate" | "activate" | "activation" | null;
+type RetailerModal = "freeze" | "inactivate" | "activation" | null;
 
 export function DistributorRetailerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -65,8 +61,6 @@ export function DistributorRetailerDetail() {
   const [customersLoading, setCustomersLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [ekycOpen, setEkycOpen] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
 
   const outletBase = `/api/v1/desk/outlets/${id}`;
 
@@ -116,17 +110,6 @@ export function DistributorRetailerDetail() {
     }
   }
 
-  async function markActive() {
-    try {
-      await api(`/api/v1/finance/retailers/${id}/activate`, { token, method: "POST", body: "{}" });
-      setModal(null);
-      await load();
-      flash.ok("Retailer is now active.");
-    } catch (e) {
-      flash.fail(e, "Could not activate retailer");
-    }
-  }
-
   async function freeze(frozen: boolean) {
     try {
       await api(`/api/v1/desk/outlets/${id}/wallet/freeze`, {
@@ -169,56 +152,39 @@ export function DistributorRetailerDetail() {
 
   const canRequestActivation = user.status === "PENDING" || user.status === "REJECTED";
   const canManage = user.status === "APPROVED" || user.status === "ACTIVE";
-  const ekycVerified = agentEkycVerified(user);
-  const ekycLinkOpened = agentEkycLinkOpened(user);
   const manageActions: ManageAction[] = [
-    ...(!ekycVerified
-      ? [
-          {
-            label: ekycLinkOpened ? "Check status" : "Do eKYC",
-            icon: ekycLinkOpened ? <RefreshCw className="h-4 w-4" /> : <BadgeCheck className="h-4 w-4" />,
-            onClick: () => (ekycLinkOpened ? setStatusOpen(true) : setEkycOpen(true)),
-          },
-        ]
-      : []),
     ...(canRequestActivation
       ? [
-          {
-            label: "Request activation",
-            icon: <BadgeCheck className="h-4 w-4" />,
-            onClick: () => setModal("activation"),
-          },
-        ]
+        {
+          label: "Request activation",
+          icon: <BadgeCheck className="h-4 w-4" />,
+          onClick: () => setModal("activation"),
+        },
+      ]
       : []),
     ...(canManage
       ? [
-          {
-            label: isFrozen ? "Unfreeze wallet" : "Freeze wallet",
-            icon: isFrozen ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />,
-            onClick: () => setModal("freeze"),
-          },
-          ...(user.status === "APPROVED"
-            ? [
-                {
-                  label: "Mark active",
-                  icon: <UserCheck className="h-4 w-4" />,
-                  onClick: () => setModal("activate"),
-                },
-              ]
-            : [
-                {
-                  label: "Mark inactive",
-                  icon: <UserX className="h-4 w-4" />,
-                  onClick: () => setModal("inactivate"),
-                  tone: "danger" as const,
-                },
-              ]),
-        ]
+        {
+          label: isFrozen ? "Unfreeze wallet" : "Freeze wallet",
+          icon: isFrozen ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />,
+          onClick: () => setModal("freeze"),
+        },
+        ...(user.status === "ACTIVE"
+          ? [
+            {
+              label: "Mark inactive",
+              icon: <UserX className="h-4 w-4" />,
+              onClick: () => setModal("inactivate"),
+              tone: "danger" as const,
+            },
+          ]
+          : []),
+      ]
       : []),
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Top Navigation */}
       <div>
         <Link
@@ -243,14 +209,18 @@ export function DistributorRetailerDetail() {
               </span>
               <span className="text-slate-600">·</span>
               <StatusPill value={user.status} />
-              <EkycBadge status={agentEkycVerified(user) ? "COMPLETED" : "PENDING"} />
-              <BankEkycSummary kyc={user.kyc} />
             </div>
 
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-white tracking-tight">
                 {user.full_name}
               </h1>
+              <div className="mt-3 grid gap-1 text-xs text-slate-300 sm:grid-cols-2">
+                <p>Personal: {user.kyc?.personal_status || "NOT_VERIFIED"}</p>
+                <p>Business: {user.kyc?.business_status || "NOT_VERIFIED"}</p>
+                <p>Agreement: {user.kyc?.agreement_status || "NOT_SIGNED"}</p>
+                <p>Entity: {user.kyc?.entity_type || "—"}</p>
+              </div>
             </div>
 
             {/* 1st Row: Location of the retailer only */}
@@ -350,27 +320,26 @@ export function DistributorRetailerDetail() {
               key === "sales"
                 ? sales.length
                 : key === "customers"
-                ? customers.length
-                : key === "requests"
-                ? requestCount
-                : user.recentTransactions?.length ?? 0;
+                  ? customers.length
+                  : key === "requests"
+                    ? requestCount
+                    : user.recentTransactions?.length ?? 0;
             const label =
               key === "sales"
                 ? "Sales"
                 : key === "customers"
-                ? "Customers"
-                : key === "requests"
-                ? "Requests"
-                : "Transactions";
+                  ? "Customers"
+                  : key === "requests"
+                    ? "Requests"
+                    : "Transactions";
             return (
               <button
                 key={key}
                 type="button"
-                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                  isActive
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${isActive
                     ? "bg-navy-950 text-white shadow-xs"
                     : "text-slate-600 hover:text-navy-950"
-                }`}
+                  }`}
                 onClick={() => setTab(key)}
               >
                 {label}
@@ -440,36 +409,8 @@ export function DistributorRetailerDetail() {
         )}
       </section>
 
-      {id && (
-        <>
-          <AgentEkycModal
-            open={ekycOpen}
-            userId={id}
-            userName={user.full_name}
-            userType={user.user_type}
-            email={user.email}
-            token={token}
-            scope="desk"
-            onClose={() => setEkycOpen(false)}
-            onVerified={() => { load().catch(() => undefined); }}
-          />
-          <AgentEkycStatusModal
-            open={statusOpen}
-            userId={id}
-            userName={user.full_name}
-            token={token}
-            scope="desk"
-            onClose={() => setStatusOpen(false)}
-            onVerified={() => { load().catch(() => undefined); }}
-          />
-        </>
-      )}
-
       <FormModal open={modal === "freeze"} title={user.wallet?.status === "FROZEN" ? "Unfreeze wallet" : "Freeze wallet"} onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); freeze(user.wallet?.status !== "FROZEN"); }} submitLabel={user.wallet?.status === "FROZEN" ? "Unfreeze" : "Freeze"}>
         <p className="text-sm text-navy-600">Confirm wallet control for {user.full_name}.</p>
-      </FormModal>
-      <FormModal open={modal === "activate"} title="Mark active" onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); markActive(); }} submitLabel="Mark active">
-        <p className="text-sm text-navy-600">The auditor has approved this retailer. Marking them active lets them use the outlet desk.</p>
       </FormModal>
       <FormModal open={modal === "inactivate"} title="Mark inactive" onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); patchStatus("INACTIVE"); }} submitLabel="Mark inactive">
         <p className="text-sm text-navy-600">{user.full_name} will not be able to sign in.</p>

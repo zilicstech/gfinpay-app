@@ -91,7 +91,7 @@ export default function DistributorCustomersPage() {
   }, [rows, statusTab, query]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -125,11 +125,10 @@ export default function DistributorCustomersPage() {
                   key={key}
                   type="button"
                   onClick={() => setStatusTab(key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    isActive
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${isActive
                       ? "bg-navy-950 text-white shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                   {` (${count})`}

@@ -147,7 +147,7 @@ export default function AdminDetailPage() {
 
   if (loadError) {
     return (
-      <div className="space-y-4 max-w-7xl mx-auto">
+      <div className="space-y-4">
         <Link
           href="/admin/admins"
           className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950 transition-colors"
@@ -215,7 +215,7 @@ export default function AdminDetailPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Top Navigation */}
       <div>
         <Link
@@ -236,13 +236,12 @@ export default function AdminDetailPage() {
           <div className="space-y-3 min-w-0 pr-2">
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`font-bold tracking-wider text-xs uppercase px-2.5 py-0.5 rounded-full ${
-                  isSuper
+                className={`font-bold tracking-wider text-xs uppercase px-2.5 py-0.5 rounded-full ${isSuper
                     ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                     : isPlatform
-                    ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
-                    : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                }`}
+                      ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}
               >
                 {isSuper ? "Super Administrator" : isPlatform ? "Platform Administrator" : "Hub Administrator"}
               </span>
@@ -363,11 +362,10 @@ export default function AdminDetailPage() {
             <button
               type="button"
               onClick={() => setTab("territory")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "territory"
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "territory"
                   ? "bg-navy-950 text-white shadow-xs"
                   : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <Building2 className="h-3.5 w-3.5" />
               Assigned Hub & Territory
@@ -375,20 +373,18 @@ export default function AdminDetailPage() {
             <button
               type="button"
               onClick={() => setTab("distributors")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "distributors"
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "distributors"
                   ? "bg-navy-950 text-white shadow-xs"
                   : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <Users className="h-3.5 w-3.5" />
               Appointed Distributors
               <span
-                className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                  tab === "distributors"
+                className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${tab === "distributors"
                     ? "bg-white/20 text-white"
                     : "bg-slate-100 text-slate-700"
-                }`}
+                  }`}
               >
                 {distributorsList.length}
               </span>
@@ -396,11 +392,10 @@ export default function AdminDetailPage() {
             <button
               type="button"
               onClick={() => setTab("profile")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "profile"
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "profile"
                   ? "bg-navy-950 text-white shadow-xs"
                   : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
               Profile & Security
@@ -409,11 +404,10 @@ export default function AdminDetailPage() {
               <button
                 type="button"
                 onClick={() => setTab("audit")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                  tab === "audit"
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "audit"
                     ? "bg-navy-950 text-white shadow-xs"
                     : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 Audit
               </button>
@@ -424,11 +418,10 @@ export default function AdminDetailPage() {
             <button
               type="button"
               onClick={() => setTab("privileges")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "privileges"
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "privileges"
                   ? "bg-navy-950 text-white shadow-xs"
                   : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <Globe2 className="h-3.5 w-3.5" />
               Console Privileges & Scope
@@ -436,11 +429,10 @@ export default function AdminDetailPage() {
             <button
               type="button"
               onClick={() => setTab("profile")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "profile"
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "profile"
                   ? "bg-navy-950 text-white shadow-xs"
                   : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-              }`}
+                }`}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
               Profile & Security

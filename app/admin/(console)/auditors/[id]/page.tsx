@@ -3,19 +3,19 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { 
+import {
   CheckCircle2,
-  Clock, 
-  Copy, 
-  FileCheck2, 
+  Clock,
+  Copy,
+  FileCheck2,
   History,
-  KeyRound, 
-  Lock, 
-  Phone, 
-  Scale, 
-  ShieldAlert, 
-  ShieldCheck, 
-  User, 
+  KeyRound,
+  Lock,
+  Phone,
+  Scale,
+  ShieldAlert,
+  ShieldCheck,
+  User,
   UserX,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
@@ -121,7 +121,7 @@ function AuditorDetailInner() {
 
   if (!user) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         <div className="h-6 w-36 rounded-lg animate-pulse bg-slate-100" />
         <div className="h-48 rounded-[2.5rem] animate-pulse bg-slate-100" />
         <div className="h-64 rounded-3xl animate-pulse bg-slate-100" />
@@ -137,24 +137,24 @@ function AuditorDetailInner() {
     },
     ...(user.status === "ACTIVE"
       ? [
-          {
-            label: "Inactivate",
-            icon: <UserX className="h-4 w-4" />,
-            onClick: () => setModal("inactivate"),
-            tone: "danger" as const,
-          },
-        ]
+        {
+          label: "Inactivate",
+          icon: <UserX className="h-4 w-4" />,
+          onClick: () => setModal("inactivate"),
+          tone: "danger" as const,
+        },
+      ]
       : [
-          {
-            label: "Restore access",
-            icon: <ShieldCheck className="h-4 w-4" />,
-            onClick: () => setModal("activate"),
-          },
-        ]),
+        {
+          label: "Restore access",
+          icon: <ShieldCheck className="h-4 w-4" />,
+          onClick: () => setModal("activate"),
+        },
+      ]),
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Top Navigation */}
       <div>
         <Link
@@ -258,11 +258,10 @@ function AuditorDetailInner() {
         <button
           type="button"
           onClick={() => setTab("scope")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-            tab === "scope"
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "scope"
               ? "bg-navy-950 text-white shadow-xs"
               : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <Scale className="h-3.5 w-3.5" />
           Audit Scope &amp; Authority
@@ -270,11 +269,10 @@ function AuditorDetailInner() {
         <button
           type="button"
           onClick={() => setTab("history")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-            tab === "history"
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === "history"
               ? "bg-navy-950 text-white shadow-xs"
               : "text-slate-600 hover:text-navy-950 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <History className="h-3.5 w-3.5" />
           Audit History

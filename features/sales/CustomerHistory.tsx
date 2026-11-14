@@ -74,14 +74,15 @@ const LEAD_OFFERS = [
   { code: "SAVINGS", label: "Open bank account" },
 ] as const;
 
-function DeskFlags({ onChange }: { onChange: (flags: { fd: boolean; leads: string[]; hospi: boolean }) => void }) {
-  const { codes, fdProviders } = useDeskServices();
+function DeskFlags({ onChange }: { onChange: (flags: { fd: boolean; leads: string[]; hospi: boolean; personal: boolean }) => void }) {
+  const { codes, fdProviders, access } = useDeskServices();
   const fd = fdCardsEnabled(fdProviders);
   const hospi = codes.has("HOSPI_CASH");
+  const personal = access.personal;
   const leadKey = LEAD_OFFERS.map((offer) => offer.code).filter((code) => codes.has(code)).join("|");
   useEffect(() => {
-    onChange({ fd, hospi, leads: leadKey ? leadKey.split("|") : [] });
-  }, [fd, hospi, leadKey, onChange]);
+    onChange({ fd, hospi, personal, leads: leadKey ? leadKey.split("|") : [] });
+  }, [fd, hospi, personal, leadKey, onChange]);
   return null;
 }
 
@@ -98,10 +99,11 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
   // Modals & form state
   const [addOpen, setAddOpen] = useState(false);
   const [hospiOpen, setHospiOpen] = useState(false);
-  const [deskFlags, setDeskFlags] = useState<{ fd: boolean; leads: string[]; hospi: boolean }>({
+  const [deskFlags, setDeskFlags] = useState<{ fd: boolean; leads: string[]; hospi: boolean; personal: boolean }>({
     fd: false,
     leads: [],
     hospi: false,
+    personal: false,
   });
   const [selling, setSelling] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -214,7 +216,9 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
   const volume = customer.transactions.reduce((sum, txn) => sum + Number(txn.amount ?? 0), 0);
   const place = [customer.city, customer.state].filter(Boolean).join(", ");
   const desk = basePath.startsWith("/agent") || basePath.startsWith("/distributor");
-  const sellFd = desk && deskFlags.fd;
+  const retailerDesk = basePath.startsWith("/agent");
+  const sellFd = desk && deskFlags.fd && (!retailerDesk || deskFlags.personal);
+  const fdNeedsIdentity = retailerDesk && desk && deskFlags.fd && !deskFlags.personal;
   const sellHospi = desk && deskFlags.hospi;
   const sellLeads = desk && deskFlags.leads.length > 0;
   const leadOffers = LEAD_OFFERS.filter((offer) => deskFlags.leads.includes(offer.code));
@@ -242,42 +246,51 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
     },
     ...(canAddLead && sellFd
       ? [
-          {
-            label: "Sell FD Card",
-            icon: <CreditCard className="h-4 w-4" />,
-            onClick: () => setAddOpen(true),
-          },
-        ]
+        {
+          label: "Sell FD Card",
+          icon: <CreditCard className="h-4 w-4" />,
+          onClick: () => setAddOpen(true),
+        },
+      ]
+      : []),
+    ...(canAddLead && fdNeedsIdentity
+      ? [
+        {
+          label: "Verify identity to sell FD",
+          icon: <CreditCard className="h-4 w-4" />,
+          onClick: () => router.push("/agent/profile"),
+        },
+      ]
       : []),
     ...(canAddLead && sellHospi
       ? [
-          {
-            label: "Sell Hospi Cash",
-            icon: <HeartPulse className="h-4 w-4" />,
-            onClick: () => setHospiOpen(true),
-          },
-        ]
+        {
+          label: "Sell Hospi Cash",
+          icon: <HeartPulse className="h-4 w-4" />,
+          onClick: () => setHospiOpen(true),
+        },
+      ]
       : []),
     ...(canAddLead && sellLeads
       ? leadOffers.map((offer) => ({
-          label: offer.label,
-          icon: <LayoutGrid className="h-4 w-4" />,
-          onClick: () => sellLead(offer.code),
-        }))
+        label: offer.label,
+        icon: <LayoutGrid className="h-4 w-4" />,
+        onClick: () => sellLead(offer.code),
+      }))
       : []),
     ...(canAddLead && !desk
       ? [
-          {
-            label: "Add service lead",
-            icon: <LayoutGrid className="h-4 w-4" />,
-            onClick: () => setAddOpen(true),
-          },
-        ]
+        {
+          label: "Add service lead",
+          icon: <LayoutGrid className="h-4 w-4" />,
+          onClick: () => setAddOpen(true),
+        },
+      ]
       : []),
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {desk && <DeskFlags onChange={setDeskFlags} />}
       {/* Top Navigation */}
       <div>
@@ -382,11 +395,10 @@ export function CustomerHistory({ basePath, manage = false }: { basePath: string
           <button
             key={key}
             type="button"
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-              tab === key
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === key
                 ? "bg-navy-950 text-white shadow-sm"
                 : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
-            }`}
+              }`}
             onClick={() => setTab(key)}
           >
             {label}

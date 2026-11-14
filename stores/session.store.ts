@@ -14,6 +14,12 @@ export type SessionUser = {
   email?: string | null;
   shopName?: string | null;
   kycStatus?: string | null;
+  identityStatus?: string | null;
+  bankVerificationStatus?: string | null;
+  businessStatus?: string | null;
+  agreementStatus?: string | null;
+  hasPin?: boolean;
+  nextStep?: string;
   status?: string;
   permissions: string[];
 };
@@ -31,6 +37,18 @@ export type MeProfile = {
   shop_name?: string | null;
   kycStatus?: string | null;
   kyc_status?: string | null;
+  identityStatus?: string | null;
+  identity_status?: string | null;
+  bankVerificationStatus?: string | null;
+  bank_verification_status?: string | null;
+  businessStatus?: string | null;
+  business_status?: string | null;
+  agreementStatus?: string | null;
+  agreement_status?: string | null;
+  hasPin?: boolean;
+  has_pin?: boolean;
+  nextStep?: string;
+  next_step?: string;
   status?: string;
   permissions?: string[];
 };
@@ -62,6 +80,12 @@ export function mapMeProfile(profile: MeProfile): SessionUser {
     email: profile.email ?? null,
     shopName: profile.shopName ?? profile.shop_name ?? null,
     kycStatus: profile.kycStatus ?? profile.kyc_status ?? null,
+    identityStatus: profile.identityStatus ?? profile.identity_status ?? null,
+    bankVerificationStatus: profile.bankVerificationStatus ?? profile.bank_verification_status ?? null,
+    businessStatus: profile.businessStatus ?? profile.business_status ?? null,
+    agreementStatus: profile.agreementStatus ?? profile.agreement_status ?? null,
+    hasPin: profile.hasPin ?? profile.has_pin,
+    nextStep: profile.nextStep ?? profile.next_step,
     status: profile.status,
     permissions: profile.permissions ?? [],
   };
@@ -166,11 +190,29 @@ export function retailerAwaitingActivation(userType?: string, status?: string) {
   return userType === "RETAILER" && !!status && AWAITING_ACTIVATION.has(status);
 }
 
-export function homeFor(userType?: string, status?: string): string {
+export function partnerAwaitingActivation(userType?: string, status?: string) {
+  return (userType === "RETAILER" || userType === "MASTER_DISTRIBUTOR") && !!status && AWAITING_ACTIVATION.has(status);
+}
+
+export function partnerNeedsReverification(user?: SessionUser | null): boolean {
+  if (!user) return false;
+  if (user.userType !== "RETAILER" && user.userType !== "MASTER_DISTRIBUTOR") return false;
+  return (
+    user.nextStep === "REVERIFY" ||
+    (user.identityStatus != null && user.identityStatus !== "VERIFIED") ||
+    user.hasPin === false
+  );
+}
+
+export function homeFor(userType?: string, status?: string, nextStep?: string): string {
+  if (nextStep === "REVERIFY") return "/reverify";
   if (userType === "SUPER_ADMIN" || userType === "ADMIN" || userType === "HUBADMIN") return "/admin/analytics";
-  if (userType === "MASTER_DISTRIBUTOR") return "/distributor/overview";
   if (userType === "AUDITOR") return "/auditor/overview";
-  if (retailerAwaitingActivation(userType, status)) return "/agent/activate";
+  if (userType === "MASTER_DISTRIBUTOR") {
+    if (nextStep === "ACTIVATE" || nextStep === "ACTIVATION" || (status && AWAITING_ACTIVATION.has(status))) return "/distributor/activate";
+    return "/distributor/overview";
+  }
+  if (retailerAwaitingActivation(userType, status) || nextStep === "ACTIVATE" || nextStep === "ACTIVATION") return "/agent/activate";
   return "/agent/dashboard";
 }
 

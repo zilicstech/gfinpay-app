@@ -8,6 +8,7 @@ import {
   Landmark, LogOut, MessageSquare, Settings, Shield, ShieldCheck, Receipt, Scale, LayoutGrid,
   ClipboardList,
   HeartPulse,
+  Banknote,
   ChevronDown, UserRound, Zap, Smartphone, Tv, CarFront, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -17,6 +18,7 @@ import {
   homeFor,
   homePathFor,
   isSessionExpired,
+  partnerNeedsReverification,
   profilePathFor,
   roleLabel,
   useSession,
@@ -48,6 +50,8 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/auditor/customers": UserRound,
   "/auditor/profile": UserRound,
   "/agent/activate": ShieldCheck,
+  "/distributor/activate": ShieldCheck,
+  "/distributor/onboarding": Users,
   "/admin/transactions": Receipt,
   "/admin/recon": Scale,
   "/admin/sales": Receipt,
@@ -57,6 +61,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/admin/settings": Settings,
   "/admin/profile": UserRound,
   "/agent/dashboard": LayoutDashboard,
+  "/agent/loans": Banknote,
   "/agent/kyc": ShieldCheck,
   "/agent/wallet": Wallet,
   "/agent/dmt": ArrowLeftRight,
@@ -68,7 +73,6 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/distributor/overview": LayoutDashboard,
   "/distributor/earnings": Percent,
   "/distributor/agents": Store,
-  "/distributor/finance": Wallet,
   "/distributor/customers": Users,
   "/distributor/catalog": LayoutGrid,
   "/distributor/sales": Receipt,
@@ -78,7 +82,6 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/agent/customers": Users,
   "/agent/reports": PieChart,
   "/agent/more": Settings,
-  "/agent/settings": Settings,
   "/agent/profile": UserRound,
 };
 
@@ -168,8 +171,12 @@ export function AppShell({
       });
       return;
     }
+    if (user && partnerNeedsReverification(user)) {
+      router.replace("/reverify");
+      return;
+    }
     if (user && !allowedTypes.includes(user.userType)) {
-      router.replace(homeFor(user.userType, user.status));
+      router.replace(homeFor(user.userType, user.status, user.nextStep));
     }
   }, [allowedTypes, bootstrapped, clear, expiresAt, hydrated, loadProfile, profileLoaded, router, signedOutHome, token, user]);
 
@@ -200,12 +207,10 @@ export function AppShell({
           onClick={() => setMobileOpen(false)}
         />
       )}
-      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[260px] flex-col border-r border-slate-200/80 bg-white shadow-xl transition-transform duration-200 md:top-0 ${
-        mobileOpen ? "translate-x-0" : "-translate-x-full"
-      } ${collapsed ? "md:w-[72px] md:translate-x-0 md:shadow-none" : "md:w-[260px] md:translate-x-0 md:shadow-none"}`}>
-        <div className={`flex h-16 shrink-0 items-center border-b border-slate-200/80 px-4 transition-all duration-200 ${
-          collapsed ? "md:justify-center md:px-2" : ""
-        }`}>
+      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[260px] flex-col border-r border-slate-200/80 bg-white shadow-xl transition-[transform,width] duration-200 md:top-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } ${collapsed ? "md:w-[72px] md:translate-x-0 md:shadow-none" : "md:w-[260px] md:translate-x-0 md:shadow-none"}`}>
+        <div className={`flex h-16 shrink-0 items-center border-b border-slate-200/80 px-4 transition-all duration-200 ${collapsed ? "md:justify-center md:px-2" : ""
+          }`}>
           <p className={`min-w-0 truncate text-xs font-bold uppercase tracking-wider text-slate-400 ${collapsed ? "md:hidden" : ""}`}>
             {title}
           </p>
@@ -219,9 +224,8 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
-                  collapsed ? "md:justify-center md:gap-0 md:px-0" : ""
-                } ${active ? "bg-gradient-to-r from-navy-950 via-slate-900 to-navy-900 text-white shadow-md shadow-navy-950/20 font-semibold" : "text-slate-600 hover:bg-slate-100/80 hover:text-navy-950"}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-300 ${collapsed ? "md:justify-center md:gap-0 md:px-0" : ""
+                  } ${active ? "bg-gradient-to-r from-navy-950 via-slate-900 to-navy-900 text-white shadow-md shadow-navy-950/20 font-semibold" : "text-slate-600 hover:bg-slate-100/80 hover:text-navy-950"}`}
               >
                 <Icon className={`h-4 w-4 shrink-0 ${active ? "text-emerald-400" : "text-slate-400"}`} />
                 <span className={`truncate ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
@@ -232,7 +236,7 @@ export function AppShell({
       </aside>
 
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-md shadow-2xs">
-        <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-8">
+        <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -259,7 +263,7 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-6">{children}</main>
+      <main className="w-full px-4 py-5 sm:px-5 lg:px-6 md:py-6">{children}</main>
     </div>
   );
 }
@@ -298,11 +302,10 @@ function AccountMenu({
     <div className="relative ml-auto" ref={ref}>
       <button
         type="button"
-        className={`inline-flex items-center gap-2.5 rounded-full p-1 sm:pl-1 sm:pr-3 transition-all border ${
-          open
+        className={`inline-flex items-center gap-2.5 rounded-full p-1 sm:pl-1 sm:pr-3 transition-all border ${open
             ? "bg-slate-100 border-slate-300/80 shadow-xs ring-2 ring-emerald-500/20"
             : "hover:bg-slate-100/80 border-transparent hover:border-slate-200/80"
-        }`}
+          }`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"

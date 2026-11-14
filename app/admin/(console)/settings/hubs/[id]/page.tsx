@@ -246,20 +246,20 @@ export default function HubDetailPage() {
     },
     isHubActive
       ? {
-          label: "Suspend hub",
-          icon: <Lock className="h-4 w-4" />,
-          onClick: () => setModal("suspend"),
-          tone: "danger" as const,
-        }
+        label: "Suspend hub",
+        icon: <Lock className="h-4 w-4" />,
+        onClick: () => setModal("suspend"),
+        tone: "danger" as const,
+      }
       : {
-          label: "Activate hub",
-          icon: <Unlock className="h-4 w-4" />,
-          onClick: () => setModal("activate"),
-        },
+        label: "Activate hub",
+        icon: <Unlock className="h-4 w-4" />,
+        onClick: () => setModal("activate"),
+      },
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Top Navigation */}
       <div>
         <Link
@@ -369,11 +369,10 @@ export default function HubDetailPage() {
           <button
             key={key}
             type="button"
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-              tab === key
+            className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${tab === key
                 ? "bg-navy-950 text-white shadow-sm"
                 : "text-slate-600 hover:text-navy-950 hover:bg-slate-200/60"
-            }`}
+              }`}
             onClick={() => setTab(key)}
           >
             {label}

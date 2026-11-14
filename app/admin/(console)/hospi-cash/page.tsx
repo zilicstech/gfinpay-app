@@ -222,7 +222,7 @@ export default function AdminHospiCashPage() {
   ] as const;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
@@ -285,32 +285,31 @@ export default function AdminHospiCashPage() {
           {from && to && from > to && (
             <p className="text-xs font-semibold text-rose-700">The end date is before the start date.</p>
           )}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1">
-            {tabs.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  tab === key ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+              {tabs.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${tab === key ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950"
+                    }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="relative min-w-[18rem]">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by customer, sale, retailer, vendor..."
+                className="field !pl-10 !py-2 text-xs w-full"
+              />
+            </div>
           </div>
-          <div className="relative min-w-[18rem]">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by customer, sale, retailer, vendor..."
-              className="field !pl-10 !py-2 text-xs w-full"
-            />
-          </div>
-        </div>
         </div>
 
         {loading ? (

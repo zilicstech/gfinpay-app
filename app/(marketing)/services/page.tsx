@@ -11,7 +11,6 @@ import {
   Flame,
   Layers,
   Lock,
-  PhoneCall,
   QrCode,
   Radio,
   Receipt,

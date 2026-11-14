@@ -28,7 +28,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "Can I become a Master Distributor in my city?",
-    a: `Yes! Master Distributors onboard local Kirana stores, allocate float, and manage regional operations across their network. Call ${SITE.phone} to apply.`,
+    a: `Yes! Master Distributors onboard local Kirana stores, allocate float, and manage regional operations across their network. Email us at ${SITE.email} to apply.`,
   },
 ];
 

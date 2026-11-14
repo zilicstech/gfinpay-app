@@ -2,19 +2,17 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { 
-  Building2, 
-  ChevronRight, 
-  CreditCard, 
-  Landmark, 
-  PieChart, 
-  Receipt, 
-  ShieldCheck, 
-  Sparkles, 
-  UserRound, 
-  Users, 
+import {
+  ChevronRight,
+  CreditCard,
+  Landmark,
+  PieChart,
+  Receipt,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  Users,
   Zap,
-  ArrowRight
 } from "lucide-react";
 import { useDeskServices } from "@/features/desk/DeskServices";
 import { buildMoreItems } from "@/features/desk/retailer-services";
@@ -22,24 +20,24 @@ import { useSession } from "@/stores/session.store";
 
 const ICONS: Record<string, { icon: typeof Zap; color: string; bg: string }> = {
   "/agent/bbps": { icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
-  "/agent/cash-out/upi": { icon: Landmark, color: "text-emerald-500", bg: "bg-emerald-50" },
-  "/agent/aeps": { icon: Landmark, color: "text-blue-500", bg: "bg-blue-50" },
+  "/agent/cash": { icon: Landmark, color: "text-emerald-500", bg: "bg-emerald-50" },
+  "/agent/payout": { icon: Landmark, color: "text-blue-500", bg: "bg-blue-50" },
+  "/agent/kyc": { icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
   "/agent/customers": { icon: Users, color: "text-purple-500", bg: "bg-purple-50" },
   "/agent/catalog": { icon: CreditCard, color: "text-rose-500", bg: "bg-rose-50" },
   "/agent/sales": { icon: Sparkles, color: "text-teal-500", bg: "bg-teal-50" },
   "/agent/transactions": { icon: Receipt, color: "text-indigo-500", bg: "bg-indigo-50" },
   "/agent/reports": { icon: PieChart, color: "text-cyan-500", bg: "bg-cyan-50" },
   "/agent/profile": { icon: UserRound, color: "text-slate-600", bg: "bg-slate-100" },
-  "/agent/settings": { icon: Building2, color: "text-emerald-600", bg: "bg-emerald-50" },
 };
 
 export default function AgentMorePage() {
   const user = useSession((s) => s.user);
-  const { codes, fdProviders } = useDeskServices();
-  const items = useMemo(() => buildMoreItems(codes, fdProviders), [codes, fdProviders]);
+  const { codes, fdProviders, access } = useDeskServices();
+  const items = useMemo(() => buildMoreItems(codes, fdProviders, access), [codes, fdProviders, access]);
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="space-y-6">
       {/* Mini Profile Hub Banner */}
       <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 p-6 text-white shadow-lg">
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500/20 blur-2xl" />
@@ -65,9 +63,9 @@ export default function AgentMorePage() {
             const meta = ICONS[item.href] ?? { icon: Receipt, color: "text-slate-700", bg: "bg-slate-50" };
             const Icon = meta.icon;
             return (
-              <Link 
-                key={item.href} 
-                href={item.href} 
+              <Link
+                key={item.href}
+                href={item.href}
                 className="group flex items-center justify-between p-4 transition-colors hover:bg-slate-50/80"
               >
                 <div className="flex items-center gap-3.5">

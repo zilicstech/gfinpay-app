@@ -85,7 +85,7 @@ export function MerchantEkycDesk() {
   const allDone = !onboardingOpen && neededBanks.length > 0 && openBanks.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="space-y-5">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-navy-950">KYC</h1>
         <p className="mt-2 text-sm text-slate-500">
@@ -182,11 +182,11 @@ function applyScan(current: EkycState, scannedBank: string, message: string, nex
     dmtActive: next?.dmtActive ?? current.dmtActive,
     banks: current.banks.map((item) => item.bankName === pipe
       ? {
-          ...item,
-          status: next?.status || item.status,
-          dmtActive: next?.status === "SUCCESS" ? Boolean(next.pipeDmtActive) : item.dmtActive,
-          message,
-        }
+        ...item,
+        status: next?.status || item.status,
+        dmtActive: next?.status === "SUCCESS" ? Boolean(next.pipeDmtActive) : item.dmtActive,
+        message,
+      }
       : item),
   };
 }
@@ -244,7 +244,7 @@ function BankCard({
       method: "POST",
       headers: { "X-Request-Id": requestId },
       body: JSON.stringify({ stage, pipe: bank.bankName, ok, ...extra }),
-    }).catch(() => {});
+    }).catch(() => { });
   }
 
   const located = !bank.needsLocation || Boolean(point?.latitude && point?.longitude);
@@ -476,7 +476,7 @@ export function DmtActivation({ onActivated }: { onActivated: () => void }) {
   const readyBanks = (state?.banks ?? []).filter((bank) => bank.needed && casaOn(bank));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="space-y-5">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-navy-950">Activate DMT</h1>
         <p className="mt-2 text-sm text-slate-500">

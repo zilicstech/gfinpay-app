@@ -79,7 +79,7 @@ export default function AuditorRetailerDetailPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <Link href="/auditor/retailers" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950">
         ← Back to Retailers
       </Link>

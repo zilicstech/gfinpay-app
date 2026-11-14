@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Building2, Store, UserMinus, UserX } from "lucide-react";
+import { Building2, CheckCircle2, Copy, ExternalLink, Link2, Share2, Store, UserMinus, UserX } from "lucide-react";
 import { api, formatApiError, openDetails } from "@/lib/api-client";
 import { when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -88,7 +88,7 @@ export function InquiryList({ scope }: { scope: "admin" | "desk" }) {
         <h1 className="font-display text-2xl font-bold text-navy-950">Inquiries</h1>
         <p className="mt-1 text-sm text-navy-600">
           {scope === "desk"
-            ? "Partner enquiries assigned to you. Create a retailer when you are ready."
+            ? "Partner enquiries assigned to you. Send a self-service onboarding link when you are ready."
             : "Partner enquiries from the website."}
         </p>
       </div>
@@ -146,9 +146,8 @@ export function InquiryDetail({ scope }: { scope: "admin" | "desk" }) {
   const [distributorId, setDistributorId] = useState("");
   const [hubId, setHubId] = useState("");
   const [password, setPassword] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [pincode, setPincode] = useState("");
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const platform = userType === "SUPER_ADMIN" || userType === "ADMIN";
   const hubAdmin = userType === "HUBADMIN";
@@ -159,9 +158,6 @@ export function InquiryDetail({ scope }: { scope: "admin" | "desk" }) {
     const data = await api<PartnerInquiry>(`${basePath}/${id}`, { token });
     setRow(data);
     setHubId(data.hub_id ?? "");
-    const parts = (data.city ?? "").split(",").map((part) => part.trim()).filter(Boolean);
-    setCity(parts[0] ?? data.city ?? "");
-    setState(parts[1] ?? "");
   }
 
   useEffect(() => {
@@ -193,6 +189,22 @@ export function InquiryDetail({ scope }: { scope: "admin" | "desk" }) {
     setPassword("");
   }
 
+  async function sendOnboardingInvite() {
+    const updated = await api<PartnerInquiry & { invite?: { onboardingUrl?: string } }>(
+      `${basePath}/${id}/invite-retailer`,
+      {
+        token,
+        method: "POST",
+        body: "{}",
+      },
+    );
+    setRow(updated);
+    if (updated.invite?.onboardingUrl) {
+      setGeneratedLink(updated.invite.onboardingUrl);
+    }
+    setModal(null);
+  }
+
   if (error) return <Alert tone="error">{error}</Alert>;
   if (!row) return <div className="card h-48 animate-pulse bg-[#f5f5f5]" />;
 
@@ -217,7 +229,7 @@ export function InquiryDetail({ scope }: { scope: "admin" | "desk" }) {
   }
   if (!done && scope === "desk" && row.status === "WITH_DISTRIBUTOR") {
     actions.push(
-      { label: "Create retailer", icon: <Store className="h-4 w-4" />, onClick: () => setModal("convert-retailer") },
+      { label: "Send onboarding link", icon: <Link2 className="h-4 w-4" />, onClick: () => setModal("invite-retailer") },
     );
   }
 
@@ -243,6 +255,56 @@ export function InquiryDetail({ scope }: { scope: "admin" | "desk" }) {
         </div>
         {actions.length > 0 && <ManageMenu actions={actions} variant="onDark" />}
       </section>
+      {generatedLink && (
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
+          <div className="flex items-start gap-2.5 text-emerald-950">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5 text-xs">
+              <p className="font-bold">Retailer Onboarding Link Sent (+91 {row.mobile})</p>
+              <p className="text-emerald-800">
+                SMS dispatched. You can also copy or share this single-use link directly and track progress in Onboarding Funnel.
+              </p>
+            </div>
+          </div>
+          <p className="font-mono text-xs text-navy-950 bg-white border border-emerald-200/80 rounded-xl p-3 break-all select-all">
+            {generatedLink}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(generatedLink);
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
+              }}
+              className="btn-primary inline-flex items-center gap-1.5 text-xs"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {linkCopied ? "Copied!" : "Copy Link"}
+            </button>
+            <a
+              href={`https://wa.me/91${row.mobile}?text=${encodeURIComponent(
+                `Hi ${row.full_name}, complete your GFIN Retailer onboarding using this single-use verification link: ${generatedLink}`,
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-secondary inline-flex items-center gap-1.5 text-xs"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              WhatsApp
+            </a>
+            <a
+              href={generatedLink}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-secondary inline-flex items-center gap-1.5 text-xs"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open
+            </a>
+          </div>
+        </section>
+      )}
       <DetailGrid
         items={[
           { label: "Mobile", value: row.mobile },
@@ -285,11 +347,22 @@ export function InquiryDetail({ scope }: { scope: "admin" | "desk" }) {
         <SelectField label="Hub" required value={hubId} onChange={setHubId} options={hubs.map((hub) => ({ value: hub.id, label: hub.name }))} />
         <TextField label="Password" required type="password" value={password} onChange={setPassword} />
       </FormModal>
-      <FormModal open={modal === "convert-retailer"} title="Create retailer" description="Uses the name, mobile, and email from this inquiry." onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); post(`${basePath}/${id}/convert-retailer`, { password, city, state, pincode }).then(() => flash.ok("Retailer created. Inquiry marked converted.")).catch((err) => flash.fail(err, "Could not create retailer")); }} submitLabel="Create retailer" submitDisabled={password.length < 8 || !city || !state || pincode.length !== 6}>
-        <TextField label="City" required value={city} onChange={setCity} />
-        <TextField label="State" required value={state} onChange={setState} />
-        <TextField label="Pincode" required value={pincode} onChange={setPincode} />
-        <TextField label="Password" required type="password" value={password} onChange={setPassword} />
+      <FormModal
+        open={modal === "invite-retailer"}
+        title="Send retailer onboarding link"
+        description={`Dispatches a single-use self-service onboarding link to ${row.full_name} (+91 ${row.mobile}) under your network.`}
+        onClose={() => setModal(null)}
+        onSubmit={(e) => {
+          e.preventDefault();
+          sendOnboardingInvite()
+            .then(() => flash.ok("Onboarding invite link generated and sent."))
+            .catch((err) => flash.fail(err, "Could not send onboarding invite"));
+        }}
+        submitLabel="Send onboarding link"
+      >
+        <p className="text-sm text-navy-600">
+          The retailer will verify their mobile OTP, complete self-service KYC, and set their own credentials. Approval and document review remain strictly with Platform Admin.
+        </p>
       </FormModal>
     </div>
   );

@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function OnboardingRedirect() {
-  redirect("/admin/distributors");
+import { OnboardingFunnel } from "@/features/onboarding/OnboardingFunnel";
+
+export default function AdminOnboardingFunnelPage() {
+  return <OnboardingFunnel scope="ADMIN" />;
 }

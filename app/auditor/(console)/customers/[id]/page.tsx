@@ -40,7 +40,7 @@ export default function AuditorCustomerDetailPage() {
   if (!row) return <div className="card h-48 animate-pulse bg-slate-100" />;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6">
       <Link href="/auditor/customers" className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-navy-950">
         ← Customers
       </Link>

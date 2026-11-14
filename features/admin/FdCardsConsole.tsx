@@ -215,7 +215,7 @@ export function FdCardsConsole({ token }: { token: string | null }) {
         <div className="flex items-end justify-between gap-2">
           <div>
             <h2 className="font-display text-xl text-navy-950">Your FD cards</h2>
-            <p className="mt-1 text-sm text-navy-600">Tap configure to set onboarding links. PaySprint SBM uses a runtime URL.</p>
+            <p className="mt-1 text-sm text-navy-600">SBM and IOB use the ZET links. DCB uses the GrowMore link.</p>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

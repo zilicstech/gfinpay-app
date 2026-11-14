@@ -6,7 +6,7 @@ import { useSession } from "@/stores/session.store";
 export default function AdminAuditPage() {
   const token = useSession((s) => s.token);
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="space-y-6">
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Platform</p>
         <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-navy-950 sm:text-4xl">Audit</h1>

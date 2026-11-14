@@ -3,15 +3,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  ArrowRight, 
+import {
+  ArrowRight,
   BadgeCheck,
-  Building2, 
-  Copy, 
-  Plus, 
-  Search, 
+  Building2,
+  Copy,
+  Link2,
+  Plus,
+  Search,
   ShieldAlert,
-  Users 
+  Users
 } from "lucide-react";
 import { api, openDetails } from "@/lib/api-client";
 import { when } from "@/lib/format";
@@ -19,6 +20,7 @@ import { useSession } from "@/stores/session.store";
 import { EmptyState, StatusPill } from "@/components/ui/primitives";
 import { Flash, FormModal, SelectField, useFlash } from "@/features/admin/AdminChrome";
 import { emptyRetailerDraft, RetailerOnboardFields, retailerDraftReady, type RetailerDraft } from "@/features/admin/retailer-form";
+import { InviteModal } from "@/features/onboarding/InviteModal";
 import type { UserRow } from "@/features/admin/types";
 
 export default function RetailersPage() {
@@ -36,6 +38,7 @@ export default function RetailersPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Modal state
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<RetailerDraft>(emptyRetailerDraft);
   const [distributorId, setDistributorId] = useState("");
@@ -110,7 +113,7 @@ export default function RetailersPage() {
   }, [retailers, statusTab, query]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -125,14 +128,22 @@ export default function RetailersPage() {
           </p>
         </div>
 
-        <button
-          className="btn-primary inline-flex items-center gap-2"
-          onClick={() => setOpen(true)}
-          disabled={distributors.length === 0}
-        >
-          <Plus className="h-4 w-4" />
-          New Retailer
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/onboarding"
+            className="btn-secondary inline-flex items-center gap-1.5 text-xs"
+          >
+            Onboarding Funnel
+          </Link>
+          <button
+            className="btn-primary inline-flex items-center gap-2"
+            onClick={() => setInviteOpen(true)}
+            disabled={distributors.length === 0}
+          >
+            <Link2 className="h-4 w-4" />
+            Invite Retailer
+          </button>
+        </div>
       </div>
 
       <Flash message={flash.message} error={flash.error} />
@@ -157,11 +168,10 @@ export default function RetailersPage() {
                   key={key}
                   type="button"
                   onClick={() => setStatusTab(key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    isActive
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${isActive
                       ? "bg-navy-950 text-white shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                   {isActive && ` (${filteredRetailers.length})`}
@@ -210,7 +220,7 @@ export default function RetailersPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredRetailers.map((u) => {
-                  const isVerified = ["COMPLETED", "VERIFIED"].includes((u.kyc_status ?? "").toUpperCase());
+                  const isVerified = u.business_status === "BUSINESS_VERIFIED";
                   return (
                     <tr key={u.id} className="transition-colors hover:bg-slate-50/60 group">
                       {/* 1. Retailer */}
@@ -219,14 +229,14 @@ export default function RetailersPage() {
                           {isVerified ? (
                             <span
                               className="mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-500/25 shrink-0"
-                              title="eKYC Verified"
+                              title="Business Verified"
                             >
                               <BadgeCheck className="h-4 w-4" />
                             </span>
                           ) : (
                             <span
                               className="mt-0.5 inline-flex items-center justify-center h-6 w-6 rounded-full bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-500/25 shrink-0"
-                              title="eKYC Unverified"
+                              title="Not verified"
                             >
                               <ShieldAlert className="h-4 w-4" />
                             </span>
@@ -255,75 +265,83 @@ export default function RetailersPage() {
                         </div>
                       </td>
 
-                    {/* 2. Distributor */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        {u.parent_id ? (
-                          <Link
-                            href={`/admin/distributors/${u.parent_id}`}
-                            className="text-xs font-semibold text-navy-900 hover:text-emerald-600 transition-colors"
-                          >
-                            {u.parent_name ?? "—"}
-                          </Link>
-                        ) : (
+                      {/* 2. Distributor */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          {u.parent_id ? (
+                            <Link
+                              href={`/admin/distributors/${u.parent_id}`}
+                              className="text-xs font-semibold text-navy-900 hover:text-emerald-600 transition-colors"
+                            >
+                              {u.parent_name ?? "—"}
+                            </Link>
+                          ) : (
+                            <span className="text-xs font-semibold text-navy-900">
+                              {u.parent_name ?? "—"}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 3. Hub */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span className="text-xs font-semibold text-navy-900">
-                            {u.parent_name ?? "—"}
+                            {u.hub_name ?? "Unassigned Hub"}
                           </span>
-                        )}
-                      </div>
-                    </td>
+                        </div>
+                      </td>
 
-                    {/* 3. Hub */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                        <span className="text-xs font-semibold text-navy-900">
-                          {u.hub_name ?? "Unassigned Hub"}
-                        </span>
-                      </div>
-                    </td>
+                      {/* 4. Created By */}
+                      <td className="px-6 py-4">
+                        <div className="text-xs">
+                          <p className="font-medium text-slate-800">
+                            {u.created_by_name || u.created_by || "Platform Admin"}
+                          </p>
+                          {u.created_by_code && (
+                            <span className="font-mono text-[10px] text-slate-400">{u.created_by_code}</span>
+                          )}
+                        </div>
+                      </td>
 
-                    {/* 4. Created By */}
-                    <td className="px-6 py-4">
-                      <div className="text-xs">
-                        <p className="font-medium text-slate-800">
-                          {u.created_by_name || u.created_by || "Platform Admin"}
-                        </p>
-                        {u.created_by_code && (
-                          <span className="font-mono text-[10px] text-slate-400">{u.created_by_code}</span>
-                        )}
-                      </div>
-                    </td>
+                      {/* 5. Created On */}
+                      <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
+                        {u.created_at ? when(u.created_at) : "—"}
+                      </td>
 
-                    {/* 5. Created On */}
-                    <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">
-                      {u.created_at ? when(u.created_at) : "—"}
-                    </td>
+                      {/* 6. Status */}
+                      <td className="px-6 py-4">
+                        <StatusPill value={u.status} />
+                      </td>
 
-                    {/* 6. Status */}
-                    <td className="px-6 py-4">
-                      <StatusPill value={u.status} />
-                    </td>
-
-                    {/* 7. Action */}
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        href={`/admin/retailers/${u.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors"
-                      >
-                        Manage
-                        <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+                      {/* 7. Action */}
+                      <td className="px-6 py-4 text-right">
+                        <Link
+                          href={`/admin/retailers/${u.id}`}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors"
+                        >
+                          Manage
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
             </table>
           </div>
         )}
       </div>
+
+      <InviteModal
+        open={inviteOpen}
+        role="RETAILER"
+        distributors={distributors}
+        onClose={() => setInviteOpen(false)}
+        onCreated={() => flash.ok("Onboarding invite link created and dispatched.")}
+      />
 
       {/* Onboarding Modal */}
       <FormModal

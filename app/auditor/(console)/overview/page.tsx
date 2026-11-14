@@ -35,7 +35,7 @@ export default function AuditorOverviewPage() {
   const recentWallets = (wallets ?? []).slice(0, 5);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8">
       <Flash message={flash.message} error={flash.error} />
 
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">

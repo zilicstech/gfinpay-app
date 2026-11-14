@@ -1,12 +1,7 @@
 "use client";
 
-import { RequireDeskService } from "@/features/desk/DeskServices";
-import { UpiCashoutDesk } from "@/features/cashout/UpiCashoutDesk";
+import { CashDesk } from "@/features/cash/CashDesk";
 
 export default function UpiCashoutPage() {
-  return (
-    <RequireDeskService anyOf={["UPI_CASHOUT"]} fallbackHref="/agent/dashboard">
-      <UpiCashoutDesk />
-    </RequireDeskService>
-  );
+  return <CashDesk />;
 }

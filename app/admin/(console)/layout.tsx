@@ -7,6 +7,7 @@ import { useSession } from "@/stores/session.store";
 
 const SUPER_NAV = [
   { href: "/admin/analytics", label: "Overview" },
+  { href: "/admin/onboarding", label: "Onboarding" },
   { href: "/admin/distributors", label: "Distributors" },
   { href: "/admin/retailers", label: "Retailers" },
   { href: "/admin/inquiries", label: "Inquiries" },
@@ -27,6 +28,7 @@ const SUPER_NAV = [
 
 const HUB_NAV = [
   { href: "/admin/analytics", label: "Overview" },
+  { href: "/admin/onboarding", label: "Onboarding" },
   { href: "/admin/distributors", label: "Distributors" },
   { href: "/admin/retailers", label: "Retailers" },
   { href: "/admin/inquiries", label: "Inquiries" },

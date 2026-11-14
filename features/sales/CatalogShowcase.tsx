@@ -298,25 +298,18 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
   }, [token, hospi]);
   const hospiPrice = hospiMoney(offer);
   const visible = useMemo(() => {
-    const rows = categories
+    const removed = new Set(["CREDIT_CARD", "INSTANT_LOAN", "PERSONAL_LOAN", "BUSINESS_LOAN", "SAVINGS", "LEAD_GEN"]);
+    const rest = categories
+      .filter((category) => !removed.has(category.code))
       .map((category) => ({
         ...category,
-        items:
-          category.code === "FD_CARD"
-            ? []
-            : category.items.filter((item) => item.active && item.rail !== "ZET_LINK"),
+        items: category.items.filter((item) => item.active && item.provider !== "PAYSPRINT" && item.rail !== "PAYSPRINT_LEAD" && item.rail !== "PAYSPRINT_FD"),
       }))
-      .filter((category) => category.code === "FD_CARD" || category.items.length > 0);
-    const fd = rows.filter((category) => category.code === "FD_CARD");
-    const rest = rows.filter((category) => category.code !== "FD_CARD");
-    const lead =
-      fd.length > 0
-        ? fd.map((category) => ({ ...category, name: "FD Credit Card" }))
-        : [{ code: "FD_CARD", name: "FD Credit Card", items: [] }];
+      .filter((category) => category.items.length > 0);
     const hospiCategory = hospi
       ? [{ code: "HOSPI_CASH", name: "Hospi Cash", items: [HOSPI_ITEM] }]
       : [];
-    return [...lead, ...hospiCategory, ...rest];
+    return [...hospiCategory, ...rest];
   }, [categories, hospi]);
   const [categoryCode, setCategoryCode] = useState("ALL");
   const shown = categoryCode === "ALL" ? visible : visible.filter((category) => category.code === categoryCode);
@@ -345,8 +338,8 @@ export function CatalogShowcase({ categories }: { categories: CatalogCategory[] 
           <h1 className="mt-4 font-display text-4xl tracking-tight sm:text-5xl">What would you like today?</h1>
           <p className="mt-3 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">
             {hospi
-              ? "Credit cards, a hospital cash card, loans, and savings accounts. Cards and accounts are applied for on your phone. Hospi Cash is paid at this counter."
-              : "Credit cards, loans, and savings accounts. You apply on your phone. The bank decides approval, and the money stays with the bank."}
+              ? "Hospi Cash is paid at this counter."
+              : "Products appear here when they are available to offer."}
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-300 px-3 py-1.5 font-semibold text-black">

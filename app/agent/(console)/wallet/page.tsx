@@ -68,7 +68,11 @@ export default function WalletPage() {
   const [settleAmount, setSettleAmount] = useState("");
   const [payoutId, setPayoutId] = useState("");
   const [settleBusy, setSettleBusy] = useState(false);
-  const [newBank, setNewBank] = useState({ accountName: "", accountNumber: "", ifsc: "", bankName: "" });
+  const [newBank, setNewBank] = useState({
+    accountNumber: "",
+    ifsc: "",
+    accountType: "SAVINGS" as "SAVINGS" | "CURRENT",
+  });
 
   async function loadData() {
     if (!token) return;
@@ -182,14 +186,20 @@ export default function WalletPage() {
       const created = await api<PayoutAccount>("/api/v1/wallet/banks", {
         token,
         method: "POST",
-        body: JSON.stringify(newBank),
+        body: JSON.stringify({
+          accountNumber: newBank.accountNumber.replace(/\D/g, ""),
+          ifsc: newBank.ifsc.trim().toUpperCase(),
+          accountType: newBank.accountType,
+          verify: true,
+        }),
       });
       setPayouts((current) => [created, ...current]);
       setPayoutId(created.id);
-      setNewBank({ accountName: "", accountNumber: "", ifsc: "", bankName: "" });
-      flash.ok("Bank account added. You can request the withdrawal now.");
+      setNewBank({ accountNumber: "", ifsc: "", accountType: "SAVINGS" });
+      window.dispatchEvent(new Event("gfin-verification-updated"));
+      flash.ok(`Bank account verified (${created.verified_name || created.account_name}). You can request the withdrawal now.`);
     } catch (err) {
-      flash.fail(err, "Could not add the bank account");
+      flash.fail(err, "Bank verification failed. Check the account number and IFSC code.");
     } finally {
       setSettleBusy(false);
     }
@@ -205,6 +215,7 @@ export default function WalletPage() {
   }
 
   const activePayouts = payouts.filter((row) => row.active !== false);
+  const hasVerifiedBank = activePayouts.some((row) => row.verification_status === "VERIFIED");
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
@@ -227,7 +238,7 @@ export default function WalletPage() {
 
   if (loading && !wallet) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         <div className="h-40 rounded-[2.5rem] animate-pulse bg-slate-100" />
         <div className="h-64 rounded-[2.5rem] animate-pulse bg-slate-100" />
       </div>
@@ -235,7 +246,7 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <section className="relative overflow-hidden rounded-[2.5rem] bg-navy-950 p-6 sm:p-8 shadow-xl border border-navy-800">
         <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-gradient-to-bl from-emerald-500/15 via-teal-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 grid gap-6 sm:grid-cols-2">
@@ -257,6 +268,23 @@ export default function WalletPage() {
       </section>
 
       <Flash message={flash.message} error={flash.error} />
+
+      {!hasVerifiedBank && (
+        <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Wallet Activation Required</p>
+            <p className="text-sm font-semibold text-navy-950">
+              Verify your settlement bank account via penny-drop to activate wallet top-ups, cash-out, payout, DMT, and withdrawals.
+            </p>
+          </div>
+          <Link
+            href="/agent/profile?tab=banks"
+            className="btn-primary text-xs whitespace-nowrap"
+          >
+            Verify Bank Account →
+          </Link>
+        </div>
+      )}
 
       <section className="rounded-[2.5rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-4">
         <div>
@@ -369,27 +397,24 @@ export default function WalletPage() {
             <button
               type="button"
               onClick={() => setFilterType("ALL")}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                filterType === "ALL" ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950 hover:bg-white/60"
-              }`}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${filterType === "ALL" ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950 hover:bg-white/60"
+                }`}
             >
               All entries ({rows.length})
             </button>
             <button
               type="button"
               onClick={() => setFilterType("CREDIT")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                filterType === "CREDIT" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-emerald-700 hover:bg-white/60"
-              }`}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${filterType === "CREDIT" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-emerald-700 hover:bg-white/60"
+                }`}
             >
               Credits (+{creditCount})
             </button>
             <button
               type="button"
               onClick={() => setFilterType("DEBIT")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                filterType === "DEBIT" ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950 hover:bg-white/60"
-              }`}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${filterType === "DEBIT" ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950 hover:bg-white/60"
+                }`}
             >
               Debits (-{debitCount})
             </button>
@@ -434,9 +459,8 @@ export default function WalletPage() {
                     <tr key={r.id} className="transition-colors hover:bg-slate-50/60">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`grid h-9 w-9 place-items-center rounded-xl shrink-0 ${
-                            isCredit ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20" : "bg-rose-50 text-rose-600 ring-1 ring-rose-500/20"
-                          }`}>
+                          <div className={`grid h-9 w-9 place-items-center rounded-xl shrink-0 ${isCredit ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20" : "bg-rose-50 text-rose-600 ring-1 ring-rose-500/20"
+                            }`}>
                             {isCredit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                           </div>
                           <div>
@@ -610,24 +634,40 @@ export default function WalletPage() {
           {activePayouts.length === 0 ? (
             <form onSubmit={addPayout} className="space-y-3">
               <p className="text-sm text-slate-600">
-                Add the bank account that should receive this withdrawal. You can manage accounts later in{" "}
-                <Link href="/agent/settings" className="font-semibold text-navy-950 underline">Settings</Link>.
+                Enter your account number and IFSC code to verify and link your payout bank account. You can manage accounts later in{" "}
+                <Link href="/agent/profile?tab=banks" className="font-semibold text-navy-950 underline">My Profile → Bank</Link>.
               </p>
-              <Field label="Account name">
-                <input required className="field" value={newBank.accountName} onChange={(e) => setNewBank({ ...newBank, accountName: e.target.value })} />
-              </Field>
               <Field label="Account number">
-                <input required className="field font-mono" value={newBank.accountNumber} onChange={(e) => setNewBank({ ...newBank, accountNumber: e.target.value })} />
+                <input
+                  required
+                  placeholder="e.g. 219101000000000"
+                  className="field font-mono"
+                  value={newBank.accountNumber}
+                  onChange={(e) => setNewBank({ ...newBank, accountNumber: e.target.value.replace(/\D/g, "").slice(0, 18) })}
+                />
               </Field>
-              <Field label="IFSC">
-                <input required className="field font-mono" value={newBank.ifsc} onChange={(e) => setNewBank({ ...newBank, ifsc: e.target.value })} />
+              <Field label="IFSC code">
+                <input
+                  required
+                  placeholder="e.g. BARB0DAMOHA"
+                  className="field font-mono"
+                  value={newBank.ifsc}
+                  onChange={(e) => setNewBank({ ...newBank, ifsc: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11) })}
+                />
               </Field>
-              <Field label="Bank">
-                <input required className="field" value={newBank.bankName} onChange={(e) => setNewBank({ ...newBank, bankName: e.target.value })} />
+              <Field label="Account type">
+                <select
+                  className="field"
+                  value={newBank.accountType}
+                  onChange={(e) => setNewBank({ ...newBank, accountType: e.target.value === "CURRENT" ? "CURRENT" : "SAVINGS" })}
+                >
+                  <option value="SAVINGS">Savings Account</option>
+                  <option value="CURRENT">Current Account</option>
+                </select>
               </Field>
               <div className="flex justify-end">
                 <button type="submit" className="btn-primary" disabled={settleBusy}>
-                  {settleBusy ? "Saving..." : "Save bank account"}
+                  {settleBusy ? "Verifying with Bank..." : "Verify & Save Bank"}
                 </button>
               </div>
             </form>
@@ -676,7 +716,7 @@ export default function WalletPage() {
               </Field>
               <p className="text-xs text-slate-500">
                 Need another account? Add it in{" "}
-                <Link href="/agent/settings" className="font-semibold text-navy-950 underline">Settings</Link>.
+                <Link href="/agent/profile?tab=banks" className="font-semibold text-navy-950 underline">My Profile → Bank</Link>.
               </p>
               <div className="flex justify-end gap-2">
                 <button type="button" className="btn-secondary" onClick={() => setSettleOpen(false)}>Cancel</button>

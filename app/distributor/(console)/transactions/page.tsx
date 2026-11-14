@@ -2,17 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { 
-  ArrowRight, 
-  Building2, 
-  CheckCircle2, 
-  Copy, 
-  IndianRupee, 
-  Percent, 
-  Search, 
-  Store, 
-  TrendingUp, 
-  XCircle 
+import {
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  Copy,
+  IndianRupee,
+  Percent,
+  Search,
+  Store,
+  TrendingUp,
+  XCircle
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { inr, txnLabel, when } from "@/lib/format";
@@ -81,7 +81,7 @@ export default function DistributorTransactionsPage() {
   }, [rows, statusFilter, query]);
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -136,11 +136,10 @@ export default function DistributorTransactionsPage() {
                 key={s}
                 type="button"
                 onClick={() => setStatusFilter(s)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  statusFilter === s
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${statusFilter === s
                     ? "bg-navy-950 text-white shadow-xs"
                     : "text-slate-600 hover:text-navy-950"
-                }`}
+                  }`}
               >
                 {s === "ALL" ? "All Statuses" : s}
               </button>

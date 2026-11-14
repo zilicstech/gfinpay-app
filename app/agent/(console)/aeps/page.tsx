@@ -1,12 +1,7 @@
 "use client";
 
-import { RequireDeskService } from "@/features/desk/DeskServices";
-import { AepsDesk } from "@/features/aeps/AepsDesk";
+import { CashDesk } from "@/features/cash/CashDesk";
 
 export default function AgentAepsPage() {
-  return (
-    <RequireDeskService anyOf={["AEPS"]} fallbackHref="/agent/dashboard">
-      <AepsDesk />
-    </RequireDeskService>
-  );
+  return <CashDesk defaultTab="AEPS" />;
 }

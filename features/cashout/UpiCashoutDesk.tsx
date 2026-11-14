@@ -1,380 +1,548 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Banknote, CheckCircle2, Clock, HandCoins, QrCode, RefreshCw, RotateCcw } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  ArrowUpRight,
+  Banknote,
+  CheckCircle2,
+  Clock,
+  HandCoins,
+  IndianRupee,
+  QrCode,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
-import { inr } from "@/lib/format";
+import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
-import { StatusPill } from "@/components/ui/primitives";
-import { Flash, useFlash } from "@/features/admin/AdminChrome";
+import { Alert, StatusPill } from "@/components/ui/primitives";
+import { readLocation } from "@/features/ekyc/rd-service";
 
-const DONE_MESSAGE = "ps-upi-cashout-done";
-
-type CashoutSession = {
-  id?: string;
-  amount?: number;
-  status: string;
+type CashoutSessionView = {
+  id: string;
+  transactionId?: string | null;
+  amount: number;
+  payableValue?: number;
+  status: "INITIATED" | "QR_GENERATED" | "PAID" | "CASH_DISPENSED" | "FAILED" | "EXPIRED" | "REVERSED" | string;
+  qrString?: string | null;
+  displayExpirySec?: number;
   customerName?: string | null;
   customerMobile?: string | null;
   bankRrn?: string | null;
-  ackno?: string | null;
-  errCode?: string | null;
+  utr?: string | null;
   errMsg?: string | null;
   payerName?: string | null;
-  refid?: number | null;
+  payerVpa?: string | null;
+  refid?: string | null;
+  expiresAt?: string | null;
+  paidAt?: string | null;
+  dispensedAt?: string | null;
+  createdAt?: string | null;
 };
 
-function openPopup(): Window | null {
-  const width = 460;
-  const height = 760;
-  const left = Math.max(0, window.screenX + (window.outerWidth - width) / 2);
-  const top = Math.max(0, window.screenY + (window.outerHeight - height) / 2);
-  return window.open(
-    "about:blank",
-    "ps_upi_cashout",
-    `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
-  );
-}
+const QUICK_AMOUNTS = [200, 500, 1000, 2000, 3000, 5000];
 
-export function UpiCashoutDesk() {
+export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
   const token = useSession((s) => s.token);
-  const flash = useFlash();
-  const popupRef = useRef<Window | null>(null);
+  const loadProfile = useSession((s) => s.loadProfile);
+
+  const [amountInput, setAmountInput] = useState("500");
+  const [customerMobile, setCustomerMobile] = useState("");
+  const [customerName, setCustomerName] = useState("");
+
+  const [activeSession, setActiveSession] = useState<CashoutSessionView | null>(null);
+  const [history, setHistory] = useState<CashoutSessionView[]>([]);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   const [busy, setBusy] = useState(false);
-  const [hosting, setHosting] = useState(false);
-  const [session, setSession] = useState<CashoutSession | null>(null);
-  const [dismissedId, setDismissedId] = useState<string | null>(null);
-  const [ekycReady, setEkycReady] = useState<boolean | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
 
-  async function loadLatest() {
+  const loadHistory = useCallback(async () => {
     if (!token) return;
-    const row = await api<CashoutSession>("/api/v1/cashout/upi/latest", { token });
-    if (!row.id || row.status === "NONE") {
-      setSession((current) => (current?.status === "NONE" ? current : null));
+    try {
+      const rows = await api<CashoutSessionView[]>("/api/v1/cashout/upi/history", { token });
+      setHistory(Array.isArray(rows) ? rows : []);
+    } catch {
+      /* ignore background history error */
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    loadHistory();
+    api<CashoutSessionView | { status: "NONE" }>("/api/v1/cashout/upi/latest", { token })
+      .then((res) => {
+        if ("id" in res && res.id && (res.status === "QR_GENERATED" || res.status === "PAID")) {
+          setActiveSession(res);
+        }
+      })
+      .catch(() => undefined);
+  }, [token, loadHistory]);
+
+  // Countdown timer for active QR
+  useEffect(() => {
+    if (!activeSession || activeSession.status !== "QR_GENERATED" || !activeSession.expiresAt) {
+      setSecondsLeft(null);
       return;
     }
-    setSession((current) => {
-      if (row.id === dismissedId && current == null) return null;
-      return row;
-    });
+    const expMs = new Date(activeSession.expiresAt).getTime();
+    const tick = () => {
+      const rem = Math.max(0, Math.floor((expMs - Date.now()) / 1000));
+      setSecondsLeft(rem);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [activeSession]);
+
+  // Auto-poll every 3.5s while QR is awaiting payment
+  useEffect(() => {
+    if (!token || !activeSession || activeSession.status !== "QR_GENERATED") return;
+    const poll = window.setInterval(async () => {
+      try {
+        const next = await api<CashoutSessionView>(`/api/v1/cashout/upi/${activeSession.id}/refresh`, {
+          token,
+          method: "POST",
+          body: "{}",
+        });
+        setActiveSession(next);
+        if (next.status !== "QR_GENERATED") {
+          loadHistory();
+          if (next.status === "PAID") {
+            loadProfile().catch(() => undefined);
+          }
+        }
+      } catch {
+        /* ignore transient poll error */
+      }
+    }, 3500);
+    return () => window.clearInterval(poll);
+  }, [token, activeSession, loadHistory, loadProfile]);
+
+  async function handleGenerateQr(e: FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+
+    const amt = Number(amountInput);
+    if (!Number.isInteger(amt) || amt < 200 || amt > 5000 || amt % 100 !== 0) {
+      setError("Amount must be between ₹200 and ₹5,000 in multiples of ₹100.");
+      return;
+    }
+    const cleanMob = customerMobile.replace(/\D/g, "");
+    if (cleanMob.length !== 10) {
+      setError("Enter a valid 10-digit customer mobile number.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setOkMsg(null);
+    try {
+      let coords: { latitude?: string; longitude?: string } = {};
+      try {
+        coords = await readLocation();
+      } catch {
+        /* backend falls back to verified shop coordinates when browser GPS is unavailable */
+      }
+
+      const created = await api<CashoutSessionView>("/api/v1/cashout/upi/generate-qr", {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          amount: amt,
+          customerMobile: cleanMob,
+          customerName: customerName.trim() || undefined,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        }),
+      });
+      setActiveSession(created);
+      loadHistory();
+    } catch (err) {
+      setError(formatApiError(err, "Could not generate UPI Cashout QR code"));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  useEffect(() => {
+  async function handleVerifyStatus(sessionId: string) {
     if (!token) return;
-    api<{ banks?: { bankName: string; needed: boolean; status: string }[] }>("/api/v1/me/ekyc", { token })
-      .then((res) => {
-        const bank6 = res.banks?.find((bank) => bank.bankName === "bank6");
-        setEkycReady(!bank6?.needed || bank6.status === "SUCCESS");
-      })
-      .catch(() => setEkycReady(false));
-  }, [token]);
-
-  useEffect(() => {
-    if (!token) return;
-    loadLatest().catch(() => {});
-    // The desk rebuilds from the latest session whenever it is opened, including a same-tab return.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  useEffect(() => {
-    function onMessage(event: MessageEvent) {
-      if (event.origin !== window.location.origin) return;
-      if (event.data !== DONE_MESSAGE) return;
-      setHosting(false);
-      popupRef.current = null;
-      loadLatest().catch(() => {});
-    }
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, dismissedId]);
-
-  useEffect(() => {
-    if (!hosting) return;
-    const timer = setInterval(() => {
-      const popup = popupRef.current;
-      if (popup && popup.closed) {
-        setHosting(false);
-        popupRef.current = null;
-        loadLatest().catch(() => {});
-      }
-    }, 500);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hosting, token, dismissedId]);
-
-  useEffect(() => {
-    if (!token || !session?.id) return;
-    if (session.status !== "INITIATED" && session.status !== "AWAITING_PAYMENT") return;
-    const interval = setInterval(() => {
-      api<CashoutSession>(`/api/v1/cashout/upi/${session.id}`, { token })
-        .then((next) => setSession(next))
-        .catch(() => {});
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [token, session?.id, session?.status]);
-
-  async function startCashout() {
-    const popup = openPopup();
-    setBusy(true);
-    flash.clear();
+    setRefreshing(true);
+    setError(null);
+    setOkMsg(null);
     try {
-      const res = await api<{ url: string }>("/api/v1/cashout/upi/token", { token, method: "POST" });
-      if (!res.url) {
-        popup?.close();
-        flash.fail(null, "PaySprint did not return a cash-out page");
-        return;
+      const next = await api<CashoutSessionView>(`/api/v1/cashout/upi/${sessionId}/refresh`, {
+        token,
+        method: "POST",
+        body: "{}",
+      });
+      if (activeSession?.id === sessionId) {
+        setActiveSession(next);
       }
-      setDismissedId(null);
-      if (popup) {
-        popup.location.href = res.url;
-        popupRef.current = popup;
-        setHosting(true);
+      loadHistory();
+      if (next.status === "PAID" || next.status === "CASH_DISPENSED") {
+        setOkMsg(`Payment confirmed! UTR: ${next.utr || next.bankRrn || "Confirmed"}.`);
+        loadProfile().catch(() => undefined);
+      } else if (next.status === "FAILED" || next.status === "EXPIRED") {
+        setError(next.errMsg || `QR session is ${next.status.toLowerCase()}.`);
       } else {
-        window.location.assign(res.url);
+        setOkMsg("Customer payment is still pending on the UPI switch.");
       }
     } catch (err) {
-      popup?.close();
-      flash.fail(err, formatApiError(err, "Could not start the cash out"));
+      setError(formatApiError(err, "Could not verify QR payment status"));
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
   }
 
-  async function refreshFromBank() {
-    if (!session?.id) return;
+  async function handleDispenseCash() {
+    if (!token || !activeSession) return;
     setBusy(true);
-    flash.clear();
+    setError(null);
     try {
-      const next = await api<CashoutSession>(`/api/v1/cashout/upi/${session.id}/refresh`, { token, method: "POST" });
-      setSession(next);
+      const next = await api<CashoutSessionView>(`/api/v1/cashout/upi/${activeSession.id}/dispense`, {
+        token,
+        method: "POST",
+        body: "{}",
+      });
+      setActiveSession(next);
+      setOkMsg("Cash handover recorded! Ready for your next customer.");
+      loadHistory();
     } catch (err) {
-      flash.fail(err, formatApiError(err, "Could not refresh the cash out"));
+      setError(formatApiError(err, "Could not mark cash dispensed"));
     } finally {
       setBusy(false);
     }
   }
 
-  async function confirmCashDispensed() {
-    if (!session?.id) return;
-    setBusy(true);
-    flash.clear();
-    try {
-      const next = await api<CashoutSession>(`/api/v1/cashout/upi/${session.id}/dispense`, { token, method: "POST" });
-      setSession(next);
-    } catch (err) {
-      flash.fail(err, formatApiError(err, "Could not record the cash handover"));
-    } finally {
-      setBusy(false);
-    }
+  function startNewQr() {
+    setActiveSession(null);
+    setError(null);
+    setOkMsg(null);
   }
-
-  function startAgain() {
-    setDismissedId(session?.id ?? null);
-    setSession(null);
-    flash.clear();
-  }
-
-  if (ekycReady === false) {
-    return (
-      <div className="mx-auto max-w-xl rounded-[2rem] border border-amber-200 bg-amber-50 p-8">
-        <h1 className="font-display text-2xl font-bold text-navy-950">Finish cash out eKYC first</h1>
-        <p className="mt-2 text-sm text-slate-600">Cash out stays closed until the bank accepts the fingerprint scan.</p>
-        <Link href="/agent/kyc" className="mt-4 inline-block rounded-xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white">
-          Open eKYC
-        </Link>
-      </div>
-    );
-  }
-
-  const waiting = session?.status === "INITIATED" || session?.status === "AWAITING_PAYMENT";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 p-6 text-white shadow-xl sm:p-8">
-        <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400">
-            <QrCode className="h-4 w-4" />
-            UPI Instant Cashout Terminal
-          </div>
-          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">UPI to Cash Withdrawal</h1>
-          <p className="mt-2 max-w-xl text-sm text-slate-400">
-            The customer finishes fingerprint check and UPI payment in a window over this page. Hand over cash only after the payment shows here.
+    <div className="space-y-6">
+      {!embedded && (
+        <div>
+          <h1 className="font-display text-2xl font-bold text-navy-950">UPI to Cashout</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Generate a dynamic UPI ATM QR code. Your operating wallet is credited automatically once the customer pays.
           </p>
         </div>
-      </div>
-
-      <Flash message={flash.message} error={flash.error} />
-
-      {hosting && (
-        <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-navy-950/10 bg-navy-950 px-5 py-4 text-white sm:flex-row sm:items-center">
-          <div>
-            <p className="font-semibold">Finish in the PaySprint window</p>
-            <p className="mt-1 text-sm text-slate-300">This page updates as soon as the payment is confirmed.</p>
-          </div>
-          <button type="button" className="btn-secondary" onClick={() => popupRef.current?.focus()}>
-            Show the window
-          </button>
-        </div>
       )}
 
-      {!session ? (
-        <div className="grid gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <div className="space-y-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">New Cashout</span>
-                <h3 className="text-xl font-bold text-navy-950">Start a cash out</h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  Amount, customer mobile, and the fingerprint check are collected by PaySprint. This page stays open behind that window.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={startCashout}
-                disabled={busy || ekycReady !== true}
-                className="btn-primary w-full justify-center py-4 text-base"
-              >
-                {busy ? "Opening cash out…" : "Start UPI cash out"}
-              </button>
-            </div>
-          </div>
-          <div className="lg:col-span-5">
-            <div className="space-y-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm">
-              <h3 className="font-display text-lg font-bold text-navy-950">How UPI Cashout Works</h3>
-              <ol className="space-y-4 text-sm text-slate-600">
-                <li className="flex items-start gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy-950 text-xs font-bold text-white">1</span>
-                  <span>Start the cash out. A PaySprint window opens over this page.</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy-950 text-xs font-bold text-white">2</span>
-                  <span>The customer completes the fingerprint check and pays the QR in that window.</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy-950 text-xs font-bold text-white">3</span>
-                  <span>This page shows the amount once payment is confirmed. Count the cash and hand it over.</span>
-                </li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="relative space-y-8 overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white p-6 shadow-2xl sm:p-10">
-          {waiting && (
-            <div className="mx-auto max-w-lg space-y-6 text-center">
-              <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-500/30">
-                <Clock className="h-3.5 w-3.5" />
-                {session.status === "INITIATED" ? "Waiting for the customer" : "QR is live, waiting for payment"}
-              </div>
-              <div>
-                <h2 className="font-display text-2xl font-bold text-navy-950">
-                  {session.amount != null ? inr(session.amount) : "Cash out in progress"}
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {session.customerName || "Customer"}{session.customerMobile ? ` · +91 ${session.customerMobile}` : ""}
-                </p>
-              </div>
-              <button type="button" onClick={refreshFromBank} disabled={busy} className="btn-secondary">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh from bank
-              </button>
-            </div>
-          )}
+      {error && <Alert tone="error">{error}</Alert>}
+      {okMsg && <Alert tone="success">{okMsg}</Alert>}
 
-          {session.status === "PAID" && (
-            <div className="mx-auto max-w-lg space-y-6 text-center">
-              <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-100 text-emerald-600 shadow-xl shadow-emerald-500/20">
-                <CheckCircle2 className="h-12 w-12" />
-              </div>
-              <div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-600">
-                  Payment Received
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Left: Generate QR or Live Active QR Session */}
+        <div className="lg:col-span-7">
+          {!activeSession ? (
+            <form
+              onSubmit={handleGenerateQr}
+              className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-7 shadow-xs space-y-5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-navy-950 flex items-center gap-2">
+                    <QrCode className="h-5 w-5 text-emerald-600" />
+                    Generate Dynamic Cashout QR
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Limits: ₹200 to ₹5,000 in multiples of ₹100
+                  </p>
+                </div>
+                <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-[11px] font-bold text-emerald-800">
+                  Instant Wallet Credit
                 </span>
-                <h2 className="mt-2 font-display text-3xl font-extrabold text-navy-950">
-                  {inr(session.amount || 0)} credited to wallet
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {session.bankRrn ? `Bank reference ${session.bankRrn}` : session.payerName || "Payment confirmed"}
-                </p>
               </div>
-              <div className="space-y-4 rounded-3xl border-2 border-emerald-500 bg-emerald-50/50 p-6 text-left">
-                <div className="flex items-center gap-3 text-emerald-950">
-                  <HandCoins className="h-8 w-8 shrink-0 text-emerald-600" />
-                  <div>
-                    <h4 className="text-base font-bold">Counter handover</h4>
-                    <p className="text-xs text-emerald-800">Count and hand over this cash now.</p>
+
+              {/* Quick Amount Chips */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                  Select Cashout Amount
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_AMOUNTS.map((amt) => {
+                    const selected = Number(amountInput) === amt;
+                    return (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setAmountInput(String(amt))}
+                        className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                          selected
+                            ? "bg-navy-950 text-white shadow-xs"
+                            : "border border-slate-200 bg-slate-50 text-navy-950 hover:border-slate-300"
+                        }`}
+                      >
+                        {inr(amt)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-700">
+                  Amount (₹ · Multiple of 100) <span className="text-rose-600">*</span>
+                  <div className="relative mt-1">
+                    <IndianRupee className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      className="field !pl-9 font-mono text-base font-bold"
+                      inputMode="numeric"
+                      value={amountInput}
+                      onChange={(e) => setAmountInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="500"
+                      required
+                    />
+                  </div>
+                </label>
+
+                <label className="text-xs font-semibold text-slate-700">
+                  Customer Mobile Number <span className="text-rose-600">*</span>
+                  <input
+                    className="field mt-1 font-mono"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={customerMobile}
+                    onChange={(e) => setCustomerMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="10-digit mobile number"
+                    required
+                  />
+                </label>
+
+                <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
+                  Customer Name <span className="text-slate-400 font-normal">(Optional)</span>
+                  <input
+                    className="field mt-1"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Walk-in Customer"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 border border-slate-200/80 px-4 py-3 text-xs text-slate-600 flex items-center gap-2.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  Hand over physical cash <strong>only after</strong> the screen turns green and confirms UTR payment.
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="btn-primary w-full inline-flex items-center justify-center gap-2 py-3 text-sm"
+              >
+                <QrCode className="h-4 w-4" />
+                {busy ? "Generating Dynamic QR…" : `Generate ${inr(Number(amountInput || 0))} Cashout QR`}
+              </button>
+            </form>
+          ) : (
+            /* Active Session Card */
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <span className="font-mono text-xs text-slate-500 block">Ref: {activeSession.refid || activeSession.id.slice(0, 8)}</span>
+                  <h3 className="font-display text-2xl font-bold text-navy-950 mt-0.5">
+                    {inr(activeSession.amount)}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusPill value={activeSession.status} />
+                  {activeSession.status === "QR_GENERATED" && secondsLeft !== null && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-3 py-1 font-mono text-xs font-bold ${
+                        secondsLeft <= 20 ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"
+                      }`}
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      {secondsLeft}s
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {activeSession.status === "QR_GENERATED" && activeSession.qrString && secondsLeft !== 0 && (
+                <div className="flex flex-col items-center text-center space-y-4 py-2">
+                  <div className="rounded-3xl border-2 border-navy-950 bg-white p-4 shadow-md">
+                    <QRCodeSVG value={activeSession.qrString} size={220} level="M" includeMargin />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-navy-950">
+                      Ask Customer to Scan with Any UPI App
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      GPay · PhonePe · Paytm · BHIM · Any Bank UPI App
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-white p-4">
-                  <span className="text-sm font-semibold text-slate-700">Cash to hand over</span>
-                  <span className="font-display text-2xl font-bold text-navy-950">{inr(session.amount || 0)}</span>
+              )}
+
+              {(activeSession.status === "PAID" || activeSession.status === "CASH_DISPENSED") && (
+                <div className="rounded-2xl border border-emerald-300 bg-emerald-50/80 p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="font-display text-base font-bold text-emerald-950">
+                        Payment Confirmed · Wallet Credited!
+                      </p>
+                      <p className="text-xs text-emerald-800">
+                        UTR / Bank RRN: <strong className="font-mono">{activeSession.utr || activeSession.bankRrn || "Confirmed"}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  {(activeSession.payerName || activeSession.payerVpa) && (
+                    <p className="text-xs text-emerald-900 border-t border-emerald-200/80 pt-2">
+                      Paid by: <strong>{activeSession.payerName || "Customer"}</strong>
+                      {activeSession.payerVpa ? ` (${activeSession.payerVpa})` : ""}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(activeSession.status === "FAILED" ||
+                activeSession.status === "EXPIRED" ||
+                (activeSession.status === "QR_GENERATED" && secondsLeft === 0)) && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3 text-xs text-rose-900">
+                  <XCircle className="h-5 w-5 text-rose-600 shrink-0" />
+                  <div>
+                    <p className="font-bold">QR Code Expired or Unpaid</p>
+                    <p className="mt-0.5 text-rose-700">
+                      {activeSession.errMsg || "Do not hand over cash. Generate a fresh QR code if the customer wants to try again."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap gap-2">
+                  {activeSession.status === "QR_GENERATED" && (
+                    <button
+                      type="button"
+                      disabled={refreshing}
+                      onClick={() => handleVerifyStatus(activeSession.id)}
+                      className="btn-secondary text-xs inline-flex items-center gap-1.5"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                      {refreshing ? "Checking…" : "Verify Payment Status"}
+                    </button>
+                  )}
+                  {activeSession.transactionId && (
+                    <Link
+                      href={`/agent/transactions/${activeSession.transactionId}`}
+                      className="btn-secondary text-xs inline-flex items-center gap-1.5"
+                    >
+                      Receipt
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {activeSession.status === "PAID" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleDispenseCash}
+                      className="btn-primary text-xs inline-flex items-center gap-1.5"
+                    >
+                      <HandCoins className="h-4 w-4" />
+                      {busy ? "Recording…" : `Confirm ${inr(activeSession.amount)} Cash Handed Over`}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={startNewQr}
+                    className="btn-secondary text-xs inline-flex items-center gap-1.5"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    New QR
+                  </button>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Counter Safety & Recent Cashout Sessions */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display text-sm font-bold text-navy-950 flex items-center gap-2">
+                <Banknote className="h-4 w-4 text-emerald-600" />
+                Recent UPI Cashout Sessions
+              </h3>
               <button
                 type="button"
-                onClick={confirmCashDispensed}
-                disabled={busy}
-                className="btn-primary w-full justify-center py-4 text-base shadow-xl shadow-emerald-600/30"
+                onClick={loadHistory}
+                className="text-xs font-semibold text-slate-500 hover:text-navy-950 inline-flex items-center gap-1"
               >
-                <CheckCircle2 className="mr-2 h-5 w-5" />
-                Confirm cash handed over
+                <RefreshCw className="h-3 w-3" />
+                Refresh
               </button>
             </div>
-          )}
 
-          {session.status === "CASH_DISPENSED" && (
-            <div className="mx-auto max-w-lg space-y-6 text-center">
-              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-600 text-white shadow-lg">
-                <CheckCircle2 className="h-10 w-10" />
-              </div>
-              <div>
-                <h2 className="font-display text-2xl font-bold text-navy-950">Cash out completed</h2>
-                <p className="mt-3 font-display text-4xl font-extrabold text-emerald-600">{inr(session.amount || 0)}</p>
-              </div>
-              <div className="divide-y divide-slate-200/60 rounded-2xl border border-slate-200 bg-slate-50/70 p-5 text-left text-sm">
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-500">Reference</span>
-                  <span className="font-mono text-navy-950">{session.refid ?? session.ackno ?? "—"}</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-500">Bank RRN</span>
-                  <span className="font-mono font-bold text-emerald-700">{session.bankRrn || "—"}</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-500">Customer</span>
-                  <span className="font-medium text-navy-950">{session.customerName || "—"}</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-500">Status</span>
-                  <StatusPill value="SUCCESS" label="CASH DISPENSED" />
-                </div>
-              </div>
-              <button type="button" onClick={startAgain} className="btn-primary">
-                <RotateCcw className="mr-1.5 h-4 w-4" />
-                Start new cash out
-              </button>
-            </div>
-          )}
+            {history.length === 0 ? (
+              <p className="text-xs text-slate-500 py-6 text-center">
+                No UPI Cashout QR codes generated yet.
+              </p>
+            ) : (
+              <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                {history.slice(0, 10).map((item) => (
+                  <div key={item.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-navy-950">{inr(item.amount)}</span>
+                        <StatusPill value={item.status} />
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {item.customerMobile || "Customer"} · {when(item.createdAt || undefined)}
+                      </p>
+                      {item.utr && (
+                        <p className="font-mono text-[10px] text-emerald-700 mt-0.5">UTR: {item.utr}</p>
+                      )}
+                    </div>
 
-          {(session.status === "FAILED" || session.status === "EXPIRED") && (
-            <div className="mx-auto max-w-md space-y-4 py-8 text-center">
-              <Banknote className="mx-auto h-12 w-12 text-amber-500" />
-              <h3 className="font-display text-xl font-bold text-navy-950">
-                {session.status === "EXPIRED" ? "QR expired" : "Cash out did not complete"}
-              </h3>
-              <p className="text-sm text-slate-500">{session.errMsg || "No payment was received, so the wallet was not credited."}</p>
-              <button type="button" onClick={startAgain} className="btn-primary mt-2">
-                Start again
-              </button>
-            </div>
-          )}
-
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {item.status === "QR_GENERATED" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveSession(item);
+                            handleVerifyStatus(item.id);
+                          }}
+                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-navy-950 hover:bg-slate-50"
+                        >
+                          Verify
+                        </button>
+                      )}
+                      {item.transactionId && (
+                        <Link
+                          href={`/agent/transactions/${item.transactionId}`}
+                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-navy-950"
+                        >
+                          Details
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

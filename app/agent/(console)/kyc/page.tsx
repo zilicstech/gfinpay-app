@@ -1,7 +1,12 @@
 "use client";
 
-import { MerchantEkycDesk } from "@/features/ekyc/MerchantEkycDesk";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function AgentKycPage() {
-  return <MerchantEkycDesk />;
+export default function AgentKycRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/agent/profile");
+  }, [router]);
+  return null;
 }

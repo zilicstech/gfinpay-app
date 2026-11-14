@@ -33,6 +33,8 @@ export default function DistributorTxnDetailPage() {
         backHref="/distributor/transactions"
         backLabel="All transactions"
         txn={txn}
+        verifyEndpoint={`/api/v1/desk/transactions/${id}/verify-status`}
+        onTransactionUpdated={setTxn}
         flash={<Flash message={flash.message} error={flash.error} />}
         extraFacts={
           txn.agent_user_id

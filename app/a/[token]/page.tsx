@@ -112,7 +112,9 @@ export default function VendorEmployeeDeskPage() {
         }
         setData(json.data);
         const products = json.data?.products as Product[] | undefined;
-        if (products?.length === 1) {
+        if (!products?.length) {
+          setProduct("hospi");
+        } else if (products.length === 1) {
           setCatalogItemId(products[0].id);
         }
       })
@@ -305,7 +307,7 @@ export default function VendorEmployeeDeskPage() {
             </p>
           </div>
 
-          {data.hospi_cash_enabled && (
+          {data.hospi_cash_enabled && data.products.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               <button type="button" className={product === "card" ? "btn-primary" : "btn-secondary"} onClick={() => setProduct("card")}>
                 Card link
@@ -316,7 +318,7 @@ export default function VendorEmployeeDeskPage() {
             </div>
           )}
 
-          {product === "hospi" ? (
+          {product === "hospi" || data.products.length === 0 ? (
             hospiCode ? (
               <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                 Card recorded. Sale id <strong>{hospiCode}</strong>. It will be sent for activation after payment is collected.

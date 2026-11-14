@@ -33,6 +33,9 @@ export default function TransactionDetailPage() {
         backHref="/admin/transactions"
         backLabel="All transactions"
         txn={txn}
+        isAdminView
+        verifyEndpoint={`/api/v1/admin/transactions/${id}/verify-status`}
+        onTransactionUpdated={setTxn}
         flash={<Flash message={flash.message} error={flash.error} />}
         extraFacts={
           txn.agent_user_id

@@ -13,7 +13,7 @@ export default function AgentActivatePage() {
 
   if ((user.status === "APPROVED" || user.status === "SUBMITTED") && user.id) {
     return (
-      <div className="max-w-3xl mx-auto">
+      <div className="space-y-6">
         <ActivationStatusCard
           token={token}
           retailerId={user.id}
@@ -24,7 +24,7 @@ export default function AgentActivatePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6">
       <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 p-6 sm:p-8 text-white shadow-xl">
         <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10">
@@ -33,7 +33,7 @@ export default function AgentActivatePage() {
           <p className="mt-2 text-sm text-slate-300 max-w-xl">
             {user.status === "REJECTED"
               ? "The auditor rejected the last activation request. Submit the payment details and a new proof to try again."
-              : "Your profile is created, but the outlet is not live yet. Transfer the activation amount, upload the proof, and wait for the auditor to confirm. After confirmation your distributor or hub admin will activate the desk."}
+              : "Your identity is verified! Transfer the activation amount, enter the UTR, and upload the payment proof. As soon as our auditor verifies your payment, your outlet is activated immediately and FD Card, BBPS Bill Pay, and Hospi Cash services unlock right away."}
           </p>
         </div>
       </div>

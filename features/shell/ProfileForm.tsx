@@ -1,31 +1,54 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { 
-  Building2, 
-  Copy, 
+import { FormEvent, Suspense, useEffect, useState } from "react";
+import {
+  CheckCircle2,
+  Copy,
   Eye,
   EyeOff,
-  KeyRound, 
-  Lock, 
-  Mail, 
-  Phone, 
-  ShieldCheck, 
-  Sparkles, 
-  Store, 
+  KeyRound,
+  Lock,
+  Mail,
+  Phone,
+  ShieldCheck,
+  Sparkles,
+  Store,
   User as UserIcon,
-  CheckCircle2
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api, formatApiError } from "@/lib/api-client";
 import { logoutSession } from "@/lib/auth-client";
 import { homePathFor, mapMeProfile, useSession, type MeProfile } from "@/stores/session.store";
 import { Alert, StatusPill } from "@/components/ui/primitives";
 import { maskMobile } from "@/lib/format";
+import { ChangePinCard } from "@/features/profile/ChangePinCard";
+
+type ProfileTab = "profile" | "security";
+
+const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
+  { id: "profile", label: "Profile" },
+  { id: "security", label: "Security" },
+];
+
+function normalizeProfileTab(raw: string | null): ProfileTab {
+  return raw === "security" ? "security" : "profile";
+}
 
 export function ProfileForm() {
+  return (
+    <Suspense fallback={<div className="card h-64 animate-pulse bg-slate-50" />}>
+      <ProfileFormContent />
+    </Suspense>
+  );
+}
+
+function ProfileFormContent() {
   const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
   const { token, user, setProfile } = useSession();
+
+  const [tab, setTab] = useState<ProfileTab>(() => normalizeProfileTab(search.get("tab")));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [shop, setShop] = useState("");
@@ -39,11 +62,22 @@ export function ProfileForm() {
   const [copiedMobile, setCopiedMobile] = useState(false);
 
   useEffect(() => {
+    setTab(normalizeProfileTab(search.get("tab")));
+  }, [search]);
+
+  useEffect(() => {
     if (!user) return;
     setName(user.fullName ?? "");
     setEmail(user.email ?? "");
     setShop(user.shopName ?? "");
   }, [user]);
+
+  function chooseTab(next: ProfileTab) {
+    setTab(next);
+    setError(null);
+    setOk(null);
+    router.replace(`${pathname}?tab=${next}`, { scroll: false });
+  }
 
   async function copyMobile() {
     if (!user?.mobile) return;
@@ -106,15 +140,16 @@ export function ProfileForm() {
     return <div className="card h-64 animate-pulse bg-slate-50" />;
   }
 
-  const initials = (user.fullName ?? "User")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("") || "U";
+  const initials =
+    (user.fullName ?? "User")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "U";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Identity Hero Header */}
       <section className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-100/60">
         <div className="relative overflow-hidden bg-gradient-to-br from-navy-950 via-slate-900 to-navy-900 px-6 py-8 text-white sm:px-10 sm:py-10">
@@ -181,14 +216,29 @@ export function ProfileForm() {
         </div>
       </section>
 
+      {/* Tabs: Profile | Security */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {PROFILE_TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => chooseTab(item.id)}
+            className={`whitespace-nowrap rounded-2xl px-4 py-2.5 text-sm font-bold transition ${
+              tab === item.id ? "bg-navy-950 text-white" : "bg-white text-slate-600 hover:text-navy-950 border border-slate-200/80"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       {error && <Alert tone="error">{error}</Alert>}
       {ok && <Alert tone="success">{ok}</Alert>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Profile Details Form */}
-        <section className="lg:col-span-7">
-          <form 
-            onSubmit={saveProfile} 
+      {tab === "profile" && (
+        <div className="max-w-2xl">
+          <form
+            onSubmit={saveProfile}
             className="rounded-[2rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-6"
           >
             <div className="border-b border-slate-100 pb-4">
@@ -284,21 +334,23 @@ export function ProfileForm() {
               </button>
             </div>
           </form>
-        </section>
+        </div>
+      )}
 
-        {/* Security / Password Form */}
-        <section className="lg:col-span-5">
-          <form 
-            onSubmit={savePassword} 
-            className="rounded-[2rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-6"
+      {tab === "security" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Password Form */}
+          <form
+            onSubmit={savePassword}
+            className="rounded-[2rem] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-sm space-y-5"
           >
             <div className="border-b border-slate-100 pb-4">
               <h2 className="font-display text-xl font-bold text-navy-950 flex items-center gap-2">
                 <KeyRound className="h-5 w-5 text-amber-500" />
-                Security & Password
+                Account Password
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Protect your fintech till access with regular credential updates.
+                Changing the password signs this account out of every device.
               </p>
             </div>
 
@@ -355,7 +407,7 @@ export function ProfileForm() {
                   </button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-slate-400">
-                  Minimum 8 characters with a mix of numbers & symbols recommended.
+                  Minimum 8 characters with at least one letter and one digit.
                 </p>
               </div>
             </div>
@@ -370,19 +422,30 @@ export function ProfileForm() {
               </p>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-6 py-3.5 text-sm font-bold text-navy-950 shadow-sm hover:bg-slate-100 transition-colors disabled:opacity-50"
+                className="w-full rounded-2xl bg-navy-950 px-6 py-3.5 text-sm font-bold text-white shadow-sm hover:bg-navy-900 transition-colors disabled:opacity-50"
               >
                 {busy ? "Updating…" : "Update Password"}
               </button>
             </div>
           </form>
-        </section>
-      </div>
+
+          {/* Change 6-Digit PIN Card */}
+          <ChangePinCard
+            onSuccess={(msg) => {
+              setError(null);
+              setOk(msg);
+            }}
+            onError={(msg) => {
+              setOk(null);
+              setError(msg);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
-

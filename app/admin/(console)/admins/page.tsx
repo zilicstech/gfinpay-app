@@ -3,13 +3,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  ArrowRight, 
-  Building2, 
-  Copy, 
-  Globe2, 
-  Plus, 
-  Search 
+import {
+  ArrowRight,
+  Building2,
+  Copy,
+  Globe2,
+  Plus,
+  Search
 } from "lucide-react";
 import { api, openDetails } from "@/lib/api-client";
 import { when } from "@/lib/format";
@@ -136,19 +136,19 @@ export default function AdminsPage() {
   const defaultTab: AdminTab = isSuperAdmin(currentUserType) ? "PLATFORM_ADMIN" : "HUB_ADMIN";
   const tabOptions: readonly (readonly [AdminTab, string])[] = isSuperAdmin(currentUserType)
     ? ([
-        ["PLATFORM_ADMIN", "Platform Admins"],
-        ["HUB_ADMIN", "Hub Admins"],
-        ["ACTIVE", "Active Only"],
-        ["SUSPENDED", "Suspended"],
-      ] as const)
+      ["PLATFORM_ADMIN", "Platform Admins"],
+      ["HUB_ADMIN", "Hub Admins"],
+      ["ACTIVE", "Active Only"],
+      ["SUSPENDED", "Suspended"],
+    ] as const)
     : ([
-        ["HUB_ADMIN", "Hub Admins"],
-        ["ACTIVE", "Active Only"],
-        ["SUSPENDED", "Suspended"],
-      ] as const);
+      ["HUB_ADMIN", "Hub Admins"],
+      ["ACTIVE", "Active Only"],
+      ["SUSPENDED", "Suspended"],
+    ] as const);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Header aligned with Distributors page */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -193,11 +193,10 @@ export default function AdminsPage() {
                   key={key}
                   type="button"
                   onClick={() => setActiveTab(key)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                    isActive
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${isActive
                       ? "bg-navy-950 text-white shadow-xs"
                       : "text-slate-600 hover:text-navy-950"
-                  }`}
+                    }`}
                 >
                   {label}
                   {isActive && ` (${filteredAdmins.length})`}
@@ -339,8 +338,8 @@ export default function AdminsPage() {
           isPlatformAdmin
             ? "Appoint Hub Admin"
             : adminType === "ADMIN"
-            ? "Appoint Platform Admin"
-            : "Appoint Hub Admin"
+              ? "Appoint Platform Admin"
+              : "Appoint Hub Admin"
         }
         submitDisabled={!name || !mobile || !password || ((isPlatformAdmin || adminType === "HUBADMIN") && !hubId)}
       >
@@ -355,11 +354,10 @@ export default function AdminsPage() {
                 <button
                   type="button"
                   onClick={() => setAdminType("HUBADMIN")}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    adminType === "HUBADMIN"
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${adminType === "HUBADMIN"
                       ? "border-navy-950 bg-navy-950 text-white shadow-sm"
                       : "border-slate-200 bg-white hover:border-slate-300 text-slate-800"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Building2 className={`h-4 w-4 ${adminType === "HUBADMIN" ? "text-amber-400" : "text-amber-500"}`} />
@@ -374,13 +372,12 @@ export default function AdminsPage() {
                   type="button"
                   disabled={!canAppointPlatformAdmin}
                   onClick={() => setAdminType("ADMIN")}
-                  className={`p-3.5 rounded-2xl border text-left transition-all ${
-                    !canAppointPlatformAdmin
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${!canAppointPlatformAdmin
                       ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
                       : adminType === "ADMIN"
-                      ? "border-navy-950 bg-navy-950 text-white shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300 text-slate-800"
-                  }`}
+                        ? "border-navy-950 bg-navy-950 text-white shadow-sm"
+                        : "border-slate-200 bg-white hover:border-slate-300 text-slate-800"
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">

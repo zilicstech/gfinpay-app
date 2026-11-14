@@ -2,19 +2,19 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { 
-  ArrowRight, 
-  Calendar, 
-  CheckCircle2, 
-  Copy, 
-  Filter, 
-  IndianRupee, 
-  Percent, 
-  Search, 
-  ShieldCheck, 
-  Store, 
-  TrendingUp, 
-  XCircle 
+import {
+  ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Copy,
+  Filter,
+  IndianRupee,
+  Percent,
+  Search,
+  ShieldCheck,
+  Store,
+  TrendingUp,
+  XCircle
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { inr, txnLabel, when } from "@/lib/format";
@@ -70,7 +70,7 @@ export default function TransactionsPage() {
           setTypes([{ type: "ALL", label: "All rails" }, ...list]);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [token]);
 
   async function loadTransactions() {
@@ -141,7 +141,7 @@ export default function TransactionsPage() {
   }, [rows, statusFilter, query]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-6">
         <div>
@@ -197,11 +197,10 @@ export default function TransactionsPage() {
                 key={t.type}
                 type="button"
                 onClick={() => setTxnType(t.type)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  txnType === t.type
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${txnType === t.type
                     ? "bg-navy-950 text-white shadow-sm"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
+                  }`}
               >
                 {t.label}
               </button>
@@ -220,11 +219,10 @@ export default function TransactionsPage() {
                 key={s}
                 type="button"
                 onClick={() => setStatusFilter(s)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  statusFilter === s
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${statusFilter === s
                     ? "bg-navy-950 text-white shadow-xs"
                     : "text-slate-600 hover:text-navy-950"
-                }`}
+                  }`}
               >
                 {s === "ALL" ? "All Statuses" : s}
               </button>
