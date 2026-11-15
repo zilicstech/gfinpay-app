@@ -137,6 +137,7 @@ export function PayoutDesk() {
       const created = await api<PayoutTransferView>("/api/v1/payouts", {
         token,
         method: "POST",
+        idempotencyKey: crypto.randomUUID(),
         body: JSON.stringify({
           amount: num,
           transferMode,

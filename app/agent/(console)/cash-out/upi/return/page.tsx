@@ -15,7 +15,7 @@ export default function UpiCashoutReturnPage() {
       window.close();
       return;
     }
-    router.replace("/agent/cash-out/upi");
+    router.replace("/agent/cash");
   }, [router]);
 
   return (

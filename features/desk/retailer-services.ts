@@ -31,6 +31,41 @@ const ALWAYS: NavItem[] = [
   { href: "/agent/reports", label: "Reports" },
 ];
 
+export function serviceAccessFromVerification(verification: {
+  identityStatus?: string;
+  personalStatus?: string;
+  bankVerificationStatus?: string;
+  businessStatus?: string;
+  agreementStatus?: string;
+  servicesUnlocked?: boolean;
+} | null | undefined): ServiceAccess {
+  const identityOk =
+    verification?.identityStatus === "VERIFIED" ||
+    verification?.personalStatus === "PERSONAL_VERIFIED";
+  const businessAndAgreementOk =
+    verification?.servicesUnlocked === true ||
+    (verification?.businessStatus === "BUSINESS_VERIFIED" &&
+      verification?.agreementStatus === "SIGNED");
+  return {
+    personal: identityOk,
+    identity: identityOk,
+    bank: verification?.bankVerificationStatus === "VERIFIED",
+    business: businessAndAgreementOk,
+  };
+}
+
+export function canUseService(code: string, codes: Set<string>, access: ServiceAccess): boolean {
+  const identityOk = Boolean(access.identity ?? access.personal);
+  const fullServiceOk = Boolean(access.business && (access.bank ?? true));
+  if (code === "LOANS") return true;
+  if (code === "UPI_CASHOUT" || code === "AEPS") {
+    return (codes.has("UPI_CASHOUT") || codes.has("AEPS")) && fullServiceOk;
+  }
+  if (code === "PAYOUT" || code === "DMT") return codes.has(code) && fullServiceOk;
+  if (code === "BBPS" || code === "HOSPI_CASH") return codes.has(code) && identityOk;
+  return codes.has(code) && identityOk;
+}
+
 export function enabledCodes(services: PlatformServiceRow[]): Set<string> {
   return new Set(services.filter((s) => s.enabled !== false).map((s) => s.code));
 }

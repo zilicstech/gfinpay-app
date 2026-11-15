@@ -101,6 +101,13 @@ function markSessionHydrated() {
   sessionHydrationWaiters.clear();
 }
 
+function sessionHint(present: boolean) {
+  if (typeof document === "undefined") return;
+  document.cookie = present
+    ? "gfp_hint=1; Path=/; SameSite=Lax; Max-Age=43200"
+    : "gfp_hint=; Path=/; Max-Age=0; SameSite=Lax";
+}
+
 export const useSession = create<SessionState>()(
   persist(
     (set, get) => ({
@@ -110,7 +117,8 @@ export const useSession = create<SessionState>()(
       user: null,
       profileLoaded: false,
       bootstrapped: false,
-      setAuth: (token, role, expiresAt) =>
+      setAuth: (token, role, expiresAt) => {
+        sessionHint(true);
         set({
           token,
           role,
@@ -118,16 +126,19 @@ export const useSession = create<SessionState>()(
           user: { fullName: "", userType: role, permissions: [] },
           profileLoaded: false,
           bootstrapped: true,
-        }),
+        });
+      },
       // Token rotation only: keeps the loaded profile so a refresh never blanks the shell.
-      setToken: (token, role, expiresAt) =>
+      setToken: (token, role, expiresAt) => {
+        sessionHint(true);
         set((s) => ({
           token,
           role,
           expiresAt,
           user: s.user ? { ...s.user, userType: role || s.user.userType } : { fullName: "", userType: role, permissions: [] },
           bootstrapped: true,
-        })),
+        }));
+      },
       setBootstrapped: () => set({ bootstrapped: true }),
       setProfile: (user) => set({ user, role: user.userType, profileLoaded: true }),
       updateUser: (patch) =>
@@ -145,15 +156,38 @@ export const useSession = create<SessionState>()(
         set({ user, role: user.userType || get().role, profileLoaded: true });
         return user;
       },
-      clear: () =>
-        set({ token: null, role: null, expiresAt: null, user: null, profileLoaded: false, bootstrapped: true }),
+      clear: () => {
+        sessionHint(false);
+        set({ token: null, role: null, expiresAt: null, user: null, profileLoaded: false, bootstrapped: true });
+      },
     }),
     {
       name: "fintech-session",
-      version: 4,
+      version: 5,
       // The access token is deliberately absent: it lives in memory only and is
-      // restored on page load from the httpOnly refresh cookie.
-      partialize: (s) => ({ role: s.role, user: s.user }),
+      // restored on page load from the httpOnly refresh cookie. Mobile and email
+      // stay on the server too.
+      partialize: (s) => ({
+        role: s.role,
+        user: s.user
+            ? {
+              id: s.user.id,
+              fullName: s.user.fullName,
+              userType: s.user.userType,
+              code: s.user.code,
+              shopName: s.user.shopName,
+              kycStatus: s.user.kycStatus,
+              identityStatus: s.user.identityStatus,
+              bankVerificationStatus: s.user.bankVerificationStatus,
+              businessStatus: s.user.businessStatus,
+              agreementStatus: s.user.agreementStatus,
+              hasPin: s.user.hasPin,
+              nextStep: s.user.nextStep,
+              status: s.user.status,
+              permissions: s.user.permissions,
+            }
+          : null,
+      }),
       onRehydrateStorage: () => () => {
         markSessionHydrated();
       },
@@ -167,10 +201,29 @@ export const useSession = create<SessionState>()(
           const { id: _id, ...rest } = user;
           user = rest;
         }
-        // Any token persisted by v3 or earlier is dropped on purpose.
+        if (version < 5 && user) {
+          user = { ...user, mobile: undefined, email: undefined };
+        }
         return {
           role: state.role ?? user?.userType ?? null,
-          user: user ?? null,
+          user: user
+            ? {
+                id: user.id,
+                fullName: user.fullName,
+                userType: user.userType,
+                code: user.code,
+                shopName: user.shopName,
+                kycStatus: user.kycStatus,
+                identityStatus: user.identityStatus,
+                bankVerificationStatus: user.bankVerificationStatus,
+                businessStatus: user.businessStatus,
+                agreementStatus: user.agreementStatus,
+                hasPin: user.hasPin,
+                nextStep: user.nextStep,
+                status: user.status,
+                permissions: user.permissions ?? [],
+              }
+            : null,
         };
       },
     },

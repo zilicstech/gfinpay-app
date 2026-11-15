@@ -126,7 +126,7 @@ export async function api<T>(
 export async function apiForm<T>(
   path: string,
   form: FormData,
-  options: { token?: string | null; holdLoader?: boolean; headers?: HeadersInit } = {},
+  options: { token?: string | null; holdLoader?: boolean; headers?: HeadersInit; idempotencyKey?: string } = {},
 ): Promise<T> {
   const { begin, end } = useLoader.getState();
   begin();
@@ -135,7 +135,13 @@ export async function apiForm<T>(
     const send = async (bearer: string | null | undefined) => {
       const headers = new Headers(options.headers);
       if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
-      const res = await fetch(`${BASE}${path}`, { method: "POST", headers, body: form });
+      if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey);
+      const res = await fetch(`${BASE}${path}`, {
+        method: "POST",
+        headers,
+        body: form,
+        credentials: path.startsWith("/api/v1/auth/") ? "include" : "same-origin",
+      });
       return { res, json: (await res.json()) as ApiEnvelope<T> };
     };
 

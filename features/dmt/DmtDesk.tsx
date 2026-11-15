@@ -616,7 +616,7 @@ export function DmtDesk() {
         open={addBeneOpen}
         onClose={() => { setAddBeneOpen(false); resetBeneForm(); }}
         title={beneSession ? "Enter the customer OTP" : "Add recipient bank account"}
-        description={beneSession ? "PaySprint sent an OTP to the customer's mobile." : "The customer confirms this account with an OTP."}
+        description={beneSession ? "An OTP was sent to the customer's mobile." : "The customer confirms this account with an OTP."}
       >
         {!beneSession ? (
           <form onSubmit={handleBeneOtp} className="space-y-3 pt-2">

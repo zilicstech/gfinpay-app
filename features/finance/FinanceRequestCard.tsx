@@ -71,7 +71,10 @@ export function FinanceRequestCard({
     form.set("proof", file);
     setBusy(true);
     try {
-      await apiForm(endpoint, form, { token });
+      await apiForm(endpoint, form, {
+        token,
+        idempotencyKey: endpoint.endsWith("/wallet-requests") ? crypto.randomUUID() : undefined,
+      });
       setUtr("");
       setFile(null);
       flash.ok(kind === "ACTIVATION"

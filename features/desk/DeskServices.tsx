@@ -7,6 +7,8 @@ import { useSession } from "@/stores/session.store";
 import {
   enabledCodes,
   fdCardsEnabled,
+  canUseService,
+  serviceAccessFromVerification,
   type FdProviderRow,
   type PlatformServiceRow,
   type ServiceAccess,
@@ -105,19 +107,7 @@ export function DeskServicesProvider({ children }: { children: ReactNode }) {
         if (activation) {
           setCashActivation(activation);
         }
-        const identityOk =
-          verification?.identityStatus === "VERIFIED" ||
-          verification?.personalStatus === "PERSONAL_VERIFIED";
-        const businessAndAgreementOk =
-          verification?.servicesUnlocked === true ||
-          (verification?.businessStatus === "BUSINESS_VERIFIED" &&
-            verification?.agreementStatus === "SIGNED");
-        setAccess({
-          personal: identityOk,
-          identity: identityOk,
-          bank: verification?.bankVerificationStatus === "VERIFIED",
-          business: businessAndAgreementOk,
-        });
+        setAccess(serviceAccessFromVerification(verification));
       })
       .catch(() => {
         if (cancelled) return;
@@ -141,19 +131,7 @@ export function DeskServicesProvider({ children }: { children: ReactNode }) {
         servicesUnlocked?: boolean;
       }>("/api/v1/verification", { token, silent: true })
         .then((verification) => {
-          const identityOk =
-            verification?.identityStatus === "VERIFIED" ||
-            verification?.personalStatus === "PERSONAL_VERIFIED";
-          const businessAndAgreementOk =
-            verification?.servicesUnlocked === true ||
-            (verification?.businessStatus === "BUSINESS_VERIFIED" &&
-              verification?.agreementStatus === "SIGNED");
-          setAccess({
-            personal: identityOk,
-            identity: identityOk,
-            bank: verification?.bankVerificationStatus === "VERIFIED",
-            business: businessAndAgreementOk,
-          });
+          setAccess(serviceAccessFromVerification(verification));
         })
         .catch(() => undefined);
       refreshCashActivation(true).catch(() => undefined);
@@ -207,10 +185,10 @@ export function RequireDeskService({
   fallbackHref: string;
   children: ReactNode;
 }) {
-  const { ready, codes, fdProviders } = useDeskServices();
+  const { ready, codes, fdProviders, access } = useDeskServices();
   const router = useRouter();
   const allowed =
-    (anyOf ?? []).some((code) => codes.has(code)) || (allowFd === true && fdCardsEnabled(fdProviders));
+    (anyOf ?? []).some((code) => canUseService(code, codes, access)) || (allowFd === true && fdCardsEnabled(fdProviders));
 
   useEffect(() => {
     if (ready && !allowed) router.replace(fallbackHref);

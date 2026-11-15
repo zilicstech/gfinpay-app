@@ -123,7 +123,7 @@ export default function WalletPage() {
       form.set("transferMode", transferMode);
       form.set("proof", proofFile);
       if (user?.id) form.set("retailerId", user.id);
-      await apiForm("/api/v1/finance/wallet-requests", form, { token });
+      await apiForm("/api/v1/finance/wallet-requests", form, { token, idempotencyKey: crypto.randomUUID() });
       flash.ok("Wallet request submitted. Amount credits after the auditor confirms the payment.");
       setPayBank(null);
       setRequestTick((n) => n + 1);
@@ -165,6 +165,7 @@ export default function WalletPage() {
       const next = await api<{ availableBalance: number; rewardsBalance: number }>("/api/v1/wallet/rewards/transfer", {
         token,
         method: "POST",
+        idempotencyKey: crypto.randomUUID(),
         body: JSON.stringify({ amount: Number(transferAmount) }),
       });
       setWallet((current) => current ? { ...current, availableBalance: next.availableBalance, rewardsBalance: next.rewardsBalance } : current);

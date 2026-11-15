@@ -2,7 +2,6 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowUpRight,
   Banknote,
@@ -17,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
+import { CashoutQr } from "@/features/cashout/CashoutQr";
 import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
 import { Alert, StatusPill } from "@/components/ui/primitives";
@@ -29,7 +29,9 @@ type CashoutSessionView = {
   payableValue?: number;
   status: "INITIATED" | "QR_GENERATED" | "PAID" | "CASH_DISPENSED" | "FAILED" | "EXPIRED" | "REVERSED" | string;
   qrString?: string | null;
+  qrKind?: "UPI_STRING" | "PNG_BASE64" | string | null;
   displayExpirySec?: number;
+  remainingSec?: number;
   customerName?: string | null;
   customerMobile?: string | null;
   bankRrn?: string | null;
@@ -44,12 +46,13 @@ type CashoutSessionView = {
   createdAt?: string | null;
 };
 
-const QUICK_AMOUNTS = [200, 500, 1000, 2000, 3000, 5000];
+const FALLBACK_QUICK = [200, 500, 1000, 2000, 3000, 5000];
 
 export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
   const token = useSession((s) => s.token);
   const loadProfile = useSession((s) => s.loadProfile);
 
+  const [limits, setLimits] = useState({ min: 200, max: 5000, step: 100 });
   const [amountInput, setAmountInput] = useState("500");
   const [customerMobile, setCustomerMobile] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -76,6 +79,11 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => {
     if (!token) return;
     loadHistory();
+    api<{ min: number; max: number; step: number }>("/api/v1/cashout/upi/limits", { token, silent: true })
+      .then((rule) => {
+        if (rule?.min && rule?.max && rule?.step) setLimits(rule);
+      })
+      .catch(() => undefined);
     api<CashoutSessionView | { status: "NONE" }>("/api/v1/cashout/upi/latest", { token })
       .then((res) => {
         if ("id" in res && res.id && (res.status === "QR_GENERATED" || res.status === "PAID")) {
@@ -85,15 +93,20 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
       .catch(() => undefined);
   }, [token, loadHistory]);
 
-  // Countdown timer for active QR
+  // Countdown timer for active QR (uses server-calculated remainingSec to prevent client clock skew)
   useEffect(() => {
-    if (!activeSession || activeSession.status !== "QR_GENERATED" || !activeSession.expiresAt) {
+    if (!activeSession || activeSession.status !== "QR_GENERATED") {
       setSecondsLeft(null);
       return;
     }
-    const expMs = new Date(activeSession.expiresAt).getTime();
+    const targetMs =
+      typeof activeSession.remainingSec === "number"
+        ? Date.now() + activeSession.remainingSec * 1000
+        : activeSession.expiresAt
+          ? new Date(activeSession.expiresAt).getTime()
+          : Date.now() + (activeSession.displayExpirySec || 90) * 1000;
     const tick = () => {
-      const rem = Math.max(0, Math.floor((expMs - Date.now()) / 1000));
+      const rem = Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
       setSecondsLeft(rem);
     };
     tick();
@@ -130,8 +143,8 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
     if (!token) return;
 
     const amt = Number(amountInput);
-    if (!Number.isInteger(amt) || amt < 200 || amt > 5000 || amt % 100 !== 0) {
-      setError("Amount must be between ₹200 and ₹5,000 in multiples of ₹100.");
+    if (!Number.isInteger(amt) || amt < limits.min || amt > limits.max || amt % limits.step !== 0) {
+      setError(`Amount must be between ₹${limits.min} and ₹${limits.max} in multiples of ₹${limits.step}.`);
       return;
     }
     const cleanMob = customerMobile.replace(/\D/g, "");
@@ -154,6 +167,7 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
       const created = await api<CashoutSessionView>("/api/v1/cashout/upi/generate-qr", {
         token,
         method: "POST",
+        idempotencyKey: crypto.randomUUID(),
         body: JSON.stringify({
           amount: amt,
           customerMobile: cleanMob,
@@ -256,7 +270,7 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
                     Generate Dynamic Cashout QR
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Limits: ₹200 to ₹5,000 in multiples of ₹100
+                    Limits: ₹{limits.min.toLocaleString("en-IN")} to ₹{limits.max.toLocaleString("en-IN")} in multiples of ₹{limits.step}
                   </p>
                 </div>
                 <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-[11px] font-bold text-emerald-800">
@@ -270,7 +284,7 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
                   Select Cashout Amount
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {QUICK_AMOUNTS.map((amt) => {
+                  {FALLBACK_QUICK.filter((amt) => amt >= limits.min && amt <= limits.max && amt % limits.step === 0).map((amt) => {
                     const selected = Number(amountInput) === amt;
                     return (
                       <button
@@ -374,7 +388,7 @@ export function UpiCashoutDesk({ embedded = false }: { embedded?: boolean }) {
               {activeSession.status === "QR_GENERATED" && activeSession.qrString && secondsLeft !== 0 && (
                 <div className="flex flex-col items-center text-center space-y-4 py-2">
                   <div className="rounded-3xl border-2 border-navy-950 bg-white p-4 shadow-md">
-                    <QRCodeSVG value={activeSession.qrString} size={220} level="M" includeMargin />
+                    <CashoutQr kind={activeSession.qrKind} value={activeSession.qrString} />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-bold text-navy-950">

@@ -3,6 +3,20 @@ import { ApplyHandoff } from "../ApplyHandoff";
 import { ApplyNotice } from "../ApplyNotice";
 import { lookupApply, startApply } from "@/lib/apply-api";
 
+function isSafeHandoffUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    if (url.username || url.password) return false;
+    const host = url.hostname.toLowerCase();
+    const gfin = host === "gfinpay.com" || host.endsWith(".gfinpay.com");
+    if (gfin) return url.protocol === "https:" || url.protocol === "http:";
+    if (host === "localhost") return url.protocol === "http:" || url.protocol === "https:";
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -48,6 +62,14 @@ export default async function ApplyPage({ params }: { params: Promise<{ token: s
   }
 
   const payload = started.body.data;
+  if (!isSafeHandoffUrl(payload.url)) {
+    return (
+      <ApplyNotice
+        title="Unable to open this link"
+        body="The application link is not on a recognised address. Please ask the retailer for a new link."
+      />
+    );
+  }
   if (payload.method === "GET" || !payload.encdata) {
     redirect(payload.url);
   }
