@@ -46,7 +46,6 @@ export function DmtBanksConsole() {
 
   useEffect(() => {
     if (token) load("", "all");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function create(e: FormEvent) {
