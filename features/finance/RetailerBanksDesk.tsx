@@ -38,6 +38,7 @@ export type PayoutAccount = {
   ifsc_details?: BankIfscDetails | null;
   active?: boolean;
   verification_status?: "VERIFIED" | "FAILED" | "NOT_VERIFIED" | string;
+  used_for_settlement?: boolean;
   verified_name?: string | null;
   name_match_score?: number | null;
   verified_at?: string | null;
@@ -200,6 +201,8 @@ export function RetailerBanksDesk({ embedded = false }: { embedded?: boolean }) 
         <div className="grid gap-3">
           {rows.map((row) => {
             const isVerified = row.verification_status === "VERIFIED";
+            const isActiveAndVerified = Boolean(row.active) && isVerified;
+            const isUsedForSettlement = Boolean(row.used_for_settlement);
             const details = row.ifsc_details || {};
             const branchLine = [
               row.branch_name || details.branch,
@@ -236,6 +239,12 @@ export function RetailerBanksDesk({ embedded = false }: { embedded?: boolean }) 
                         </span>
                         <StatusPill value={row.active ? "ACTIVE" : "INACTIVE"} />
                         <StatusPill value={row.verification_status || "NOT_VERIFIED"} />
+                        {isUsedForSettlement && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                            <BadgeCheck className="h-3 w-3" />
+                            Used for Settlements
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-600">{row.account_name}</p>
                       {row.verified_name && (
@@ -286,12 +295,23 @@ export function RetailerBanksDesk({ embedded = false }: { embedded?: boolean }) 
                         {verifyingId === row.id ? "Verifying…" : "Verify Bank Account"}
                       </button>
                     )}
-                    <button type="button" className="btn-secondary text-xs" onClick={() => startEdit(row)}>
-                      Edit
-                    </button>
-                    <button type="button" className="btn-secondary text-xs" onClick={() => toggle(row)}>
-                      {row.active ? "Mark inactive" : "Mark active"}
-                    </button>
+                    {!isActiveAndVerified && (
+                      <button type="button" className="btn-secondary text-xs" onClick={() => startEdit(row)}>
+                        Edit
+                      </button>
+                    )}
+                    {row.active && isUsedForSettlement ? (
+                      <span
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500 cursor-not-allowed"
+                        title="This bank account is used for onboarding and settlements and cannot be marked inactive."
+                      >
+                        Locked for Settlements
+                      </span>
+                    ) : (
+                      <button type="button" className="btn-secondary text-xs" onClick={() => toggle(row)}>
+                        {row.active ? "Mark inactive" : "Mark active"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>

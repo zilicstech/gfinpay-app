@@ -549,7 +549,7 @@ function PartnerInfoTab({
       setNote("");
       await refresh();
       onChanged();
-      onDone(approve ? "Business registration approved (BUSINESS_VERIFIED)." : "Business registration rejected.");
+      onDone(approve ? "Business registration & location approved (BUSINESS_VERIFIED)." : "Business registration rejected.");
     } catch (e) {
       onFail(e, "Could not submit business review");
     } finally {
@@ -1413,6 +1413,14 @@ function PartnerInfoTab({
                       {businessType === "COMPANY" ? "Registered as: Company / LLP" : "Registered as: Individual"}
                     </span>
                   )}
+                  {Boolean(biz.can_update) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-800">
+                      <MapPin className="h-3.5 w-3.5 text-amber-600" />
+                      {Boolean(biz.locationUpdatePending)
+                        ? "Location Update Submitted · Awaiting Approval"
+                        : "Location Update Allowed (can_update: true)"}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
                   Individual work location &amp; address or MCA Company CIN &amp; Authorized Signatory KYC verification.
@@ -1526,10 +1534,14 @@ function PartnerInfoTab({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-amber-900">
-                      Action Required · Business Verification Review ({businessStatus})
+                      {biz.locationUpdatePending
+                        ? `Action Required · Retailer Business Location Update Review (${businessStatus})`
+                        : `Action Required · Business Verification Review (${businessStatus})`}
                     </p>
                     <p className="text-xs text-slate-700 mt-0.5">
-                      Review the business registration details, work coordinates, and authorized signatory verification below before marking as Business Verified.
+                      {biz.locationUpdatePending
+                        ? "The retailer has updated their business location / operating address from their profile. Review the updated coordinates and address below and click Approve to unlock or retry provider onboarding."
+                        : "Review the business registration details, work coordinates, and authorized signatory verification below before marking as Business Verified."}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
@@ -2497,7 +2509,7 @@ function PartnerInfoTab({
 
 type DistributorModal = "hub" | "password" | "adjust" | "freeze" | "inactivate" | "retailer" | "reverify" | null;
 
-type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "reactivate" | "activation" | "redo-bank2" | "redo-bank6" | "reverify" | null;
+type RetailerModal = "transfer" | "password" | "adjust" | "freeze" | "inactivate" | "reactivate" | "activation" | "redo-bank2" | "redo-bank6" | "reverify" | "request-location" | null;
 
 export function AdminDistributorDetail() {
   const { id } = useParams<{ id: string }>();
@@ -3297,6 +3309,23 @@ export function AdminRetailerDetail() {
     }
   }
 
+  async function requestLocationUpdate(e: FormEvent) {
+    e.preventDefault();
+    try {
+      await api(`/api/v1/admin/users/${id}/request-location-update`, {
+        token,
+        method: "POST",
+        body: "{}",
+      });
+      setModal(null);
+      setReverifyTick((n) => n + 1);
+      await load();
+      flash.ok("Location update enabled for this retailer (can_update = true). They can now update their business location from their profile.");
+    } catch (err) {
+      flash.fail(err, "Could not request location update");
+    }
+  }
+
   async function copyMobile() {
     if (!user) return;
     await navigator.clipboard.writeText(user.mobile);
@@ -3383,6 +3412,11 @@ export function AdminRetailerDetail() {
       label: "Reset password",
       icon: <KeyRound className="h-4 w-4" />,
       onClick: () => setModal("password"),
+    },
+    {
+      label: "Request to update location",
+      icon: <MapPin className="h-4 w-4" />,
+      onClick: () => setModal("request-location"),
     },
     {
       label: "Require re-verification",
@@ -3765,6 +3799,24 @@ export function AdminRetailerDetail() {
       </FormModal>
       <FormModal open={modal === "reactivate"} title="Activate retailer" onClose={() => setModal(null)} onSubmit={(e) => { e.preventDefault(); patchStatus("ACTIVE"); }} submitLabel="Activate">
         <p className="text-sm text-navy-600">This outlet can sign in and use the desk again.</p>
+      </FormModal>
+      <FormModal
+        open={modal === "request-location"}
+        title="Request to update business location"
+        description="Allow this retailer to update their business location and operating address from their profile page."
+        onClose={() => setModal(null)}
+        onSubmit={requestLocationUpdate}
+        submitLabel="Allow Location Update"
+      >
+        <div className="space-y-2 text-sm text-navy-600">
+          <p>
+            Enable business location update (<code className="font-mono text-navy-900">can_update = true</code>) for{" "}
+            <strong className="text-navy-950">{user.full_name}</strong>?
+          </p>
+          <p className="text-xs text-slate-500">
+            Once enabled, the retailer will be allowed to submit a new business location from their Business profile tab. When you approve the updated location, <code className="font-mono text-navy-900">can_update</code> is automatically turned off again so they cannot keep changing it randomly.
+          </p>
+        </div>
       </FormModal>
       <FormModal
         open={modal === "reverify"}

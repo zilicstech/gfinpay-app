@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Clock, Copy, Printer, RefreshCw, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Copy, Printer, RefreshCw, RotateCcw, ShieldAlert, XCircle } from "lucide-react";
 import { api, formatApiError } from "@/lib/api-client";
 import { inr, when } from "@/lib/format";
 import { useSession } from "@/stores/session.store";
@@ -42,6 +42,7 @@ export function TransactionRecord({
   extraFacts,
   flash,
   verifyEndpoint,
+  adminResolveEndpoint,
   isAdminView = false,
   onTransactionUpdated,
 }: {
@@ -51,6 +52,7 @@ export function TransactionRecord({
   extraFacts?: { label: string; value: ReactNode }[];
   flash?: ReactNode;
   verifyEndpoint?: string;
+  adminResolveEndpoint?: string;
   isAdminView?: boolean;
   onTransactionUpdated?: (next: TxnRecord) => void;
 }) {
@@ -60,6 +62,16 @@ export function TransactionRecord({
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
   const [verifyErr, setVerifyErr] = useState<string | null>(null);
   const [callbacks, setCallbacks] = useState<CallbackDiagRow[] | null>(null);
+
+  const [resolveMode, setResolveMode] = useState<"CONFIRM" | "REVERSE" | null>(null);
+  const [resolveRef, setResolveRef] = useState(txn.partner_ref ?? "");
+  const [resolveReason, setResolveReason] = useState("");
+  const [resolving, setResolving] = useState(false);
+
+  const effectiveResolveEndpoint =
+    adminResolveEndpoint ?? (isAdminView ? `/api/v1/admin/transactions/${txn.id}/resolve` : undefined);
+  const isNonTerminal = txn.state === "HOLD" || txn.state === "PENDING" || txn.state === "INITIATED";
+  const totalAmount = Number(txn.amount || 0) + Number(txn.fee || 0);
 
   function copy(text: string, key: string) {
     navigator.clipboard.writeText(text);
@@ -89,6 +101,48 @@ export function TransactionRecord({
       setVerifyErr(formatApiError(err, "Could not verify transaction status"));
     } finally {
       setVerifying(false);
+    }
+  }
+
+  function openResolveModal(mode: "CONFIRM" | "REVERSE") {
+    setVerifyErr(null);
+    setVerifyMsg(null);
+    setResolveMode(mode);
+    setResolveRef(txn.partner_ref ?? "");
+    setResolveReason(
+      mode === "CONFIRM"
+        ? "Confirmed settled via banking switch verification"
+        : "Reversed to wallet by Admin — no response from upstream API",
+    );
+  }
+
+  async function handleAdminResolve() {
+    if (!token || !effectiveResolveEndpoint || !resolveMode) return;
+    setResolving(true);
+    setVerifyMsg(null);
+    setVerifyErr(null);
+    try {
+      const res = await api<VerifyTransactionResponse>(effectiveResolveEndpoint, {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          action: resolveMode,
+          partnerRef: resolveRef.trim() || undefined,
+          reason: resolveReason.trim() || undefined,
+        }),
+      });
+      setVerifyMsg(res.message);
+      setResolveMode(null);
+      if (isAdminView && Array.isArray(res.callbacks)) {
+        setCallbacks(res.callbacks);
+      }
+      if (res.transaction && onTransactionUpdated) {
+        onTransactionUpdated(res.transaction);
+      }
+    } catch (err) {
+      setVerifyErr(formatApiError(err, "Could not manually resolve transaction"));
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -133,6 +187,128 @@ export function TransactionRecord({
       {flash}
       {verifyErr && <Alert tone="error">{verifyErr}</Alert>}
       {verifyMsg && <Alert tone="success">{verifyMsg}</Alert>}
+
+      {/* Admin Manual Resolution Controls when Transaction is stuck in HOLD / PENDING / INITIATED */}
+      {isAdminView && isNonTerminal && effectiveResolveEndpoint && (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-100 text-amber-800 shrink-0">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-display text-sm sm:text-base font-bold text-navy-950">
+                  Transaction on {txn.state} · Manual Admin Resolution
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  If <strong>Verify Status</strong> does not receive a final response from the upstream banking API, you can manually mark this transaction as confirmed (finalize wallet deduction of <strong>{inr(totalAmount)}</strong>) or reverse the held funds back into the retailer&apos;s wallet.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                disabled={resolving || verifying}
+                onClick={() => openResolveModal("CONFIRM")}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Confirm &amp; Deduct Wallet
+              </button>
+              <button
+                type="button"
+                disabled={resolving || verifying}
+                onClick={() => openResolveModal("REVERSE")}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700 disabled:opacity-60 transition-colors"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reverse to Wallet
+              </button>
+            </div>
+          </div>
+
+          {resolveMode && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  {resolveMode === "CONFIRM" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Confirm Settlement &amp; Finalize Wallet Deduction ({inr(totalAmount)})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-xs font-bold text-rose-800">
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Reverse Transaction &amp; Refund {inr(totalAmount)} to Retailer Wallet
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setResolveMode(null)}
+                  className="text-xs font-semibold text-slate-500 hover:text-navy-950"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-slate-700">
+                  Bank RRN / UTR Reference <span className="text-slate-400 font-normal">(Optional)</span>
+                  <input
+                    className="field mt-1 font-mono text-xs"
+                    value={resolveRef}
+                    onChange={(e) => setResolveRef(e.target.value)}
+                    placeholder="Enter bank UTR or reference number"
+                  />
+                </label>
+
+                <label className="text-xs font-semibold text-slate-700">
+                  Admin Resolution Note / Reason <span className="text-rose-600">*</span>
+                  <input
+                    className="field mt-1 text-xs"
+                    value={resolveReason}
+                    onChange={(e) => setResolveReason(e.target.value)}
+                    placeholder={
+                      resolveMode === "CONFIRM"
+                        ? "Reason for confirming transaction"
+                        : "Reason for reversing back to wallet"
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={resolving}
+                  onClick={() => setResolveMode(null)}
+                  className="btn-secondary text-xs !py-2 !px-3.5"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={resolving}
+                  onClick={handleAdminResolve}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors disabled:opacity-60 ${
+                    resolveMode === "CONFIRM"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-rose-600 hover:bg-rose-700"
+                  }`}
+                >
+                  {resolving
+                    ? "Processing…"
+                    : resolveMode === "CONFIRM"
+                      ? `Confirm SUCCESS & Deduct ${inr(totalAmount)}`
+                      : `Confirm REVERSED & Refund ${inr(totalAmount)}`}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Luxury Receipt Card */}
       <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5">

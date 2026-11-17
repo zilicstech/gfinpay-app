@@ -130,6 +130,7 @@ export type SignatorySummary = {
 export type VerificationState = {
   personalIdentityVerified?: boolean;
   businessVerified?: boolean;
+  can_update?: boolean;
   aadhaarPanLinked?: boolean;
   identityStatus?: string;
   bankVerificationStatus?: string;
@@ -232,9 +233,12 @@ export function BusinessRegistration({
 
   const [mode, setMode] = useState<"INDIVIDUAL" | "COMPANY">("INDIVIDUAL");
   const [editingAfterReject, setEditingAfterReject] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
   const [kycLoc, setKycLoc] = useState<KycLocationResponse | null>(null);
   const [locationSource, setLocationSource] = useState<"KYC_LOCATION" | "CURRENT_DEVICE">("KYC_LOCATION");
   const [deviceCoords, setDeviceCoords] = useState<{ latitude: string; longitude: string } | null>(null);
+  const [manualLat, setManualLat] = useState("");
+  const [manualLng, setManualLng] = useState("");
   const [capturingGps, setCapturingGps] = useState(false);
 
   // Individual & shared merchant fields
@@ -440,11 +444,98 @@ export function BusinessRegistration({
     try {
       const coords = await locateDevice();
       setDeviceCoords(coords);
+      setManualLat(coords.latitude);
+      setManualLng(coords.longitude);
       setLocationSource("CURRENT_DEVICE");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not capture GPS location");
     } finally {
       setCapturingGps(false);
+    }
+  }
+
+  function openUpdateLocationForm() {
+    setError(null);
+    setOk(null);
+    const curLat = state?.workLocation?.latitude != null ? String(state.workLocation.latitude) : "";
+    const curLng = state?.workLocation?.longitude != null ? String(state.workLocation.longitude) : "";
+    setManualLat(curLat);
+    setManualLng(curLng);
+    if (curLat && curLng) {
+      setDeviceCoords({ latitude: curLat, longitude: curLng });
+    }
+    setLocationSource("CURRENT_DEVICE");
+    const wa = state?.workAddress ?? {};
+    const isSame = wa.sameAsPersonal !== undefined ? Boolean(wa.sameAsPersonal) : true;
+    setSameAsPersonal(isSame);
+    setCustomAddr({
+      line1: String(wa.line1 || ""),
+      line2: String(wa.line2 || wa.area || ""),
+      area: String(wa.area || wa.line2 || ""),
+      landmark: String(wa.landmark || ""),
+      city: String(wa.city || permAddr.vtc || permAddr.district || ""),
+      district: String(wa.district || wa.city || permAddr.district || ""),
+      state: String(wa.state || permAddr.state || "Karnataka"),
+      pincode: String(wa.pincode || permAddr.pincode || ""),
+    });
+    setEditingLocation(true);
+  }
+
+  async function handleSubmitLocationUpdate(e: FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    setOk(null);
+    try {
+      let lat = manualLat.trim();
+      let lng = manualLng.trim();
+      if (locationSource === "KYC_LOCATION" && kycLoc?.available && kycLoc.latitude != null && kycLoc.longitude != null) {
+        lat = String(kycLoc.latitude);
+        lng = String(kycLoc.longitude);
+      } else if (!lat || !lng) {
+        const coords = deviceCoords ?? (await locateDevice());
+        setDeviceCoords(coords);
+        lat = coords.latitude;
+        lng = coords.longitude;
+        setManualLat(lat);
+        setManualLng(lng);
+      }
+      await uploadShopPhotoIfPresent();
+      const next = await api<VerificationState>("/api/v1/verification/business/location", {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          locationSource,
+          latitude: lat,
+          longitude: lng,
+          shopName: shopName.trim() || undefined,
+          address: sameAsPersonal
+            ? { sameAsPersonal: true }
+            : {
+                sameAsPersonal: false,
+                line1: customAddr.line1,
+                line2: customAddr.line2 || customAddr.area,
+                area: customAddr.area || customAddr.line2,
+                landmark: customAddr.landmark,
+                city: customAddr.city,
+                district: customAddr.district || customAddr.city,
+                state: customAddr.state,
+                pincode: customAddr.pincode,
+              },
+        }),
+      });
+      onUpdated(next);
+      setEditingLocation(false);
+      setOk("Business location updated and submitted for admin approval.");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message.startsWith("Allow location")
+          ? err.message
+          : formatApiError(err, "Could not update business location"),
+      );
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -932,13 +1023,15 @@ export function BusinessRegistration({
   // 2. UNDER_REVIEW or BUSINESS_VERIFIED Summary Card
   if ((businessStatus === "UNDER_REVIEW" || businessStatus === "BUSINESS_VERIFIED") && !editingAfterReject) {
     const isVerified = businessStatus === "BUSINESS_VERIFIED" || Boolean(state?.businessVerified);
+    const locationUpdatePending = Boolean(bizDetails.locationUpdatePending);
+    const canUpdateLocation = Boolean(state?.can_update ?? bizDetails.can_update);
     const workAddrText =
       state?.workAddress?.fullAddress ||
       String(bizDetails.addressText || savedCompany?.registeredAddress || permAddr.fullAddress || "—");
     return (
       <div className="card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             {isVerified ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-300 px-3 py-1 text-xs font-bold text-emerald-800">
                 <BadgeCheck className="h-4 w-4 text-emerald-600" />
@@ -947,14 +1040,220 @@ export function BusinessRegistration({
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-800">
                 <Clock className="h-4 w-4 text-amber-600" />
-                Submitted · Under Admin Review
+                {locationUpdatePending
+                  ? "Location Update · Pending Admin Approval"
+                  : "Submitted · Under Admin Review"}
               </span>
             )}
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
               {state?.businessType === "COMPANY" ? "Company / LLP" : "Individual"}
             </span>
           </div>
+
+          {canUpdateLocation && (
+            <button
+              type="button"
+              onClick={() => (editingLocation ? setEditingLocation(false) : openUpdateLocationForm())}
+              className="btn-secondary !py-1.5 !px-3.5 text-xs inline-flex items-center gap-1.5"
+            >
+              <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+              {editingLocation ? "Cancel Location Edit" : "Update Business Location"}
+            </button>
+          )}
         </div>
+
+        {canUpdateLocation && !locationUpdatePending && !editingLocation && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              <strong>Action Requested:</strong> Platform Admin has requested you to update your business location and operating address.
+            </span>
+            <button
+              type="button"
+              onClick={openUpdateLocationForm}
+              className="font-bold text-amber-900 underline hover:text-amber-700"
+            >
+              Update Now →
+            </button>
+          </div>
+        )}
+
+        {error && <Alert tone="error">{error}</Alert>}
+        {ok && <Alert tone="success">{ok}</Alert>}
+
+        {canUpdateLocation && editingLocation && (
+          <form
+            onSubmit={handleSubmitLocationUpdate}
+            className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5 space-y-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/70 pb-3">
+              <div>
+                <h3 className="font-display text-sm font-bold text-navy-950 flex items-center gap-1.5">
+                  <Navigation className="h-4 w-4 text-emerald-600" />
+                  Update Business Location &amp; Operating Address
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Submitting an updated business location will send it to the Admin team for approval before provider onboarding.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={capturingGps}
+                onClick={handleCaptureCurrentGps}
+                className="btn-secondary !py-1.5 !px-3 text-xs inline-flex items-center gap-1.5 bg-white"
+              >
+                <Navigation className={`h-3.5 w-3.5 text-emerald-600 ${capturingGps ? "animate-spin" : ""}`} />
+                {capturingGps ? "Capturing GPS…" : "Capture Live GPS"}
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-medium text-slate-700">
+                Work Latitude <span className="text-rose-600">*</span>
+                <input
+                  className="field mt-1 font-mono text-xs bg-white"
+                  value={manualLat}
+                  onChange={(e) => {
+                    setManualLat(e.target.value);
+                    setLocationSource("CURRENT_DEVICE");
+                  }}
+                  placeholder="e.g. 21.251962"
+                  required
+                />
+              </label>
+              <label className="text-xs font-medium text-slate-700">
+                Work Longitude <span className="text-rose-600">*</span>
+                <input
+                  className="field mt-1 font-mono text-xs bg-white"
+                  value={manualLng}
+                  onChange={(e) => {
+                    setManualLng(e.target.value);
+                    setLocationSource("CURRENT_DEVICE");
+                  }}
+                  placeholder="e.g. 81.673253"
+                  required
+                />
+              </label>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold text-navy-950 flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                  Work / Shop Operating Address
+                </span>
+                <label className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1 text-xs font-semibold text-navy-950 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sameAsPersonal}
+                    onChange={(e) => setSameAsPersonal(e.target.checked)}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  Same as Aadhaar Address
+                </label>
+              </div>
+
+              {sameAsPersonal ? (
+                <div className="rounded-xl bg-emerald-50/70 border border-emerald-200/80 p-3 text-xs space-y-1">
+                  <p className="text-slate-800 font-medium">{permAddr.fullAddress || "Verified Aadhaar Address"}</p>
+                  <p className="text-slate-500 text-[11px]">
+                    {[permAddr.vtc || permAddr.district, permAddr.state, permAddr.pincode].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Shop / Building / Street (Line 1) <span className="text-rose-600">*</span>
+                    <input
+                      className="field mt-1"
+                      value={customAddr.line1}
+                      onChange={(e) => setCustomAddr({ ...customAddr, line1: e.target.value })}
+                      placeholder="Shop No, Building Name, Street"
+                      required
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Locality / Area <span className="text-rose-600">*</span>
+                    <input
+                      className="field mt-1"
+                      value={customAddr.area || customAddr.line2}
+                      onChange={(e) => setCustomAddr({ ...customAddr, area: e.target.value, line2: e.target.value })}
+                      placeholder="Locality / Area"
+                      required
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Landmark (Optional)
+                    <input
+                      className="field mt-1"
+                      value={customAddr.landmark}
+                      onChange={(e) => setCustomAddr({ ...customAddr, landmark: e.target.value })}
+                      placeholder="Near Market / Metro"
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    City / Town <span className="text-rose-600">*</span>
+                    <input
+                      className="field mt-1"
+                      value={customAddr.city}
+                      onChange={(e) => setCustomAddr({ ...customAddr, city: e.target.value })}
+                      required
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    District <span className="text-rose-600">*</span>
+                    <input
+                      className="field mt-1"
+                      value={customAddr.district}
+                      onChange={(e) => setCustomAddr({ ...customAddr, district: e.target.value })}
+                      required
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    State <span className="text-rose-600">*</span>
+                    <select
+                      className="field mt-1"
+                      value={customAddr.state}
+                      onChange={(e) => setCustomAddr({ ...customAddr, state: e.target.value })}
+                    >
+                      {INDIAN_STATES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    PIN Code <span className="text-rose-600">*</span>
+                    <input
+                      className="field mt-1 font-mono"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={customAddr.pincode}
+                      onChange={(e) => setCustomAddr({ ...customAddr, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                      placeholder="6-digit PIN"
+                      required
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setEditingLocation(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button type="submit" disabled={busy} className="btn-primary text-xs inline-flex items-center gap-1.5">
+                <Send className="h-3.5 w-3.5" />
+                {busy ? "Submitting…" : "Submit Location Update for Admin Approval"}
+              </button>
+            </div>
+          </form>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-3 rounded-2xl bg-slate-50 border border-slate-200 p-4 text-xs">
           <div>

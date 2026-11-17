@@ -801,14 +801,6 @@ export function RetailerBankingAdminTab({
                             ? "Re-check Bank Account"
                             : "Check & Verify Bank"}
                       </button>
-                      <button
-                        type="button"
-                        disabled={busyAction !== null}
-                        onClick={() => handleToggleBankActive(b)}
-                        className="btn-secondary !py-1.5 !px-3 text-xs"
-                      >
-                        {activeBusy ? "Saving…" : b.active ? "Mark Inactive" : "Mark Active"}
-                      </button>
                     </div>
                   </div>
 
@@ -941,7 +933,7 @@ export function RetailerBankingAdminTab({
           )}
 
           {/* Inline backfill inputs if legacy retailer lacks 12-digit Aadhaar or Email */}
-          {(needsAadhaarBackfill || needsEmailBackfill) && hasUnonboardedChannel && (
+          {(needsAadhaarBackfill || needsEmailBackfill) && (
             <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-slate-200/80">
               {needsAadhaarBackfill && (
                 <label className="text-xs font-medium text-slate-700">
@@ -1101,6 +1093,23 @@ export function RetailerBankingAdminTab({
                         </button>
                       ) : (
                         <>
+                          {(!bankSynced || ch.onboarding_status === "FAILED" || !ch.pipe_outlet_code) && (
+                            <button
+                              type="button"
+                              disabled={busyAction !== null}
+                              onClick={() => handleOnboardProvider(ch.provider_code, ch.pipe_code)}
+                              className={
+                                ch.onboarding_status === "FAILED" || !ch.pipe_outlet_code
+                                  ? "btn-primary !py-1.5 !px-3.5 text-xs inline-flex items-center gap-1.5"
+                                  : "btn-secondary !py-1.5 !px-3 text-xs inline-flex items-center gap-1.5"
+                              }
+                              title="Retry onboarding with the retailer's approved business location and dossier details"
+                            >
+                              <RotateCcw className={`h-3.5 w-3.5 ${onboardBusy ? "animate-spin" : ""}`} />
+                              {onboardBusy ? "Retrying…" : "Retry Onboarding"}
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             disabled={busyAction !== null}
