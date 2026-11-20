@@ -46,7 +46,6 @@ import { emptyRetailerDraft, RetailerOnboardFields, retailerDraftReady, type Ret
 import { retailerLocationFromKyc, retailerLocationLine } from "@/features/admin/retailer-location";
 import { AgreementAdminCard } from "@/features/admin/AgreementAdminCard";
 import { ManageMenu, type ManageAction } from "@/features/console/EntityChrome";
-import { SalesTable, type SalesLead } from "@/features/sales/SalesTable";
 import { ActivationRequestModal } from "@/features/finance/ActivationRequestModal";
 import { RetailerRequestsPanel } from "@/features/finance/RetailerRequestsPanel";
 import type { Hub, UserDetail, UserRow } from "@/features/admin/types";
@@ -3150,15 +3149,9 @@ export function AdminRetailerDetail() {
   const [direction, setDirection] = useState("CREDIT");
   const [narration, setNarration] = useState("");
   const [modal, setModal] = useState<RetailerModal>(null);
-  const [tab, setTab] = useState<"personal" | "business" | "banking" | "sales" | "customers" | "transactions" | "requests" | "audit">("personal");
+  const [tab, setTab] = useState<"personal" | "business" | "banking" | "providers" | "logs" | "transactions" | "requests" | "audit">("personal");
   const [requestCount, setRequestCount] = useState(0);
   const [requestTick, setRequestTick] = useState(0);
-  const [sales, setSales] = useState<SalesLead[]>([]);
-  const [salesError, setSalesError] = useState<string | null>(null);
-  const [salesLoading, setSalesLoading] = useState(false);
-  const [customers, setCustomers] = useState<RetailerCustomer[]>([]);
-  const [customersError, setCustomersError] = useState<string | null>(null);
-  const [customersLoading, setCustomersLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [ekycOpen, setEkycOpen] = useState(false);
@@ -3182,8 +3175,8 @@ export function AdminRetailerDetail() {
       param === "personal" ||
       param === "business" ||
       param === "banking" ||
-      param === "sales" ||
-      param === "customers" ||
+      param === "providers" ||
+      param === "logs" ||
       param === "transactions" ||
       param === "requests" ||
       param === "audit"
@@ -3198,25 +3191,6 @@ export function AdminRetailerDetail() {
     }
   }, [token, id]);
 
-  useEffect(() => {
-    if (!token || !id || tab !== "sales") return;
-    setSalesLoading(true);
-    setSalesError(null);
-    api<SalesLead[]>(`/api/v1/sales?retailerId=${id}`, { token })
-      .then(setSales)
-      .catch((e) => setSalesError(formatApiError(e, "Could not load sales")))
-      .finally(() => setSalesLoading(false));
-  }, [token, id, tab]);
-
-  useEffect(() => {
-    if (!token || !id || tab !== "customers") return;
-    setCustomersLoading(true);
-    setCustomersError(null);
-    api<RetailerCustomer[]>(`/api/v1/customers?retailerId=${id}`, { token })
-      .then(setCustomers)
-      .catch((e) => setCustomersError(formatApiError(e, "Could not load customers")))
-      .finally(() => setCustomersLoading(false));
-  }, [token, id, tab]);
 
   async function patchStatus(status: string) {
     try {
@@ -3605,18 +3579,14 @@ export function AdminRetailerDetail() {
       {/* Tabs & Content */}
       <section className="space-y-4">
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1 w-fit">
-          {(["personal", "business", "banking", "sales", "customers", "transactions", "requests", ...(platformAdmin ? ["audit"] as const : [])] as const).map((key) => {
+          {(["personal", "business", "banking", "providers", "logs", "transactions", "requests", ...(platformAdmin ? ["audit"] as const : [])] as const).map((key) => {
             const isActive = tab === key;
             const count =
-              key === "sales"
-                ? sales.length
-                : key === "customers"
-                  ? customers.length
-                  : key === "requests"
-                    ? requestCount
-                    : key === "transactions"
-                      ? user.recentTransactions?.length ?? 0
-                      : 0;
+              key === "requests"
+                ? requestCount
+                : key === "transactions"
+                  ? user.recentTransactions?.length ?? 0
+                  : 0;
             const label =
               key === "personal"
                 ? "Personal"
@@ -3624,10 +3594,10 @@ export function AdminRetailerDetail() {
                   ? "Business"
                   : key === "banking"
                     ? "Banking"
-                    : key === "sales"
-                      ? "Sales"
-                      : key === "customers"
-                        ? "Customers"
+                    : key === "providers"
+                      ? "Providers"
+                      : key === "logs"
+                        ? "Logs"
                         : key === "requests"
                           ? "Requests"
                           : key === "audit"
@@ -3649,6 +3619,8 @@ export function AdminRetailerDetail() {
                   key !== "personal" &&
                   key !== "business" &&
                   key !== "banking" &&
+                  key !== "providers" &&
+                  key !== "logs" &&
                   ` (${count})`}
               </button>
             );
@@ -3670,6 +3642,27 @@ export function AdminRetailerDetail() {
           <RetailerBankingAdminTab
             userId={id}
             token={token}
+            view="banking"
+            refreshKey={reverifyTick}
+            onChanged={() => load().catch(() => undefined)}
+            onDone={(m) => flash.ok(m)}
+            onFail={(e, f) => flash.fail(e, f)}
+          />
+        ) : tab === "providers" && id ? (
+          <RetailerBankingAdminTab
+            userId={id}
+            token={token}
+            view="providers"
+            refreshKey={reverifyTick}
+            onChanged={() => load().catch(() => undefined)}
+            onDone={(m) => flash.ok(m)}
+            onFail={(e, f) => flash.fail(e, f)}
+          />
+        ) : tab === "logs" && id ? (
+          <RetailerBankingAdminTab
+            userId={id}
+            token={token}
+            view="logs"
             refreshKey={reverifyTick}
             onChanged={() => load().catch(() => undefined)}
             onDone={(m) => flash.ok(m)}
@@ -3677,43 +3670,6 @@ export function AdminRetailerDetail() {
           />
         ) : tab === "audit" && platformAdmin && id ? (
           <ActivityHistory token={token} userId={id} />
-        ) : tab === "sales" ? (
-          salesError ? (
-            <Alert tone="error">{salesError}</Alert>
-          ) : salesLoading ? (
-            <div className="card h-32 animate-pulse bg-slate-100" />
-          ) : sales.length === 0 ? (
-            <EmptyState title="No sales leads yet" body="Leads generated by this retailer will appear here." />
-          ) : (
-            <SalesTable rows={sales} detailBase="/admin/sales" hideRetailer showChannel={false} />
-          )
-        ) : tab === "customers" ? (
-          customersError ? (
-            <Alert tone="error">{customersError}</Alert>
-          ) : customersLoading ? (
-            <div className="card h-32 animate-pulse bg-slate-100" />
-          ) : customers.length === 0 ? (
-            <EmptyState title="No customers yet" body="Customers appear here when this retailer adds them at the desk." />
-          ) : (
-            <DataTable
-              columns={["Customer", "Mobile", "Location", "Created By", "Code", "eKYC", "Created On"]}
-              rows={customers.map((c) => [
-                <span key={`${c.id}-name`} className="font-semibold text-navy-950">{c.full_name}</span>,
-                maskMobile(c.mobile),
-                [c.city, c.state].filter(Boolean).join(", ") || "—",
-                c.created_by ?? "—",
-                c.created_by_code ? (
-                  <span key={`${c.id}-code`} className="font-mono text-xs font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                    {c.created_by_code}
-                  </span>
-                ) : (
-                  "—"
-                ),
-                <EkycBadge key={`${c.id}-kyc`} status={c.ekyc_status} />,
-                c.created_at ? when(c.created_at) : "—",
-              ])}
-            />
-          )
         ) : tab === "requests" && id ? (
           <RetailerRequestsPanel
             token={token}

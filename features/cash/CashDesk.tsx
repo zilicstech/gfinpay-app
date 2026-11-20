@@ -179,17 +179,20 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Biometric Active · Live Counter
+            {activation.biometricVerified ? "Biometric Active · Live Counter" : "Live Counter"}
           </span>
           <h1 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-navy-950">
             Cash Services Counter
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-            Accept walk-in customer UPI QR cashouts or Aadhaar biometric AePS withdrawals directly into your wallet.
+            {activation.aepsActive
+              ? "Accept walk-in customer UPI QR cashouts or Aadhaar biometric AePS withdrawals directly into your wallet."
+              : "Accept walk-in customer UPI QR cashouts directly into your wallet."}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {activation.aepsActive ? (
           <div className="flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
             <button
               type="button"
@@ -212,6 +215,7 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
               AePS Banking
             </button>
           </div>
+          ) : null}
         </div>
       </div>
 
@@ -242,7 +246,7 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
         </div>
       )}
 
-      {tab === "UPI" ? <UpiCashoutDesk embedded /> : <AepsDesk embedded />}
+      {tab === "AEPS" && activation.aepsActive ? <AepsDesk embedded /> : <UpiCashoutDesk embedded />}
     </div>
   );
 }

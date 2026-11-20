@@ -124,6 +124,8 @@ export type TxnRow = {
   failure_reason?: string;
   created_at?: string;
   agent_name?: string;
+  provider_code?: string | null;
+  pipe_code?: string | null;
 };
 
 export type PlatformService = {

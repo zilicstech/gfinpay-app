@@ -469,6 +469,15 @@ export function TransactionRecord({
               <span className="text-xs font-semibold text-slate-500">Rail Switch</span>
               <span className="text-sm font-medium text-navy-900">{railLabel}</span>
             </div>
+            {isAdminView && (txn.provider_code || txn.pipe_code) && (
+              <div className="flex items-center justify-between px-5 py-3.5 bg-white">
+                <span className="text-xs font-semibold text-slate-500">Provider</span>
+                <span className="text-sm font-semibold text-navy-950">
+                  {txn.provider_code ?? "—"}
+                  {txn.pipe_code ? ` · ${txn.pipe_code}` : ""}
+                </span>
+              </div>
+            )}
             {txn.partner_ref && (
               <div className="flex items-center justify-between px-5 py-3.5 bg-white">
                 <span className="text-xs font-semibold text-slate-500">Bank RRN / UTR</span>

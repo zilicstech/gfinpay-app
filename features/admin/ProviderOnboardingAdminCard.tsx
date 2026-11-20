@@ -5,11 +5,7 @@ import {
   AlertTriangle,
   BadgeCheck,
   Building2,
-  Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Copy,
   Download,
   Fingerprint,
   Landmark,
@@ -18,11 +14,11 @@ import {
   RotateCcw,
   Server,
   ShieldCheck,
-  Terminal,
 } from "lucide-react";
 import { api, apiBlob, formatApiError } from "@/lib/api-client";
 import { when } from "@/lib/format";
 import { Alert, StatusPill } from "@/components/ui/primitives";
+import { ProviderApiTraceSection, type ProviderApiLogRow } from "@/features/admin/ProviderApiTraceSection";
 
 type DossierSummary = {
   bcAgentId?: string;
@@ -121,6 +117,8 @@ type ProviderChannelRow = {
   synced_bank_account_id?: string | null;
   bank_sync_remarks?: string | null;
   enabled_for_retailer: boolean;
+  retailer_priority?: number | null;
+  payee_vpa?: string | null;
   last_error?: string | null;
   last_synced_at?: string | null;
 };
@@ -142,6 +140,8 @@ type ProviderActivationRow = {
   synced_bank_account_id?: string | null;
   bank_sync_remarks?: string | null;
   enabled_for_retailer: boolean;
+  retailer_priority?: number | null;
+  payee_vpa?: string | null;
   last_error?: string | null;
   last_synced_at?: string | null;
 };
@@ -162,75 +162,6 @@ type BiometricSessionRow = {
   created_at?: string | null;
   submitted_at?: string | null;
 };
-
-type EmeraldApiLogRow = {
-  id: string;
-  callId: string;
-  requestId?: string | null;
-  direction: "OUTBOUND" | "INBOUND_WEBHOOK" | string;
-  flow: string;
-  httpMethod: string;
-  url: string;
-  endpointPath: string;
-  userId?: string | null;
-  outletCode?: string | null;
-  externalRef?: string | null;
-  providerTxnId?: string | null;
-  requestHeaders?: Record<string, unknown>;
-  requestBody?: string | null;
-  httpStatus?: number | null;
-  providerCode?: string | null;
-  providerMessage?: string | null;
-  responseHeaders?: Record<string, unknown>;
-  responseBody?: string | null;
-  errorMessage?: string | null;
-  latencyMs?: number | null;
-  createdAt?: string | null;
-};
-
-function prettyBody(raw?: string | null): string {
-  if (!raw) return "(empty)";
-  const trimmed = raw.trim();
-  if (!trimmed) return "(empty)";
-  try {
-    return JSON.stringify(JSON.parse(trimmed), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
-function buildEmeraldSupportTrace(log: EmeraldApiLogRow): string {
-  const lines = [
-    "=== EMERALD API REQUEST & RESPONSE TRACE ===",
-    `Call ID: ${log.callId}`,
-    `X-Request-Id: ${log.requestId || "N/A"}`,
-    `Timestamp: ${log.createdAt || "N/A"}`,
-    `Direction / Flow: ${log.direction} / ${log.flow}`,
-    `Endpoint: ${log.httpMethod} ${log.url || log.endpointPath}`,
-    `Outlet Code: ${log.outletCode || "N/A"}`,
-    `External Ref: ${log.externalRef || "N/A"}`,
-    `Provider Txn ID: ${log.providerTxnId || "N/A"}`,
-    `HTTP Status: ${log.httpStatus ?? "NETWORK_ERROR"} | Provider Code: ${log.providerCode || "N/A"} | Latency: ${log.latencyMs ?? 0} ms`,
-  ];
-  if (log.errorMessage) {
-    lines.push(`Error: ${log.errorMessage}`);
-  }
-  lines.push(
-    "",
-    "--- REQUEST HEADERS ---",
-    JSON.stringify(log.requestHeaders ?? {}, null, 2),
-    "",
-    "--- REQUEST BODY ---",
-    prettyBody(log.requestBody),
-    "",
-    "--- RESPONSE HEADERS ---",
-    JSON.stringify(log.responseHeaders ?? {}, null, 2),
-    "",
-    "--- RESPONSE BODY ---",
-    prettyBody(log.responseBody),
-  );
-  return lines.join("\n");
-}
 
 type RetailerProvidersResponse = {
   emeraldConfigured: boolean;
@@ -262,6 +193,7 @@ export function RetailerBankingAdminTab({
   onChanged,
   onDone,
   onFail,
+  view = "banking",
 }: {
   userId: string;
   token: string | null;
@@ -269,6 +201,7 @@ export function RetailerBankingAdminTab({
   onChanged?: () => void;
   onDone?: (msg: string) => void;
   onFail?: (err: unknown, fallback: string) => void;
+  view?: "banking" | "providers" | "logs";
 }) {
   const [data, setData] = useState<RetailerProvidersResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -280,19 +213,22 @@ export function RetailerBankingAdminTab({
   const [aadhaarOverride, setAadhaarOverride] = useState("");
   const [emailOverride, setEmailOverride] = useState("");
 
-  // Emerald API request/response trace logs for troubleshooting & sharing with Emerald team
-  const [emeraldLogs, setEmeraldLogs] = useState<EmeraldApiLogRow[]>([]);
+  const [emeraldLogs, setEmeraldLogs] = useState<ProviderApiLogRow[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [logDirectionFilter, setLogDirectionFilter] = useState<"ALL" | "OUTBOUND" | "INBOUND_WEBHOOK">("ALL");
-  const [logSearch, setLogSearch] = useState("");
+  const [iserveuLogs, setIserveuLogs] = useState<ProviderApiLogRow[]>([]);
+  const [iserveuLogsLoading, setIserveuLogsLoading] = useState(false);
+  const [iserveuOpen, setIserveuOpen] = useState(false);
+  const [iserveuPipe, setIserveuPipe] = useState("CASHPOINT");
+  const [iserveuAccount, setIserveuAccount] = useState("");
+  const [iserveuVpa, setIserveuVpa] = useState("");
+  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
 
   const loadEmeraldLogs = useCallback(async () => {
     if (!token || !userId) return;
     setLogsLoading(true);
     try {
-      const rows = await api<EmeraldApiLogRow[]>(
+      const rows = await api<ProviderApiLogRow[]>(
         `/api/v1/admin/users/${userId}/providers/emerald/logs?limit=50`,
         { token },
       );
@@ -304,21 +240,38 @@ export function RetailerBankingAdminTab({
     }
   }, [token, userId]);
 
+  const loadIserveuLogs = useCallback(async () => {
+    if (!token || !userId) return;
+    setIserveuLogsLoading(true);
+    try {
+      const rows = await api<ProviderApiLogRow[]>(
+        `/api/v1/admin/users/${userId}/providers/iserveu/logs?limit=50`,
+        { token },
+      );
+      setIserveuLogs(Array.isArray(rows) ? rows : []);
+    } catch (err) {
+      setLocalErr(formatApiError(err, "Could not load iServeU API logs"));
+    } finally {
+      setIserveuLogsLoading(false);
+    }
+  }, [token, userId]);
+
   const load = useCallback(async () => {
     if (!token || !userId) return;
     setLoading(true);
     try {
-      const [res] = await Promise.all([
-        api<RetailerProvidersResponse>(`/api/v1/admin/users/${userId}/providers`, { token }),
-        loadEmeraldLogs(),
-      ]);
+      if (view === "logs") {
+        await Promise.all([loadEmeraldLogs(), loadIserveuLogs()]);
+        return;
+      }
+      const res = await api<RetailerProvidersResponse>(`/api/v1/admin/users/${userId}/providers`, { token });
       setData(res);
     } catch (e) {
       setLocalErr(formatApiError(e, "Could not load banking & provider state"));
     } finally {
       setLoading(false);
     }
-  }, [token, userId, loadEmeraldLogs]);
+  }, [token, userId, view, loadEmeraldLogs, loadIserveuLogs]);
 
   useEffect(() => {
     load();
@@ -478,11 +431,99 @@ export function RetailerBankingAdminTab({
     }
   }
 
+  function openIserveuModal(pipeCode: string, account?: string | null, vpa?: string | null) {
+    setIserveuPipe(pipeCode || "CASHPOINT");
+    setIserveuAccount(account ?? "");
+    setIserveuVpa(vpa ?? "");
+    setIserveuOpen(true);
+  }
+
+  async function handleSaveIserveu() {
+    if (!token) return;
+    setBusyAction("iserveu-onboard");
+    setLocalErr(null);
+    setLocalMsg(null);
+    try {
+      const res = await api<RetailerProvidersResponse>(
+        `/api/v1/admin/users/${userId}/providers/iserveu/onboard`,
+        {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            accountNumber: iserveuAccount,
+            payeeVpa: iserveuVpa,
+            retailerCode: data?.dossier.bcAgentId,
+            pipeCode: iserveuPipe,
+          }),
+        },
+      );
+      setData(res);
+      setIserveuOpen(false);
+      onChanged?.();
+      notifyOk("iServeU account and VPA saved for this retailer.");
+    } catch (err) {
+      notifyErr(err, "Could not save the iServeU onboarding details");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  function openPriorityModal() {
+    const draft: Record<string, string> = {};
+    const seen = new Set<string>();
+    for (const ch of data?.providerChannels ?? []) {
+      if (seen.has(ch.provider_code)) continue;
+      seen.add(ch.provider_code);
+      const same = (data?.providerChannels ?? []).filter((row) => row.provider_code === ch.provider_code);
+      const priority = same.find((row) => row.retailer_priority)?.retailer_priority;
+      draft[ch.provider_code] = priority ? String(priority) : "";
+    }
+    setPriorityDraft(draft);
+    setLocalErr(null);
+    setPriorityOpen(true);
+  }
+
+  async function handleSavePriorities() {
+    if (!token || !data) return;
+    const chosen = Object.entries(priorityDraft).filter(([, value]) => value);
+    const numbers = chosen.map(([, value]) => Number(value));
+    if (new Set(numbers).size !== numbers.length) {
+      setLocalErr("Two providers cannot use the same priority.");
+      return;
+    }
+    setBusyAction("priorities");
+    setLocalErr(null);
+    try {
+      const res = await api<RetailerProvidersResponse>(
+        `/api/v1/admin/users/${userId}/providers/priorities`,
+        {
+          token,
+          method: "PUT",
+          body: JSON.stringify(
+            chosen.map(([providerCode, priority]) => ({
+              providerCode,
+              priority: Number(priority),
+            })),
+          ),
+        },
+      );
+      setData(res);
+      setPriorityOpen(false);
+      onChanged?.();
+      notifyOk("Provider priority saved.");
+    } catch (err) {
+      notifyErr(err, "Could not save provider priority");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function handleToggleChannel(
     channelId: string,
     providerLabel: string,
     enabled: boolean,
     reopenBiometric = false,
+    retailerPriority?: number | null,
   ) {
     if (!token) return;
     setBusyAction(`channel-${channelId}`);
@@ -497,6 +538,7 @@ export function RetailerBankingAdminTab({
           body: JSON.stringify({
             enabledForRetailer: enabled,
             reopenBiometric,
+            retailerPriority: retailerPriority ?? undefined,
           }),
         },
       );
@@ -509,6 +551,36 @@ export function RetailerBankingAdminTab({
       );
     } catch (err) {
       notifyErr(err, "Could not update provider channel");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleToggleProvider(channelIds: string[], providerLabel: string, enabled: boolean) {
+    if (!token || channelIds.length === 0) return;
+    setBusyAction(`channel-${channelIds[0]}`);
+    setLocalErr(null);
+    setLocalMsg(null);
+    try {
+      let latest: RetailerProvidersResponse | null = null;
+      for (const channelId of channelIds) {
+        latest = await api<RetailerProvidersResponse>(
+          `/api/v1/admin/users/${userId}/providers/channels/${channelId}`,
+          {
+            token,
+            method: "PATCH",
+            body: JSON.stringify({
+              enabledForRetailer: enabled,
+              reopenBiometric: false,
+            }),
+          },
+        );
+      }
+      if (latest) setData(latest);
+      onChanged?.();
+      notifyOk(`${providerLabel} ${enabled ? "enabled" : "disabled"} for this retailer.`);
+    } catch (err) {
+      notifyErr(err, "Could not update provider");
     } finally {
       setBusyAction(null);
     }
@@ -533,6 +605,34 @@ export function RetailerBankingAdminTab({
     } finally {
       setBusyAction(null);
     }
+  }
+
+  const apiLogs = [
+    ...emeraldLogs.map((row) => ({ ...row, provider: "Emerald" })),
+    ...iserveuLogs.map((row) => ({ ...row, provider: "iServeU" })),
+  ].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+  if (view === "logs") {
+    if (loading && apiLogs.length === 0 && !localErr) {
+      return <div className="card h-64 animate-pulse bg-slate-100 rounded-[2rem]" />;
+    }
+    return (
+      <div className="space-y-6">
+        {localErr && <Alert tone="error">{localErr}</Alert>}
+        {localMsg && <Alert tone="success">{localMsg}</Alert>}
+        <ProviderApiTraceSection
+          brand="Provider"
+          description="Emerald and iServeU outbound calls and inbound webhooks for this retailer. Use the provider filter to follow up on one rail. Pass keys and header secrets are not shown."
+          emptyText="No Emerald or iServeU API calls have been recorded for this retailer yet."
+          logs={apiLogs}
+          loading={logsLoading || iserveuLogsLoading}
+          onRefresh={() => {
+            loadEmeraldLogs().catch(() => undefined);
+            loadIserveuLogs().catch(() => undefined);
+          }}
+        />
+      </div>
+    );
   }
 
   if (loading && !data) {
@@ -574,10 +674,36 @@ export function RetailerBankingAdminTab({
           last_synced_at: a.last_synced_at,
         }));
 
-  const onboardedChannels = channels.filter((c) => c.onboarded);
+  const iserveuRows = channels.filter((c) => c.provider_code === "ISERVEU");
+  const iserveuPrimary = iserveuRows.find((c) => c.pipe_code === "CASHPOINT") ?? iserveuRows[0];
+  const iserveuCard: ProviderChannelRow | null = iserveuPrimary
+    ? {
+        ...iserveuPrimary,
+        pipe_code: "",
+        onboarded: iserveuRows.some((row) => row.onboarded),
+        enabled_for_retailer: iserveuRows.some((row) => row.onboarded && row.enabled_for_retailer),
+        platform_channel_active: iserveuRows.some((row) => row.platform_channel_active),
+        supports_upi_cashout: iserveuRows.some((row) => row.supports_upi_cashout),
+        supports_aeps: iserveuRows.some((row) => row.supports_aeps),
+        supports_payout: iserveuRows.some((row) => row.supports_payout),
+        payee_vpa: iserveuRows.find((row) => row.payee_vpa)?.payee_vpa ?? iserveuPrimary.payee_vpa,
+        pipe_outlet_code:
+          iserveuRows.find((row) => row.pipe_outlet_code)?.pipe_outlet_code ?? iserveuPrimary.pipe_outlet_code,
+        retailer_priority:
+          iserveuRows.find((row) => row.retailer_priority)?.retailer_priority ?? iserveuPrimary.retailer_priority,
+      }
+    : null;
+  const visibleChannels = [
+    ...channels.filter((c) => c.provider_code !== "ISERVEU"),
+    ...(iserveuCard ? [iserveuCard] : []),
+  ];
+
+  const onboardedChannels = visibleChannels.filter((c) => c.onboarded);
   const fullKycChannels = onboardedChannels.filter((c) => c.kyc_status === "FULL_KYC");
   const routableChannels = onboardedChannels.filter(
-    (c) => c.enabled_for_retailer && c.platform_channel_active && c.kyc_status === "FULL_KYC",
+    (c) =>
+      c.enabled_for_retailer &&
+      (c.kyc_status === "FULL_KYC" || (c.provider_code === "ISERVEU" && c.kyc_status === "NOT_REQUIRED")),
   );
   const syncedBankIds = new Set(
     onboardedChannels
@@ -595,24 +721,14 @@ export function RetailerBankingAdminTab({
       {localErr && <Alert tone="error">{localErr}</Alert>}
       {localMsg && <Alert tone="success">{localMsg}</Alert>}
 
-      {/* 1. Top Banking & Provider Switch Summary Strip */}
+      {view === "providers" && (
       <section className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-sm space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="font-display text-lg font-bold text-navy-950">
-                Retailer Banking &amp; Provider Switch Operations
+                Provider operations
               </h2>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${
-                  bankStatus === "VERIFIED"
-                    ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                    : "bg-amber-50 border-amber-300 text-amber-800"
-                }`}
-              >
-                <Landmark className="h-3.5 w-3.5" />
-                Bank Verified: {bankStatus === "VERIFIED" ? "YES" : bankStatus}
-              </span>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${
                   routableChannels.length > 0
@@ -625,29 +741,12 @@ export function RetailerBankingAdminTab({
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Verify settlement bank accounts, onboard upstream banking switches, toggle per-provider access, and check live provider status.
+              Onboard providers, set priority, and enable or disable each provider for this retailer.
             </p>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Settlement Bank
-              </span>
-              <Landmark className="h-4 w-4 text-emerald-600" />
-            </div>
-            <div className="flex items-center gap-2">
-              <StatusPill value={bankStatus} />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              {banks.length > 0
-                ? `${banks.filter((b) => b.verification_status === "VERIFIED").length} of ${banks.length} account(s) verified`
-                : "No bank account added yet"}
-            </p>
-          </div>
-
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -708,8 +807,9 @@ export function RetailerBankingAdminTab({
           </div>
         </div>
       </section>
+      )}
 
-      {/* 2. Settlement Bank Accounts & Admin Verification Check */}
+      {view === "banking" && (
       <section className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-sm space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2.5">
@@ -846,8 +946,10 @@ export function RetailerBankingAdminTab({
           </div>
         )}
       </section>
+      )}
 
-      {/* 3. Per-Provider Switch Onboarding, Enable/Disable & Live Status Checks */}
+      {view === "providers" && (
+      <>
       <section className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-sm space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2.5">
@@ -966,11 +1068,21 @@ export function RetailerBankingAdminTab({
 
         {/* Per-Provider Channel Cards */}
         <div className="space-y-4">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Per-Provider Channels ({channels.length})
-          </h4>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Providers ({visibleChannels.length})
+            </h4>
+            <button
+              type="button"
+              className="btn-secondary text-xs inline-flex items-center gap-1.5"
+              disabled={busyAction !== null}
+              onClick={openPriorityModal}
+            >
+              Set provider priority
+            </button>
+          </div>
 
-          {channels.length === 0 ? (
+          {visibleChannels.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 flex flex-wrap items-center justify-between gap-3">
               <div className="space-y-1">
                 <p className="text-sm font-bold text-navy-950">
@@ -994,9 +1106,10 @@ export function RetailerBankingAdminTab({
               </button>
             </div>
           ) : (
-            channels.map((ch) => {
-              const providerLabel = `${ch.provider_code} · ${ch.pipe_code}`;
-              const isFullKyc = ch.kyc_status === "FULL_KYC";
+            visibleChannels.map((ch) => {
+              const providerLabel = ch.provider_code === "ISERVEU" ? "ISERVEU" : `${ch.provider_code} · ${ch.pipe_code}`;
+              const isIserveu = ch.provider_code === "ISERVEU";
+              const isFullKyc = ch.kyc_status === "FULL_KYC" || (isIserveu && ch.kyc_status === "NOT_REQUIRED");
               const bankSynced = ch.bank_sync_status === "SYNCED";
               const onboardBusy = busyAction === `onboard-${ch.provider_code}-${ch.pipe_code}`;
               const refreshBusy = busyAction === `refresh-${ch.channel_id}`;
@@ -1021,6 +1134,11 @@ export function RetailerBankingAdminTab({
                           {providerLabel}
                         </span>
                         <StatusPill value={ch.onboarded ? ch.onboarding_status : "NOT_ONBOARDED"} />
+                        {ch.retailer_priority ? (
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                            Priority {ch.retailer_priority}
+                          </span>
+                        ) : null}
                         {ch.onboarded && (
                           <span
                             className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
@@ -1032,17 +1150,14 @@ export function RetailerBankingAdminTab({
                             {ch.enabled_for_retailer ? "Enabled for Retailer" : "Disabled for Retailer"}
                           </span>
                         )}
-                        {!ch.platform_channel_active && (
-                          <span className="rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900">
-                            Platform Paused
-                          </span>
-                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <span>
-                          Opaque Key: <span className="font-mono font-semibold text-slate-700">{ch.channel_key}</span>
-                        </span>
+                        {!isIserveu && (
+                          <span>
+                            Opaque Key: <span className="font-mono font-semibold text-slate-700">{ch.channel_key}</span>
+                          </span>
+                        )}
                         {ch.outlet_code && (
                           <>
                             <span>·</span>
@@ -1053,8 +1168,16 @@ export function RetailerBankingAdminTab({
                         )}
                         {ch.pipe_outlet_code && (
                           <>
+                            {(!isIserveu || ch.outlet_code) && <span>·</span>}
+                            <span className="font-mono text-slate-600">
+                              {ch.provider_code === "ISERVEU" ? "iServeU account" : "Pipe ID"}: {ch.pipe_outlet_code}
+                            </span>
+                          </>
+                        )}
+                        {ch.payee_vpa && (
+                          <>
                             <span>·</span>
-                            <span className="font-mono text-slate-600">Pipe ID: {ch.pipe_outlet_code}</span>
+                            <span className="font-mono text-slate-600">VPA: {ch.payee_vpa}</span>
                           </>
                         )}
                         {ch.last_synced_at && (
@@ -1085,7 +1208,11 @@ export function RetailerBankingAdminTab({
                         <button
                           type="button"
                           disabled={busyAction !== null}
-                          onClick={() => handleOnboardProvider(ch.provider_code, ch.pipe_code)}
+                          onClick={() =>
+                            ch.provider_code === "ISERVEU"
+                              ? openIserveuModal(ch.pipe_code, ch.pipe_outlet_code, ch.payee_vpa)
+                              : handleOnboardProvider(ch.provider_code, ch.pipe_code)
+                          }
                           className="btn-primary !py-1.5 !px-3.5 text-xs inline-flex items-center gap-1.5"
                         >
                           <ShieldCheck className="h-3.5 w-3.5" />
@@ -1093,6 +1220,17 @@ export function RetailerBankingAdminTab({
                         </button>
                       ) : (
                         <>
+                          {isIserveu ? (
+                            <button
+                              type="button"
+                              disabled={busyAction !== null}
+                              onClick={() => openIserveuModal("", ch.pipe_outlet_code, ch.payee_vpa)}
+                              className="btn-secondary !py-1.5 !px-3 text-xs inline-flex items-center gap-1.5"
+                            >
+                              Update details
+                            </button>
+                          ) : (
+                            <>
                           {(!bankSynced || ch.onboarding_status === "FAILED" || !ch.pipe_outlet_code) && (
                             <button
                               type="button"
@@ -1131,8 +1269,10 @@ export function RetailerBankingAdminTab({
                             <Landmark className="h-3.5 w-3.5" />
                             {syncBankBusy ? "Syncing…" : "Sync Bank"}
                           </button>
+                            </>
+                          )}
 
-                          {isFullKyc && (
+                          {ch.kyc_status === "FULL_KYC" && (
                             <button
                               type="button"
                               disabled={busyAction !== null}
@@ -1151,7 +1291,13 @@ export function RetailerBankingAdminTab({
                             type="button"
                             disabled={busyAction !== null}
                             onClick={() =>
-                              handleToggleChannel(ch.channel_id, providerLabel, !ch.enabled_for_retailer, false)
+                              handleToggleProvider(
+                                isIserveu
+                                  ? iserveuRows.filter((row) => row.onboarded).map((row) => row.channel_id)
+                                  : [ch.channel_id],
+                                providerLabel,
+                                !ch.enabled_for_retailer,
+                              )
                             }
                             className={
                               ch.enabled_for_retailer
@@ -1244,13 +1390,11 @@ export function RetailerBankingAdminTab({
                       <span className="mt-0.5 block font-semibold text-navy-950">
                         {!ch.onboarded
                           ? "Not Onboarded"
-                          : ch.enabled_for_retailer && ch.platform_channel_active && isFullKyc
+                          : ch.enabled_for_retailer && isFullKyc
                             ? "Active in Router"
                             : !ch.enabled_for_retailer
                               ? "Disabled for Retailer"
-                              : !isFullKyc
-                                ? "Awaiting Biometric"
-                                : "Platform Channel Paused"}
+                              : "Awaiting Biometric"}
                       </span>
                     </div>
                   </div>
@@ -1326,309 +1470,110 @@ export function RetailerBankingAdminTab({
         )}
       </section>
 
-      {/* SECTION 3: EMERALD API REQUEST & RESPONSE TRACE LOGS */}
-      <section className="card space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-emerald-400">
-              <Terminal className="h-5 w-5" />
-            </div>
+      {priorityOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-display text-base font-bold text-navy-950">
-                  Emerald API Request &amp; Response Trace Logs
-                </h3>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700">
-                  {emeraldLogs.length} captured
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Full outbound HTTP requests, responses, headers, and inbound webhook callbacks for Emerald onboarding,
-                Biometric KYC, UPI Cashout, AEPS, and Payouts — ready to copy and share with the Emerald support team.
+              <h3 className="font-display text-lg font-bold text-navy-950">Provider priority</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Priority 1 is called first. Two providers cannot share the same priority.
               </p>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {emeraldLogs.length > 0 && (
-              <button
-                type="button"
-                onClick={async () => {
-                  const filtered = emeraldLogs.filter((l) => {
-                    if (logDirectionFilter !== "ALL" && l.direction !== logDirectionFilter) return false;
-                    if (!logSearch.trim()) return true;
-                    const q = logSearch.trim().toLowerCase();
-                    return (
-                      (l.flow || "").toLowerCase().includes(q) ||
-                      (l.endpointPath || "").toLowerCase().includes(q) ||
-                      (l.externalRef || "").toLowerCase().includes(q) ||
-                      (l.providerTxnId || "").toLowerCase().includes(q) ||
-                      (l.providerCode || "").toLowerCase().includes(q) ||
-                      (l.callId || "").toLowerCase().includes(q)
-                    );
-                  });
-                  const bundle = filtered.map(buildEmeraldSupportTrace).join("\n\n" + "=".repeat(60) + "\n\n");
-                  await navigator.clipboard.writeText(bundle);
-                  setCopiedKey("all");
-                  setTimeout(() => setCopiedKey((prev) => (prev === "all" ? null : prev)), 2000);
-                }}
-                className="btn-secondary !py-1.5 !px-3 !text-xs inline-flex items-center gap-1.5"
-              >
-                {copiedKey === "all" ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                    Copied Bundle!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy Filtered Logs
-                  </>
-                )}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => loadEmeraldLogs()}
-              disabled={logsLoading}
-              className="btn-secondary !py-1.5 !px-3 !text-xs inline-flex items-center gap-1.5"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${logsLoading ? "animate-spin" : ""}`} />
-              {logsLoading ? "Refreshing…" : "Refresh Logs"}
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="inline-flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
-            {(
-              [
-                { id: "ALL", label: "All Traces" },
-                { id: "OUTBOUND", label: "Outbound API" },
-                { id: "INBOUND_WEBHOOK", label: "Inbound Webhooks" },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setLogDirectionFilter(tab.id)}
-                className={`rounded-lg px-3 py-1 transition ${
-                  logDirectionFilter === tab.id
-                    ? "bg-white text-navy-950 shadow-sm"
-                    : "text-slate-600 hover:text-navy-950"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <input
-            type="text"
-            value={logSearch}
-            onChange={(e) => setLogSearch(e.target.value)}
-            placeholder="Filter by flow, endpoint, externalRef, txnId, status code…"
-            className="field !py-1.5 !px-3 !text-xs w-full sm:w-80"
-          />
-        </div>
-
-        {(() => {
-          const filteredLogs = emeraldLogs.filter((l) => {
-            if (logDirectionFilter !== "ALL" && l.direction !== logDirectionFilter) return false;
-            if (!logSearch.trim()) return true;
-            const q = logSearch.trim().toLowerCase();
-            return (
-              (l.flow || "").toLowerCase().includes(q) ||
-              (l.endpointPath || "").toLowerCase().includes(q) ||
-              (l.externalRef || "").toLowerCase().includes(q) ||
-              (l.providerTxnId || "").toLowerCase().includes(q) ||
-              (l.providerCode || "").toLowerCase().includes(q) ||
-              (l.callId || "").toLowerCase().includes(q)
-            );
-          });
-
-          if (filteredLogs.length === 0) {
-            return (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">
-                {emeraldLogs.length === 0
-                  ? "No Emerald API calls or webhooks have been recorded for this retailer yet."
-                  : "No trace entries match the current filter."}
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-2.5">
-              {filteredLogs.map((log) => {
-                const isExpanded = expandedLogId === log.id;
-                const httpOk = log.httpStatus != null && log.httpStatus >= 200 && log.httpStatus < 300 && !log.errorMessage;
-                const isWebhook = log.direction === "INBOUND_WEBHOOK";
-
+            {localErr && <Alert tone="error">{localErr}</Alert>}
+            <div className="space-y-3">
+              {Object.keys(priorityDraft).map((providerCode) => {
+                const onboarded = (data.providerChannels ?? []).some(
+                  (row) => row.provider_code === providerCode && row.onboarded,
+                );
+                const taken = new Set(
+                  Object.entries(priorityDraft)
+                    .filter(([code, value]) => code !== providerCode && value)
+                    .map(([, value]) => value),
+                );
                 return (
-                  <div
-                    key={log.id}
-                    className={`rounded-2xl border transition-all ${
-                      httpOk
-                        ? "border-slate-200 bg-white"
-                        : "border-rose-200 bg-rose-50/30"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 text-xs">
-                      <div className="flex flex-wrap items-center gap-2 min-w-0">
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            isWebhook
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-sky-100 text-sky-800"
-                          }`}
-                        >
-                          {isWebhook ? "WEBHOOK" : "OUTBOUND"}
-                        </span>
-
-                        <span
-                          className={`rounded-md px-2 py-0.5 font-mono text-[11px] font-bold ${
-                            httpOk
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-rose-100 text-rose-800"
-                          }`}
-                        >
-                          {log.httpStatus != null ? `HTTP ${log.httpStatus}` : "NET ERR"}
-                          {log.providerCode ? ` · ${log.providerCode}` : ""}
-                        </span>
-
-                        <span className="font-bold text-navy-950">{log.flow}</span>
-
-                        <span className="font-mono text-[11px] text-slate-600 truncate max-w-md" title={log.url}>
-                          {log.httpMethod} {log.endpointPath}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[11px] text-slate-500">
-                          {log.latencyMs ?? 0}ms
-                        </span>
-                        <span className="text-[11px] text-slate-400">
-                          {when(log.createdAt || undefined)}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await navigator.clipboard.writeText(buildEmeraldSupportTrace(log));
-                            setCopiedKey(log.id);
-                            setTimeout(() => setCopiedKey((prev) => (prev === log.id ? null : prev)), 2000);
-                          }}
-                          className="btn-secondary !py-1 !px-2.5 !text-[11px] inline-flex items-center gap-1"
-                          title="Copy formatted Request + Response trace for Emerald support"
-                        >
-                          {copiedKey === log.id ? (
-                            <>
-                              <Check className="h-3 w-3 text-emerald-600" />
-                              Copied!
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3 w-3" />
-                              Copy Req + Res
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                          className="btn-secondary !py-1 !px-2.5 !text-[11px] inline-flex items-center gap-1"
-                        >
-                          {isExpanded ? (
-                            <>
-                              Hide <ChevronUp className="h-3.5 w-3.5" />
-                            </>
-                          ) : (
-                            <>
-                              Payload <ChevronDown className="h-3.5 w-3.5" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Metadata subtitle */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 px-3.5 py-2 text-[11px] text-slate-500">
-                      <span>
-                        Call ID: <strong className="font-mono text-slate-700">{log.callId}</strong>
-                      </span>
-                      {log.outletCode && (
-                        <span>
-                          Outlet: <strong className="font-mono text-slate-700">{log.outletCode}</strong>
-                        </span>
-                      )}
-                      {log.externalRef && (
-                        <span>
-                          Ref: <strong className="font-mono text-slate-700">{log.externalRef}</strong>
-                        </span>
-                      )}
-                      {log.providerTxnId && (
-                        <span>
-                          Provider Txn: <strong className="font-mono text-slate-700">{log.providerTxnId}</strong>
-                        </span>
-                      )}
-                      {log.providerMessage && (
-                        <span className="text-slate-600 truncate max-w-md" title={log.providerMessage}>
-                          Msg: <strong>{log.providerMessage}</strong>
-                        </span>
-                      )}
-                      {log.errorMessage && (
-                        <span className="text-rose-700 font-semibold">
-                          Error: {log.errorMessage}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Expandable Full Request + Response Inspector */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-200 bg-slate-950 text-slate-100 rounded-b-2xl p-4 space-y-3 text-xs">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 font-mono">
-                          <span>
-                            {log.httpMethod} {log.url || log.endpointPath}
-                          </span>
-                          {log.requestId && <span>X-Request-Id: {log.requestId}</span>}
-                        </div>
-
-                        <div className="grid gap-3 lg:grid-cols-2">
-                          <div className="space-y-2 min-w-0">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
-                              Request Headers &amp; Body
-                            </div>
-                            <pre className="overflow-x-auto rounded-xl bg-slate-900/90 border border-slate-800 p-3 font-mono text-[11px] leading-relaxed text-slate-300 max-h-40">
-                              {JSON.stringify(log.requestHeaders ?? {}, null, 2)}
-                            </pre>
-                            <pre className="overflow-x-auto rounded-xl bg-slate-900 border border-slate-800 p-3 font-mono text-[11px] leading-relaxed text-emerald-200 max-h-80">
-                              {prettyBody(log.requestBody)}
-                            </pre>
-                          </div>
-
-                          <div className="space-y-2 min-w-0">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                              Response Headers &amp; Body (HTTP {log.httpStatus ?? "ERR"})
-                            </div>
-                            <pre className="overflow-x-auto rounded-xl bg-slate-900/90 border border-slate-800 p-3 font-mono text-[11px] leading-relaxed text-slate-300 max-h-40">
-                              {JSON.stringify(log.responseHeaders ?? {}, null, 2)}
-                            </pre>
-                            <pre className="overflow-x-auto rounded-xl bg-slate-900 border border-slate-800 p-3 font-mono text-[11px] leading-relaxed text-amber-100 max-h-80">
-                              {prettyBody(log.responseBody)}
-                            </pre>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <label key={providerCode} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-semibold text-navy-950">
+                      {providerCode}
+                      {!onboarded && <span className="ml-2 text-xs font-normal text-slate-400">Onboard first</span>}
+                    </span>
+                    <select
+                      className="field !py-1.5 !px-2 text-sm w-28"
+                      disabled={!onboarded || busyAction !== null}
+                      value={priorityDraft[providerCode] ?? ""}
+                      onChange={(e) =>
+                        setPriorityDraft((current) => ({ ...current, [providerCode]: e.target.value }))
+                      }
+                    >
+                      <option value="">Not set</option>
+                      <option value="1" disabled={taken.has("1")}>1</option>
+                      <option value="2" disabled={taken.has("2")}>2</option>
+                      <option value="3" disabled={taken.has("3")}>3</option>
+                    </select>
+                  </label>
                 );
               })}
             </div>
-          );
-        })()}
-      </section>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-secondary text-xs" onClick={() => setPriorityOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary text-xs"
+                disabled={busyAction !== null}
+                onClick={handleSavePriorities}
+              >
+                {busyAction === "priorities" ? "Saving…" : "Save priority"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {iserveuOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <div>
+              <h3 className="font-display text-lg font-bold text-navy-950">Onboard iServeU</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Enter the iServeU account number and this retailer&apos;s VPA.
+                Retailer code {data?.dossier.bcAgentId || ""}.
+              </p>
+            </div>
+            <label className="block text-xs font-semibold text-slate-600">
+              iServeU account number
+              <input
+                className="field mt-1 w-full font-mono text-sm"
+                value={iserveuAccount}
+                onChange={(e) => setIserveuAccount(e.target.value.replace(/\D/g, ""))}
+              />
+            </label>
+            <label className="block text-xs font-semibold text-slate-600">
+              Retailer VPA
+              <input
+                className="field mt-1 w-full font-mono text-sm"
+                value={iserveuVpa}
+                onChange={(e) => setIserveuVpa(e.target.value.trim())}
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-secondary text-xs" onClick={() => setIserveuOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary text-xs"
+                disabled={busyAction !== null}
+                onClick={handleSaveIserveu}
+              >
+                {busyAction === "iserveu-onboard" ? "Saving…" : "Save iServeU details"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
+      )}
     </div>
   );
 }

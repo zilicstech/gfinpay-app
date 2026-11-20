@@ -261,6 +261,7 @@ export default function TransactionsPage() {
                   <th className="px-6 py-4">Transaction / UTR</th>
                   <th className="px-6 py-4">Counter / Agent</th>
                   <th className="px-6 py-4">Rail</th>
+                  <th className="px-6 py-4">Provider</th>
                   <th className="px-6 py-4">State</th>
                   <th className="px-6 py-4">When</th>
                   <th className="px-6 py-4 text-right">Amount</th>
@@ -309,6 +310,9 @@ export default function TransactionsPage() {
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 uppercase">
                         {t.txn_type}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs font-semibold text-slate-700">
+                      {t.provider_code ? `${t.provider_code}${t.pipe_code ? ` · ${t.pipe_code}` : ""}` : "—"}
                     </td>
                     <td className="px-6 py-4">
                       <StatusPill value={t.state} />
