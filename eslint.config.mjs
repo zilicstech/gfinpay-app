@@ -2,12 +2,10 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  {
-    ignores: [".next/**", ".firebase/**", "node_modules/**", "public/**", "next-env.d.ts", "*.config.*"],
-  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    ignores: [".next/**", ".firebase/**", "node_modules/**", "public/**", "next-env.d.ts", "*.config.*"],
     linterOptions: {
       reportUnusedDisableDirectives: "off",
     },

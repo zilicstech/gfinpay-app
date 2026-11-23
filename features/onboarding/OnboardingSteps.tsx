@@ -770,6 +770,16 @@ function PanStep({
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const bindPanVideo = (node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    const stream = streamRef.current;
+    if (!node || !stream) return;
+    if (node.srcObject !== stream) {
+      node.srcObject = stream;
+    }
+    node.play().catch(() => undefined);
+  };
+
   useEffect(() => {
     if (autofilledPan) {
       setPan(autofilledPan);
@@ -802,7 +812,7 @@ function PanStep({
       setCameraActive(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        await videoRef.current.play().catch(() => undefined);
       }
     } catch {
       onError("Camera permission is required to capture your PAN card photo.");
@@ -1063,7 +1073,8 @@ function PanStep({
             <div className="space-y-3">
               <div className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl border border-slate-300 bg-slate-950">
                 <video
-                  ref={videoRef}
+                  ref={bindPanVideo}
+                  autoPlay
                   playsInline
                   muted
                   className="h-full w-full object-cover"
