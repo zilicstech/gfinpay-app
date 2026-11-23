@@ -4,7 +4,9 @@ import { useState } from "react";
 import {
   BadgeCheck,
   CheckCircle2,
+  Clock,
   Fingerprint,
+  KeyRound,
   Loader2,
   MapPin,
   RefreshCw,
@@ -26,6 +28,8 @@ import type { CashActivationState } from "@/features/desk/DeskServices";
 
 type InitiateBiometricResponse = {
   alreadyVerified: boolean;
+  otpRequired?: boolean;
+  approvalPending?: boolean;
   sessionId?: string;
   channelKey: string;
   wadh?: string;
@@ -53,6 +57,13 @@ export function BiometricActivationCard({
 
   const [stepText, setStepText] = useState<string | null>(null);
   const [detectedDevice, setDetectedDevice] = useState<DeviceInfo | null>(null);
+  const [otpPending, setOtpPending] = useState<{
+    sessionId: string;
+    channelKey: string;
+    coords: { latitude: string; longitude: string };
+    message?: string;
+  } | null>(null);
+  const [otpCode, setOtpCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -172,54 +183,36 @@ export function BiometricActivationCard({
         return;
       }
 
-      let pidXml = "";
-      if (activation.allowPastedPid && pastedPidXml.trim()) {
-        pidXml = pastedPidXml.trim();
-      } else {
-        // 3. Discover L1 RD Service & capture fingerprint
-        setStepText("Step 3/4 · Place your finger firmly on the glowing fingerprint scanner…");
-        const svc = await discover();
-        const info = await deviceInfo(svc);
-        setDetectedDevice(info);
-
-        const cap = await capture(
-          svc,
-          initRes.rdEnv || activation.rdEnv || "P",
-          initRes.wadh || "",
-          info,
+      if (initRes.approvalPending) {
+        const refreshed = await api<CashActivationState>("/api/v1/me/cash-activation?refresh=true", { token });
+        onActivated(refreshed);
+        setSuccessMsg(
+          initRes.message ||
+            "Your biometric verification has been submitted and is under bank review. Please check status again in 30 minutes.",
         );
-        pidXml = cap.pidData;
-
-        await logDeviceEvent({
-          stage: "BIOMETRIC_CAPTURE",
-          port: cap.port,
-          status: "CAPTURED",
-          rdsId: cap.rdsId,
-          mi: cap.model,
-          detail: `qScore=${cap.qScore} shape=${cap.shape} tookMs=${cap.tookMs}`,
-        });
+        return;
       }
 
-      // 4. Submit captured PID XML to backend
-      setStepText("Step 4/4 · Verifying Aadhaar biometric & activating cash services…");
-      const updated = await api<CashActivationState>(
-        `/api/v1/me/biometric/${encodeURIComponent(pendingChannel.channelKey)}/submit`,
-        {
-          token,
-          method: "POST",
-          body: JSON.stringify({
-            sessionId: initRes.sessionId,
-            pidXml,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-          }),
-        },
-      );
+      if (initRes.otpRequired && initRes.sessionId) {
+        setOtpCode("");
+        setOtpPending({
+          sessionId: initRes.sessionId,
+          channelKey: initRes.channelKey || pendingChannel.channelKey,
+          coords,
+          message:
+            initRes.message ||
+            "Enter the verification OTP sent to your Aadhaar-linked mobile number to proceed to fingerprint scan.",
+        });
+        return;
+      }
 
-      setSuccessMsg("Biometric verification completed! UPI Cashout, AePS, and Settlement services are now unlocked.");
-      window.dispatchEvent(new Event("gfin-biometric-updated"));
-      window.dispatchEvent(new Event("gfin-verification-updated"));
-      onActivated(updated);
+      await captureAndSubmitBiometric(
+        initRes.channelKey || pendingChannel.channelKey,
+        initRes.sessionId!,
+        initRes.rdEnv || activation.rdEnv || "P",
+        initRes.wadh || "",
+        coords,
+      );
     } catch (err) {
       if (err instanceof RdError) {
         await logDeviceEvent({
@@ -232,6 +225,142 @@ export function BiometricActivationCard({
       setError(formatApiError(err, "Biometric verification could not be completed. Please try again."));
     } finally {
       setStepText(null);
+      setBusy(false);
+    }
+  }
+
+  async function captureAndSubmitBiometric(
+    channelKey: string,
+    sessionId: string,
+    envCode: string,
+    wadhValue: string,
+    coords: { latitude: string; longitude: string },
+  ) {
+    if (!token) return;
+    let pidXml = "";
+    if (activation.allowPastedPid && pastedPidXml.trim()) {
+      pidXml = pastedPidXml.trim();
+    } else {
+      setStepText("Step 3/4 · Place your finger firmly on the glowing fingerprint scanner…");
+      const svc = await discover();
+      const info = await deviceInfo(svc);
+      setDetectedDevice(info);
+
+      const cap = await capture(svc, envCode, wadhValue, info);
+      pidXml = cap.pidData;
+
+      await logDeviceEvent({
+        stage: "BIOMETRIC_CAPTURE",
+        port: cap.port,
+        status: "CAPTURED",
+        rdsId: cap.rdsId,
+        mi: cap.model,
+        detail: `qScore=${cap.qScore} shape=${cap.shape} tookMs=${cap.tookMs}`,
+      });
+    }
+
+    setStepText("Step 4/4 · Verifying Aadhaar biometric & activating cash services…");
+    const updated = await api<CashActivationState>(
+      `/api/v1/me/biometric/${encodeURIComponent(channelKey)}/submit`,
+      {
+        token,
+        method: "POST",
+        body: JSON.stringify({
+          sessionId,
+          pidXml,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        }),
+      },
+    );
+
+    setOtpPending(null);
+    setOtpCode("");
+    const anyApprovalPending = updated.channels?.some((c) => c.status === "APPROVAL_PENDING");
+    setSuccessMsg(
+      anyApprovalPending && !updated.biometricVerified
+        ? "Biometric scan submitted! Final bank review is in progress — click Check Activation Status in 30 minutes."
+        : "Biometric verification completed! UPI Cashout, AePS, and Settlement services are now unlocked.",
+    );
+    window.dispatchEvent(new Event("gfin-biometric-updated"));
+    window.dispatchEvent(new Event("gfin-verification-updated"));
+    onActivated(updated);
+  }
+
+  async function handleVerifyOtpAndScan() {
+    if (!token || !otpPending) return;
+    const cleanOtp = otpCode.replace(/\D/g, "");
+    if (cleanOtp.length < 4) {
+      setError("Enter the verification OTP sent to your mobile number.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      setStepText("Verifying mobile OTP…");
+      const verifyRes = await api<InitiateBiometricResponse>(
+        `/api/v1/me/biometric/${encodeURIComponent(otpPending.channelKey)}/verify-otp`,
+        {
+          token,
+          method: "POST",
+          body: JSON.stringify({
+            sessionId: otpPending.sessionId,
+            otp: cleanOtp,
+          }),
+        },
+      );
+
+      if (verifyRes.alreadyVerified) {
+        setOtpPending(null);
+        const refreshed = await api<CashActivationState>("/api/v1/me/cash-activation?refresh=true", { token });
+        window.dispatchEvent(new Event("gfin-biometric-updated"));
+        window.dispatchEvent(new Event("gfin-verification-updated"));
+        onActivated(refreshed);
+        setSuccessMsg("Terminal verification completed!");
+        return;
+      }
+
+      await captureAndSubmitBiometric(
+        verifyRes.channelKey || otpPending.channelKey,
+        verifyRes.sessionId || otpPending.sessionId,
+        verifyRes.rdEnv || activation.rdEnv || "P",
+        verifyRes.wadh || "",
+        otpPending.coords,
+      );
+    } catch (err) {
+      if (err instanceof RdError) {
+        await logDeviceEvent({
+          stage: "BIOMETRIC_CAPTURE",
+          status: "FAILED",
+          errCode: err.errCode || err.reason,
+          detail: `${err.shape ? `[${err.shape}] ` : ""}${err.message}`,
+        });
+      }
+      setError(formatApiError(err, "OTP verification or biometric capture could not be completed."));
+    } finally {
+      setStepText(null);
+      setBusy(false);
+    }
+  }
+
+  async function handleCheckApprovalStatus() {
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const refreshed = await api<CashActivationState>("/api/v1/me/cash-activation?refresh=true", { token });
+      onActivated(refreshed);
+      if (refreshed.biometricVerified) {
+        window.dispatchEvent(new Event("gfin-biometric-updated"));
+        window.dispatchEvent(new Event("gfin-verification-updated"));
+        setSuccessMsg("Bank approval completed! Cash & Settlement services are now active.");
+      } else {
+        setSuccessMsg("Bank approval is still in progress. Please check again shortly.");
+      }
+    } catch (err) {
+      setError(formatApiError(err, "Could not refresh terminal activation status."));
+    } finally {
       setBusy(false);
     }
   }
@@ -344,6 +473,71 @@ export function BiometricActivationCard({
 
       {error && <Alert tone="error">{error}</Alert>}
       {successMsg && <Alert tone="success">{successMsg}</Alert>}
+
+      {pendingChannel?.status === "APPROVAL_PENDING" && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-950">
+          <div className="flex items-start gap-2.5">
+            <Clock className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Biometric Verification Under Bank Review</p>
+              <p className="text-amber-900/80 mt-0.5">
+                Your biometric scan was submitted and is awaiting final bank approval (typically within 30 minutes).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleCheckApprovalStatus}
+            className="btn-secondary !py-1.5 !px-3 text-xs inline-flex items-center gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+            Check Activation Status
+          </button>
+        </div>
+      )}
+
+      {otpPending && (
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <KeyRound className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-navy-950">Step 2b · Verify Mobile OTP Before Fingerprint Scan</p>
+              <p className="text-[11px] text-slate-600 mt-0.5">{otpPending.message}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <input
+              className="field font-mono bg-white max-w-[11rem]"
+              inputMode="numeric"
+              maxLength={8}
+              placeholder="Enter OTP"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+            />
+            <button
+              type="button"
+              disabled={busy || otpCode.replace(/\D/g, "").length < 4}
+              onClick={handleVerifyOtpAndScan}
+              className="btn-primary !py-2 !px-4 text-xs inline-flex items-center gap-1.5"
+            >
+              <Fingerprint className="h-4 w-4" />
+              {busy ? "Verifying…" : "Verify OTP & Scan Finger"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setOtpPending(null);
+                setOtpCode("");
+              }}
+              className="btn-secondary !py-2 !px-3 text-xs"
+            >
+              Resend OTP
+            </button>
+          </div>
+        </div>
+      )}
 
       {detectedDevice && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-950">

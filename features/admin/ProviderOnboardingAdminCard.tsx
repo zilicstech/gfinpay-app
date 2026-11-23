@@ -31,6 +31,7 @@ type DossierSummary = {
   dateOfBirth?: string;
   hasPan?: boolean;
   panMasked?: string;
+  panSource?: string;
   hasFullAadhaar?: boolean;
   aadhaarMasked?: string;
   gstin?: string;
@@ -52,6 +53,7 @@ type DossierSummary = {
   businessVerified?: boolean;
   agreementSigned?: boolean;
   readyForEmerald?: boolean;
+  readyForInstantPay?: boolean;
   missingFields?: string[];
 };
 
@@ -165,6 +167,7 @@ type BiometricSessionRow = {
 
 type RetailerProvidersResponse = {
   emeraldConfigured: boolean;
+  instantPayConfigured?: boolean;
   defaultPipe: string;
   entityCode: string;
   bankVerificationStatus?: string;
@@ -217,6 +220,8 @@ export function RetailerBankingAdminTab({
   const [logsLoading, setLogsLoading] = useState(false);
   const [iserveuLogs, setIserveuLogs] = useState<ProviderApiLogRow[]>([]);
   const [iserveuLogsLoading, setIserveuLogsLoading] = useState(false);
+  const [instantPayLogs, setInstantPayLogs] = useState<ProviderApiLogRow[]>([]);
+  const [instantPayLogsLoading, setInstantPayLogsLoading] = useState(false);
   const [iserveuOpen, setIserveuOpen] = useState(false);
   const [iserveuPipe, setIserveuPipe] = useState("CASHPOINT");
   const [iserveuAccount, setIserveuAccount] = useState("");
@@ -256,12 +261,28 @@ export function RetailerBankingAdminTab({
     }
   }, [token, userId]);
 
+  const loadInstantPayLogs = useCallback(async () => {
+    if (!token || !userId) return;
+    setInstantPayLogsLoading(true);
+    try {
+      const rows = await api<ProviderApiLogRow[]>(
+        `/api/v1/admin/users/${userId}/providers/instantpay/logs?limit=50`,
+        { token },
+      );
+      setInstantPayLogs(Array.isArray(rows) ? rows : []);
+    } catch {
+      // Non-blocking if logs endpoint is unavailable
+    } finally {
+      setInstantPayLogsLoading(false);
+    }
+  }, [token, userId]);
+
   const load = useCallback(async () => {
     if (!token || !userId) return;
     setLoading(true);
     try {
       if (view === "logs") {
-        await Promise.all([loadEmeraldLogs(), loadIserveuLogs()]);
+        await Promise.all([loadEmeraldLogs(), loadIserveuLogs(), loadInstantPayLogs()]);
         return;
       }
       const res = await api<RetailerProvidersResponse>(`/api/v1/admin/users/${userId}/providers`, { token });
@@ -271,7 +292,7 @@ export function RetailerBankingAdminTab({
     } finally {
       setLoading(false);
     }
-  }, [token, userId, view, loadEmeraldLogs, loadIserveuLogs]);
+  }, [token, userId, view, loadEmeraldLogs, loadIserveuLogs, loadInstantPayLogs]);
 
   useEffect(() => {
     load();
@@ -366,13 +387,16 @@ export function RetailerBankingAdminTab({
       setEmailOverride("");
       onChanged?.();
       notifyOk(
-        `Retailer onboarded to ${providerCode} (Pipe: ${pipeCode || "INSTANTPAY"}). Retailer can now complete Biometric KYC.`,
+        providerCode === "INSTANTPAY"
+          ? "Retailer onboarded directly to InstantPay and bank sync initiated. Retailer can now complete Biometric KYC."
+          : `Retailer onboarded to ${providerCode} (Pipe: ${pipeCode || "INSTANTPAY"}). Retailer can now complete Biometric KYC.`,
       );
     } catch (err) {
       notifyErr(err, `${providerCode} onboarding failed`);
     } finally {
       setBusyAction(null);
       loadEmeraldLogs().catch(() => undefined);
+      loadInstantPayLogs().catch(() => undefined);
     }
   }
 
@@ -394,7 +418,7 @@ export function RetailerBankingAdminTab({
       setData(res);
       const ok = res.bankSyncStatus === "SYNCED";
       if (ok) {
-        notifyOk(`Settlement bank account synced to ${providerCode} (${pipeCode}).`);
+        notifyOk(`Settlement bank account synced to ${providerCode}${pipeCode ? ` (${pipeCode})` : ""}.`);
       } else {
         setLocalErr(res.bankSyncRemarks || `Bank sync returned a failure remark from ${providerCode}.`);
       }
@@ -403,6 +427,7 @@ export function RetailerBankingAdminTab({
     } finally {
       setBusyAction(null);
       loadEmeraldLogs().catch(() => undefined);
+      loadInstantPayLogs().catch(() => undefined);
     }
   }
 
@@ -428,6 +453,7 @@ export function RetailerBankingAdminTab({
     } finally {
       setBusyAction(null);
       loadEmeraldLogs().catch(() => undefined);
+      loadInstantPayLogs().catch(() => undefined);
     }
   }
 
@@ -608,6 +634,7 @@ export function RetailerBankingAdminTab({
   }
 
   const apiLogs = [
+    ...instantPayLogs.map((row) => ({ ...row, provider: "InstantPay" })),
     ...emeraldLogs.map((row) => ({ ...row, provider: "Emerald" })),
     ...iserveuLogs.map((row) => ({ ...row, provider: "iServeU" })),
   ].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
@@ -622,11 +649,12 @@ export function RetailerBankingAdminTab({
         {localMsg && <Alert tone="success">{localMsg}</Alert>}
         <ProviderApiTraceSection
           brand="Provider"
-          description="Emerald and iServeU outbound calls and inbound webhooks for this retailer. Use the provider filter to follow up on one rail. Pass keys and header secrets are not shown."
-          emptyText="No Emerald or iServeU API calls have been recorded for this retailer yet."
+          description="InstantPay, Emerald, and iServeU outbound calls and inbound webhooks for this retailer. Use the provider filter to inspect a specific switch. Secrets, OTPs, and sensitive identity fields are redacted."
+          emptyText="No InstantPay, Emerald, or iServeU API calls have been recorded for this retailer yet."
           logs={apiLogs}
-          loading={logsLoading || iserveuLogsLoading}
+          loading={logsLoading || iserveuLogsLoading || instantPayLogsLoading}
           onRefresh={() => {
+            loadInstantPayLogs().catch(() => undefined);
             loadEmeraldLogs().catch(() => undefined);
             loadIserveuLogs().catch(() => undefined);
           }}
@@ -694,8 +722,12 @@ export function RetailerBankingAdminTab({
       }
     : null;
   const visibleChannels = [
-    ...channels.filter((c) => c.provider_code !== "ISERVEU"),
-    ...(iserveuCard ? [iserveuCard] : []),
+    ...channels.filter(
+      (c) => c.provider_code !== "ISERVEU" && (c.onboarded || c.platform_channel_active !== false),
+    ),
+    ...(iserveuCard && (iserveuCard.onboarded || iserveuCard.platform_channel_active !== false)
+      ? [iserveuCard]
+      : []),
   ];
 
   const onboardedChannels = visibleChannels.filter((c) => c.onboarded);
@@ -1003,7 +1035,9 @@ export function RetailerBankingAdminTab({
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 block">PAN / Aadhaar</span>
               <span className="font-mono font-semibold text-navy-950 block mt-0.5">
-                {d.panMasked || "Missing PAN"} · {d.hasFullAadhaar ? d.aadhaarMasked || "12-digit Verified" : "12-digit Missing"}
+                {d.panMasked || "Missing PAN"}
+                {d.panSource === "AUTHORIZED_SIGNATORY" ? " (Signatory)" : ""} ·{" "}
+                {d.hasFullAadhaar ? d.aadhaarMasked || "12-digit Verified" : "12-digit Missing"}
               </span>
             </div>
             <div>
@@ -1107,10 +1141,20 @@ export function RetailerBankingAdminTab({
             </div>
           ) : (
             visibleChannels.map((ch) => {
-              const providerLabel = ch.provider_code === "ISERVEU" ? "ISERVEU" : `${ch.provider_code} · ${ch.pipe_code}`;
+              const isInstantPay = ch.provider_code === "INSTANTPAY";
               const isIserveu = ch.provider_code === "ISERVEU";
+              const providerLabel = isIserveu
+                ? "ISERVEU"
+                : isInstantPay
+                  ? "INSTANTPAY · DIRECT"
+                  : `${ch.provider_code} · ${ch.pipe_code}`;
               const isFullKyc = ch.kyc_status === "FULL_KYC" || (isIserveu && ch.kyc_status === "NOT_REQUIRED");
-              const bankSynced = ch.bank_sync_status === "SYNCED";
+              const bankMismatch =
+                Boolean(ch.onboarded) &&
+                Boolean(ch.synced_bank_account_id) &&
+                Boolean(d.bankAccountId) &&
+                String(ch.synced_bank_account_id) !== String(d.bankAccountId);
+              const bankSynced = ch.bank_sync_status === "SYNCED" && !bankMismatch;
               const onboardBusy = busyAction === `onboard-${ch.provider_code}-${ch.pipe_code}`;
               const refreshBusy = busyAction === `refresh-${ch.channel_id}`;
               const syncBankBusy = busyAction === `sync-bank-${ch.provider_code}-${ch.pipe_code}`;
@@ -1216,7 +1260,11 @@ export function RetailerBankingAdminTab({
                           className="btn-primary !py-1.5 !px-3.5 text-xs inline-flex items-center gap-1.5"
                         >
                           <ShieldCheck className="h-3.5 w-3.5" />
-                          {onboardBusy ? "Onboarding…" : `Onboard ${ch.provider_code}`}
+                          {onboardBusy
+                            ? "Onboarding…"
+                            : isInstantPay
+                              ? "Onboard to InstantPay"
+                              : `Onboard ${ch.provider_code}`}
                         </button>
                       ) : (
                         <>
@@ -1327,7 +1375,11 @@ export function RetailerBankingAdminTab({
                         {ch.onboarded ? ch.onboarding_status : "NOT_ONBOARDED"}
                       </span>
                       <span className="block text-[11px] text-slate-500">
-                        {ch.outlet_code ? `Entity ${data.entityCode}` : "Ready for onboarding"}
+                        {ch.outlet_code
+                          ? isInstantPay
+                            ? `Direct Outlet #${ch.outlet_code}`
+                            : `Entity ${data.entityCode}`
+                          : "Ready for onboarding"}
                       </span>
                     </div>
 
@@ -1371,14 +1423,20 @@ export function RetailerBankingAdminTab({
                               : "text-amber-700"
                         }`}
                       >
-                        {ch.bank_sync_status}
+                        {bankMismatch ? "RE-SYNC REQUIRED" : ch.bank_sync_status}
                       </span>
-                      {ch.bank_sync_remarks && (
+                      {(bankMismatch || ch.bank_sync_remarks) && (
                         <span
                           className="block text-[11px] text-slate-500 truncate"
-                          title={ch.bank_sync_remarks}
+                          title={
+                            bankMismatch
+                              ? "Primary bank account changed — click Sync Bank to update switch"
+                              : ch.bank_sync_remarks || ""
+                          }
                         >
-                          {ch.bank_sync_remarks}
+                          {bankMismatch
+                            ? "Primary bank changed — click Sync Bank"
+                            : ch.bank_sync_remarks}
                         </span>
                       )}
                     </div>
