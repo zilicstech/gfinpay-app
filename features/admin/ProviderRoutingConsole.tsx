@@ -15,6 +15,7 @@ type ProviderChannelRow = {
   display_label: string;
   supports_upi_cashout: boolean;
   supports_aeps: boolean;
+  supports_dmt?: boolean;
   supports_payout: boolean;
   biometric_required: boolean;
   active: boolean;
@@ -44,6 +45,10 @@ const SERVICE_LABELS: Record<string, { title: string; subtitle: string }> = {
   AEPS: {
     title: "AePS Banking (CW / BE / MS)",
     subtitle: "Routes Aadhaar fingerprint transactions across active FULL_KYC channels.",
+  },
+  DMT: {
+    title: "Domestic Money Transfer (DMT v2)",
+    subtitle: "Routes IMPS / NEFT customer remittances across active FULL_KYC channels by priority.",
   },
   PAYOUT: {
     title: "Merchant Bank Settlement Payouts",
@@ -252,6 +257,11 @@ export function ProviderRoutingConsole() {
                         {ch.supports_aeps && (
                           <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
                             AePS
+                          </span>
+                        )}
+                        {ch.supports_dmt && (
+                          <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                            DMT
                           </span>
                         )}
                         {ch.supports_payout && (

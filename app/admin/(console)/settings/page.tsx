@@ -61,8 +61,16 @@ export default function SettingsPage() {
     distributor: string;
     hub: string;
     vendorCommission?: string;
+    surchargeMode?: "FLAT" | "PERCENT";
+    surchargeValue?: string;
+    surchargeMin?: string;
   } | null>(null);
   const [commissionBusy, setCommissionBusy] = useState(false);
+  const [dmtSurchargeSaved, setDmtSurchargeSaved] = useState<{
+    surchargeMode: "FLAT" | "PERCENT";
+    surchargeValue: number;
+    surchargeMin: number;
+  } | null>(null);
   const [hospiPrice, setHospiPrice] = useState<{
     sellingPrice: string;
     discount: string;
@@ -78,11 +86,15 @@ export default function SettingsPage() {
   async function load() {
     setLoading(true);
     try {
-      const [h, s, price] = await Promise.all([
+      const [h, s, price, dmtComm] = await Promise.all([
         api<Hub[]>("/api/v1/admin/hubs", { token }),
         api<PlatformService[]>("/api/v1/admin/services", { token }),
         api<{ sellingPrice?: number; discount?: number; payable?: number; vendorCommission?: number }>(
           "/api/v1/admin/hospi-cash/pricing",
+          { token },
+        ).catch(() => null),
+        api<{ surchargeMode?: string; surchargeValue?: number; surchargeMin?: number }>(
+          "/api/v1/admin/services/DMT/commission",
           { token },
         ).catch(() => null),
       ]);
@@ -94,6 +106,13 @@ export default function SettingsPage() {
           discount: Number(price.discount ?? 0),
           payable: Number(price.payable ?? 0),
           vendorCommission: Number(price.vendorCommission ?? 0),
+        });
+      }
+      if (dmtComm && dmtComm.surchargeValue != null) {
+        setDmtSurchargeSaved({
+          surchargeMode: dmtComm.surchargeMode === "FLAT" ? "FLAT" : "PERCENT",
+          surchargeValue: Number(dmtComm.surchargeValue ?? 0),
+          surchargeMin: Number(dmtComm.surchargeMin ?? 0),
         });
       }
     } catch (e) {
@@ -167,6 +186,9 @@ export default function SettingsPage() {
         distributor?: number | null;
         hub?: number | null;
         vendorCommission?: number | null;
+        surchargeMode?: string | null;
+        surchargeValue?: number | null;
+        surchargeMin?: number | null;
       }>(`/api/v1/admin/services/${code}/commission`, { token });
       setCommission({
         code,
@@ -176,6 +198,9 @@ export default function SettingsPage() {
         distributor: String(current.distributor ?? 0),
         hub: String(current.hub ?? 0),
         vendorCommission: code === "HOSPI_CASH" ? String(current.vendorCommission ?? 0) : undefined,
+        surchargeMode: code === "DMT" ? (current.surchargeMode === "FLAT" ? "FLAT" : "PERCENT") : undefined,
+        surchargeValue: code === "DMT" ? String(current.surchargeValue ?? 1) : undefined,
+        surchargeMin: code === "DMT" ? String(current.surchargeMin ?? 10) : undefined,
       });
     } catch (e) {
       flash.fail(e, "Could not load commission");
@@ -225,7 +250,12 @@ export default function SettingsPage() {
     if (!commission) return;
     setCommissionBusy(true);
     try {
-      const saved = await api<{ vendorCommission?: number }>(`/api/v1/admin/services/${commission.code}/commission`, {
+      const saved = await api<{
+        vendorCommission?: number;
+        surchargeMode?: string;
+        surchargeValue?: number;
+        surchargeMin?: number;
+      }>(`/api/v1/admin/services/${commission.code}/commission`, {
         token,
         method: "PUT",
         body: JSON.stringify({
@@ -236,12 +266,27 @@ export default function SettingsPage() {
           ...(commission.code === "HOSPI_CASH"
             ? { vendorCommission: Number(commission.vendorCommission || 0) }
             : {}),
+          ...(commission.code === "DMT"
+            ? {
+                surchargeMode: commission.surchargeMode ?? "PERCENT",
+                surchargeValue: Number(commission.surchargeValue || 0),
+                surchargeMin:
+                  commission.surchargeMode === "FLAT" ? 0 : Number(commission.surchargeMin || 0),
+              }
+            : {}),
         }),
       });
       if (commission.code === "HOSPI_CASH") {
         setHospiSaved((current) =>
           current ? { ...current, vendorCommission: Number(saved.vendorCommission ?? 0) } : current,
         );
+      }
+      if (commission.code === "DMT") {
+        setDmtSurchargeSaved({
+          surchargeMode: saved.surchargeMode === "FLAT" ? "FLAT" : "PERCENT",
+          surchargeValue: Number(saved.surchargeValue ?? commission.surchargeValue ?? 0),
+          surchargeMin: Number(saved.surchargeMin ?? commission.surchargeMin ?? 0),
+        });
       }
       flash.ok(`Commission saved for ${commission.name}.`);
       setCommission(null);
@@ -523,6 +568,18 @@ export default function SettingsPage() {
                         {inr(hospiSaved.vendorCommission)}
                       </p>
                     )}
+                    {svc.code === "DMT" && dmtSurchargeSaved && (
+                      <p className="mt-2 text-xs font-semibold text-navy-950">
+                        Wallet surcharge:{" "}
+                        {dmtSurchargeSaved.surchargeMode === "FLAT"
+                          ? `${inr(dmtSurchargeSaved.surchargeValue)} flat`
+                          : `${dmtSurchargeSaved.surchargeValue}%${
+                              dmtSurchargeSaved.surchargeMin > 0
+                                ? ` (min ${inr(dmtSurchargeSaved.surchargeMin)})`
+                                : ""
+                            }`}
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-4 border-t border-slate-200/80 flex items-center justify-between gap-3">
@@ -642,12 +699,65 @@ export default function SettingsPage() {
 
       <Modal
         open={commission != null}
-        title="Set commission"
-        description="One reward for the whole service. Flat is rupees. Percentage is of the transaction amount. It is credited to the rewards wallet when the service succeeds."
+        title={commission?.code === "DMT" ? "DMT surcharge & commission" : "Set commission"}
+        description={
+          commission?.code === "DMT"
+            ? "Configure both the DMT wallet surcharge debited from the retailer's MAIN operating wallet and the partner rewards credited on settlement."
+            : "One reward for the whole service. Flat is rupees. Percentage is of the transaction amount. It is credited to the rewards wallet when the service succeeds."
+        }
       >
         {commission && (
           <form onSubmit={saveCommission} className="space-y-4">
             <p className="text-sm font-bold text-navy-950">{commission.name}</p>
+            {commission.code === "DMT" && (
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                    DMT Wallet Surcharge (MAIN Wallet Debit)
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-slate-600">
+                    Debited on top of the transfer amount when the retailer initiates a DMT remittance.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {(["PERCENT", "FLAT"] as const).map((sMode) => (
+                    <button
+                      key={sMode}
+                      type="button"
+                      onClick={() => setCommission({ ...commission, surchargeMode: sMode })}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                        (commission.surchargeMode ?? "PERCENT") === sMode
+                          ? "bg-navy-950 text-white"
+                          : "border border-slate-200 bg-white text-slate-600"
+                      }`}
+                    >
+                      {sMode === "PERCENT" ? "Percentage (%)" : "Flat amount (₹)"}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TextField
+                    label={(commission.surchargeMode ?? "PERCENT") === "FLAT" ? "Flat surcharge (₹)" : "Surcharge (%)"}
+                    inputMode="numeric"
+                    value={commission.surchargeValue ?? "1"}
+                    onChange={(surchargeValue) => setCommission({ ...commission, surchargeValue })}
+                  />
+                  {(commission.surchargeMode ?? "PERCENT") === "PERCENT" && (
+                    <TextField
+                      label="Minimum surcharge (₹)"
+                      inputMode="numeric"
+                      value={commission.surchargeMin ?? "10"}
+                      onChange={(surchargeMin) => setCommission({ ...commission, surchargeMin })}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+            {commission.code === "DMT" && (
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 pt-1">
+                Partner Rewards Commission (Credited to REWARDS Wallet)
+              </p>
+            )}
             <div className="flex gap-2">
               {(["FLAT", "PERCENT"] as const).map((mode) => (
                 <button

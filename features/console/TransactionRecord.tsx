@@ -170,7 +170,11 @@ export function TransactionRecord({
               className="inline-flex items-center gap-2 rounded-xl bg-navy-950 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-navy-900 disabled:opacity-60 transition-colors"
             >
               <RefreshCw className={`h-3.5 w-3.5 text-emerald-400 ${verifying ? "animate-spin" : ""}`} />
-              {verifying ? "Verifying Status…" : "Verify Status"}
+              {verifying
+                ? "Verifying Status…"
+                : txn.txn_type === "DMT" && isSuccess
+                  ? "Reconfirm Status"
+                  : "Verify Status"}
             </button>
           )}
           <button

@@ -104,6 +104,7 @@ type ProviderChannelRow = {
   platform_channel_active: boolean;
   supports_upi_cashout?: boolean;
   supports_aeps?: boolean;
+  supports_dmt?: boolean;
   supports_payout?: boolean;
   biometric_required?: boolean;
   priority_order?: number;
@@ -1163,6 +1164,7 @@ export function RetailerBankingAdminTab({
               const capabilities = [
                 ch.supports_upi_cashout !== false ? "UPI Cashout" : null,
                 ch.supports_aeps !== false ? "AePS" : null,
+                ch.supports_dmt ? "DMT" : null,
                 ch.supports_payout !== false ? "Payout" : null,
               ].filter(Boolean) as string[];
 
