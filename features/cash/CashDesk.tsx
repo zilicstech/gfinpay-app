@@ -2,23 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Clock, Fingerprint, Lock, QrCode, RefreshCw } from "lucide-react";
+import { ArrowRight, Clock, Lock, PowerOff, RefreshCw } from "lucide-react";
 import { formatApiError } from "@/lib/api-client";
 import { Alert } from "@/components/ui/primitives";
 import { useDeskServices, type CashActivationState } from "@/features/desk/DeskServices";
 import { BiometricActivationCard } from "@/features/ekyc/BiometricActivationCard";
 import { UpiCashoutDesk } from "@/features/cashout/UpiCashoutDesk";
-import { AepsDesk } from "@/features/aeps/AepsDesk";
 
-export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }) {
-  const { cashActivation, refreshCashActivation } = useDeskServices();
+export function CashDesk() {
+  const { codes, cashActivation, refreshCashActivation } = useDeskServices();
   const [activation, setActivation] = useState<CashActivationState | null>(cashActivation);
-  const [tab, setTab] = useState<"UPI" | "AEPS">(defaultTab);
   const [checking, setChecking] = useState(true);
   const [showExtraBiometric, setShowExtraBiometric] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Step 3: Live check whenever retailer visits the "Cash" page
   useEffect(() => {
     let cancelled = false;
     setChecking(true);
@@ -29,7 +26,7 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
         }
       })
       .catch((e) => {
-        if (!cancelled) setError(formatApiError(e, "Could not verify cash service activation"));
+        if (!cancelled) setError(formatApiError(e, "Could not verify UPI Cashpoint activation"));
       })
       .finally(() => {
         if (!cancelled) setChecking(false);
@@ -65,13 +62,39 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
     return null;
   }
 
+  // Gate 0: Platform Service Rail Enabled in Admin Settings
+  const serviceEnabled = activation.upiServiceEnabled !== false && codes.has("UPI_CASHOUT");
+  if (!serviceEnabled) {
+    return (
+      <div className="space-y-6">
+        <div className="border-b border-slate-200/80 pb-5">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy-950">UPI Cashpoint</h1>
+          <p className="mt-1 text-sm text-slate-500">Dynamic UPI QR Cash-Out Counter</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8 flex items-start gap-3.5">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-200/80 text-slate-700 shrink-0">
+            <PowerOff className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg font-bold text-navy-950">
+              UPI Cashpoint Is Currently Disabled
+            </h2>
+            <p className="text-xs text-slate-600 mt-0.5">
+              This service rail has been paused in Platform Settings. Please check back shortly or contact support.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Gate 1: Business Verification + Signed Agreement
   if (!activation.servicesUnlocked) {
     return (
       <div className="space-y-6">
         <div className="border-b border-slate-200/80 pb-5">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy-950">Cash Counter</h1>
-          <p className="mt-1 text-sm text-slate-500">UPI to Cashout &amp; AePS Banking Services</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy-950">UPI Cashpoint</h1>
+          <p className="mt-1 text-sm text-slate-500">Dynamic UPI QR Cash-Out Counter</p>
         </div>
         <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-6 sm:p-8 space-y-4">
           <div className="flex items-center gap-3">
@@ -83,7 +106,7 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
                 Complete Business Verification &amp; Partner Agreement
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Cash services activate once your Business Registration is verified and your Master Service Agreement is signed.
+                UPI Cashpoint activates once your Business Registration is verified and your Master Service Agreement is signed.
               </p>
             </div>
           </div>
@@ -103,14 +126,18 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
     );
   }
 
-  // Gate 2: Admin Provisioning of Merchant Terminal
-  if (!activation.terminalProvisioned) {
+  const upiProvisioned = activation.upiTerminalProvisioned ?? activation.terminalProvisioned;
+  const upiBioRequired =
+    activation.upiBiometricRequired ?? (!activation.upiCashoutActive && activation.biometricRequired);
+
+  // Gate 2: Admin Provisioning of UPI Cashpoint Terminal
+  if (!upiProvisioned) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
           <div>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy-950">Cash Counter</h1>
-            <p className="mt-1 text-sm text-slate-500">UPI to Cashout &amp; AePS Banking Services</p>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold text-navy-950">UPI Cashpoint</h1>
+            <p className="mt-1 text-sm text-slate-500">Dynamic UPI QR Cash-Out Counter</p>
           </div>
           <button
             type="button"
@@ -130,10 +157,10 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
             </div>
             <div>
               <h2 className="font-display text-lg font-bold text-navy-950">
-                Merchant Cash Terminal Activation in Progress
+                UPI Cashpoint Terminal Activation in Progress
               </h2>
               <p className="text-xs text-slate-600 mt-0.5">
-                Your Business &amp; Master Service Agreement are verified! Compliance is provisioning your merchant banking terminal. Once enabled, you will be prompted here to complete your one-time fingerprint verification.
+                Your Business &amp; Master Service Agreement are verified! Compliance is provisioning your UPI Cashpoint terminal.
               </p>
             </div>
           </div>
@@ -142,8 +169,12 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
     );
   }
 
-  // Gate 3: White-Label Biometric KYC Required before Cashout & Payout unlock
-  if (!activation.cashServicesActive || activation.biometricRequired) {
+  // Gate 3: White-Label Biometric KYC Required on UPI Channel (if required by provider)
+  if (!activation.upiCashoutActive || upiBioRequired) {
+    const scopedActivation: CashActivationState = {
+      ...activation,
+      pendingChannelKey: activation.upiPendingChannelKey ?? activation.pendingChannelKey,
+    };
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
@@ -151,9 +182,9 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
               Terminal Activation
             </span>
-            <h1 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-navy-950">Cash Counter</h1>
+            <h1 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-navy-950">UPI Cashpoint</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Complete your one-time Aadhaar biometric verification below to start accepting UPI Cashout &amp; AePS transactions.
+              Complete your one-time Aadhaar biometric verification below to start accepting UPI Cashpoint QR payments.
             </p>
           </div>
           <button
@@ -167,55 +198,26 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
           </button>
         </div>
 
-        <BiometricActivationCard activation={activation} onActivated={setActivation} />
+        <BiometricActivationCard activation={scopedActivation} onActivated={setActivation} />
       </div>
     );
   }
 
-  // Step 4: Biometric Verified -> Both UPI Cashout & AePS Active!
+  // Gate 4: Active UPI Cashpoint Counter
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            {activation.biometricVerified ? "Biometric Active · Live Counter" : "Live Counter"}
+            Live Counter
           </span>
           <h1 className="mt-2 font-display text-2xl sm:text-3xl font-bold text-navy-950">
-            Cash Services Counter
+            UPI Cashpoint
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-            {activation.aepsActive
-              ? "Accept walk-in customer UPI QR cashouts or Aadhaar biometric AePS withdrawals directly into your wallet."
-              : "Accept walk-in customer UPI QR cashouts directly into your wallet."}
+            Generate walk-in dynamic UPI QR codes and receive instant wallet credit upon customer scan.
           </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {activation.aepsActive ? (
-          <div className="flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-            <button
-              type="button"
-              onClick={() => setTab("UPI")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "UPI" ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950"
-              }`}
-            >
-              <QrCode className="h-3.5 w-3.5" />
-              UPI to Cashout
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("AEPS")}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                tab === "AEPS" ? "bg-navy-950 text-white shadow-xs" : "text-slate-600 hover:text-navy-950"
-              }`}
-            >
-              <Fingerprint className="h-3.5 w-3.5" />
-              AePS Banking
-            </button>
-          </div>
-          ) : null}
         </div>
       </div>
 
@@ -246,7 +248,7 @@ export function CashDesk({ defaultTab = "UPI" }: { defaultTab?: "UPI" | "AEPS" }
         </div>
       )}
 
-      {tab === "AEPS" && activation.aepsActive ? <AepsDesk embedded /> : <UpiCashoutDesk embedded />}
+      <UpiCashoutDesk embedded />
     </div>
   );
 }

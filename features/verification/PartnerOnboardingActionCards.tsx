@@ -269,17 +269,27 @@ export function PartnerOnboardingActionCards({
   }
 
   // 4. White-Label Biometric KYC Action Card (Retailer only, once terminal is provisioned)
-  if (!isDistributor && cashActivation?.biometricRequired) {
+  const needsBiometric =
+    cashActivation?.biometricRequired ||
+    cashActivation?.upiBiometricRequired ||
+    cashActivation?.aepsBiometricRequired;
+  if (!isDistributor && needsBiometric) {
+    const bioHref =
+      cashActivation?.upiServiceEnabled !== false && cashActivation?.upiBiometricRequired
+        ? "/agent/cash"
+        : cashActivation?.aepsServiceEnabled !== false && cashActivation?.aepsBiometricRequired
+          ? "/agent/aeps"
+          : "/agent/cash";
     cards.push({
       key: "biometric",
       stepLabel: "Step 4 · Biometric Activation",
       title: "Complete Biometric Verification",
       description:
-        "Scan your Aadhaar-linked fingerprint on an L1 RD scanner to activate UPI to Cashout, AePS, and Bank Settlement Payouts.",
+        "Scan your Aadhaar-linked fingerprint on an L1 RD scanner to activate UPI Cashpoint, AePS Banking, and Bank Settlement Payouts.",
       badgeText: "Biometric Required",
       tone: "emerald",
       icon: Fingerprint,
-      href: "/agent/cash",
+      href: bioHref,
       ctaLabel: "Complete Biometric Now",
     });
   }

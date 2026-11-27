@@ -27,8 +27,14 @@ export type CashActivationState = {
   servicesUnlocked: boolean;
   businessVerified: boolean;
   agreementSigned: boolean;
+  upiServiceEnabled?: boolean;
+  aepsServiceEnabled?: boolean;
   terminalProvisioned: boolean;
+  upiTerminalProvisioned?: boolean;
+  aepsTerminalProvisioned?: boolean;
   biometricRequired: boolean;
+  upiBiometricRequired?: boolean;
+  aepsBiometricRequired?: boolean;
   additionalBiometricAvailable: boolean;
   biometricVerified: boolean;
   cashServicesActive: boolean;
@@ -38,6 +44,8 @@ export type CashActivationState = {
   hasFullAadhaar: boolean;
   aadhaarLast4?: string;
   pendingChannelKey?: string | null;
+  upiPendingChannelKey?: string | null;
+  aepsPendingChannelKey?: string | null;
   rdEnv?: string;
   allowPastedPid?: boolean;
   channels: OpaqueBiometricChannel[];

@@ -58,9 +58,8 @@ export function canUseService(code: string, codes: Set<string>, access: ServiceA
   const identityOk = Boolean(access.identity ?? access.personal);
   const fullServiceOk = Boolean(access.business && (access.bank ?? true));
   if (code === "LOANS") return true;
-  if (code === "UPI_CASHOUT" || code === "AEPS") {
-    return (codes.has("UPI_CASHOUT") || codes.has("AEPS")) && fullServiceOk;
-  }
+  if (code === "UPI_CASHOUT") return codes.has("UPI_CASHOUT") && fullServiceOk;
+  if (code === "AEPS") return codes.has("AEPS") && fullServiceOk;
   if (code === "PAYOUT" || code === "DMT") return codes.has(code) && fullServiceOk;
   if (code === "BBPS" || code === "HOSPI_CASH") return codes.has(code) && identityOk;
   return codes.has(code) && identityOk;
@@ -98,8 +97,11 @@ export function buildAgentNav(
   ];
   if (codes.has("DMT") && fullServiceOk) nav.push({ href: "/agent/dmt", label: "DMT" });
   if (codes.has("BBPS") && identityOk) nav.push({ href: "/agent/bbps", label: "Bills" });
-  if ((codes.has("UPI_CASHOUT") || codes.has("AEPS")) && cashAndPayoutOk) {
-    nav.push({ href: "/agent/cash", label: "Cash" });
+  if (codes.has("UPI_CASHOUT") && cashAndPayoutOk) {
+    nav.push({ href: "/agent/cash", label: "UPI Cashpoint" });
+  }
+  if (codes.has("AEPS") && cashAndPayoutOk) {
+    nav.push({ href: "/agent/aeps", label: "AePS" });
   }
   if (codes.has("PAYOUT") && cashAndPayoutOk) nav.push({ href: "/agent/payout", label: "Payout" });
   nav.push({ href: "/agent/wallet", label: "Wallet" });
@@ -142,7 +144,8 @@ export const QUICK_TILES: QuickTile[] = [
   { code: "LOANS", href: "/agent/loans", label: "Loans", hint: "Up to ₹1,00,000 working capital" },
   { code: "DMT", href: "/agent/dmt", label: "Send money", hint: "Instant IMPS / NEFT" },
   { code: "BBPS", href: "/agent/bbps", label: "Pay a bill", hint: "Electricity, Fastag, DTH" },
-  { code: "UPI_CASHOUT", href: "/agent/cash", label: "Cash", hint: "UPI or AePS" },
+  { code: "UPI_CASHOUT", href: "/agent/cash", label: "UPI Cashpoint", hint: "Dynamic QR cash-out" },
+  { code: "AEPS", href: "/agent/aeps", label: "AePS", hint: "Aadhaar cash & balance" },
   { code: "PAYOUT", href: "/agent/payout", label: "Payout", hint: "Send to a bank account" },
   { code: "HOSPI_CASH", href: "/agent/hospi-cash", label: "Hospi Cash", hint: "Hospital cash card" },
 ];
@@ -157,7 +160,8 @@ export function filterQuickTiles(
   const cashAndPayoutOk = fullServiceOk;
   return QUICK_TILES.filter((t) => {
     if (t.code === "LOANS") return true;
-    if (t.code === "UPI_CASHOUT") return (codes.has("UPI_CASHOUT") || codes.has("AEPS")) && cashAndPayoutOk;
+    if (t.code === "UPI_CASHOUT") return codes.has("UPI_CASHOUT") && cashAndPayoutOk;
+    if (t.code === "AEPS") return codes.has("AEPS") && cashAndPayoutOk;
     if (t.code === "PAYOUT") return codes.has("PAYOUT") && cashAndPayoutOk;
     if (!codes.has(t.code)) return false;
     if (t.code === "BBPS" || t.code === "HOSPI_CASH") return identityOk;
@@ -177,8 +181,11 @@ export function buildMoreItems(
     { href: "/agent/loans", label: "Loans", hint: "Microfinance & working capital loans up to ₹1,00,000" },
   ];
   if (codes.has("BBPS") && identityOk) items.push({ href: "/agent/bbps", label: "Bill pay", hint: "Fetch and pay BBPS bills" });
-  if ((codes.has("UPI_CASHOUT") || codes.has("AEPS")) && cashAndPayoutOk) {
-    items.push({ href: "/agent/cash", label: "Cash", hint: "UPI or AePS" });
+  if (codes.has("UPI_CASHOUT") && cashAndPayoutOk) {
+    items.push({ href: "/agent/cash", label: "UPI Cashpoint", hint: "Accept dynamic UPI QR cash-outs" });
+  }
+  if (codes.has("AEPS") && cashAndPayoutOk) {
+    items.push({ href: "/agent/aeps", label: "AePS", hint: "Aadhaar cash withdrawal, balance & mini statement" });
   }
   if (codes.has("PAYOUT") && cashAndPayoutOk) items.push({ href: "/agent/payout", label: "Payout", hint: "Send to a bank account" });
   items.push(

@@ -38,11 +38,11 @@ type PlatformProviderConfig = {
 
 const SERVICE_LABELS: Record<string, { title: string; subtitle: string }> = {
   UPI_CASHOUT: {
-    title: "UPI to Cashout (Dynamic UATM QR)",
-    subtitle: "Routes QR generation across active FULL_KYC channels for the retailer.",
+    title: "UPI Cashpoint (Dynamic UATM QR)",
+    subtitle: "Routes QR generation across active channels by retailer priority.",
   },
   AEPS: {
-    title: "AePS Banking Switch (CW / BE / MS)",
+    title: "AePS Banking (CW / BE / MS)",
     subtitle: "Routes Aadhaar fingerprint transactions across active FULL_KYC channels.",
   },
   PAYOUT: {

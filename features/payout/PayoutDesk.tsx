@@ -76,7 +76,7 @@ type VerifyStatusRes = {
 export function PayoutDesk() {
   const token = useSession((s) => s.token);
   const loadProfile = useSession((s) => s.loadProfile);
-  const { refreshCashActivation } = useDeskServices();
+  const { codes, refreshCashActivation } = useDeskServices();
 
   const [eligibility, setEligibility] = useState<PayoutEligibility | null>(null);
   const [history, setHistory] = useState<PayoutTransferView[]>([]);
@@ -322,16 +322,29 @@ export function PayoutDesk() {
           </ul>
           <div className="flex flex-wrap gap-2 pt-1">
             {!eligibility.biometricVerified && (
-              <Link href="/agent/cash" className="btn-primary text-xs inline-flex items-center gap-1.5">
-                Complete Biometric on Cash Page
+              <Link
+                href={codes.has("UPI_CASHOUT") ? "/agent/cash" : "/agent/aeps"}
+                className="btn-primary text-xs inline-flex items-center gap-1.5"
+              >
+                Complete Biometric Activation
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             )}
             {eligibility.remainingCashoutCount > 0 && eligibility.biometricVerified && (
-              <Link href="/agent/cash" className="btn-primary text-xs inline-flex items-center gap-1.5">
-                Go to Cash Counter
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              <>
+                {codes.has("UPI_CASHOUT") && (
+                  <Link href="/agent/cash" className="btn-primary text-xs inline-flex items-center gap-1.5">
+                    Open UPI Cashpoint
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+                {codes.has("AEPS") && (
+                  <Link href="/agent/aeps" className="btn-secondary text-xs inline-flex items-center gap-1.5">
+                    Open AePS Counter
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+              </>
             )}
             {!eligibility.settlementBank && (
               <Link href="/agent/profile?tab=banks" className="btn-secondary text-xs inline-flex items-center gap-1.5">

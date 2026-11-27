@@ -163,13 +163,15 @@ function xmlAttr(value: string) {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-function pidShapes(env: string, wadh: string, device: DeviceInfo) {
+function pidShapes(env: string, wadh: string, device: DeviceInfo, otp = "") {
   const e = xmlAttr(env);
   const w = xmlAttr(wadh);
-  const eko = `<PidOptions ver="1.0"><Opts fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" otp="" wadh="${w}" posh="UNKNOWN" env="${e}"/></PidOptions>`;
-  const mantra = `<PidOptions ver="1.0"><Opts env="${e}" fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" wadh="${w}"/></PidOptions>`;
-  const full = `<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" iType="0" pCount="0" pType="0" format="0" pidVer="2.0" timeout="10000" otp="" wadh="${w}" posh="UNKNOWN" env="${e}"/></PidOptions>`;
-  const spec = `<PidOptions ver="1.0" env="${e}"><Opts fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" otp="" wadh="${w}" posh="UNKNOWN"/></PidOptions>`;
+  const o = xmlAttr(otp);
+  const otpAttr = o ? ` otp="${o}"` : "";
+  const eko = `<PidOptions ver="1.0"><Opts fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" otp="${o}" wadh="${w}" posh="UNKNOWN" env="${e}"/></PidOptions>`;
+  const mantra = `<PidOptions ver="1.0"><Opts env="${e}" fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000"${otpAttr} posh="UNKNOWN" wadh="${w}"/></PidOptions>`;
+  const full = `<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" iType="0" pCount="0" pType="0" format="0" pidVer="2.0" timeout="10000" otp="${o}" wadh="${w}" posh="UNKNOWN" env="${e}"/></PidOptions>`;
+  const spec = `<PidOptions ver="1.0" env="${e}"><Opts fCount="1" fType="2" format="0" pidVer="2.0" timeout="10000" otp="${o}" wadh="${w}" posh="UNKNOWN"/></PidOptions>`;
   const id = `${device.rdsId} ${device.dpId} ${device.model}`.toLowerCase();
   const morpho = id.includes("idemia") || id.includes("morpho") || id.includes("cbme") || id.includes("smartchip");
   return morpho
@@ -201,12 +203,18 @@ async function captureXml(service: RdService, body: string) {
   return last;
 }
 
-export async function capture(service: RdService, env: string, wadh: string, device: DeviceInfo): Promise<CaptureResult> {
+export async function capture(
+  service: RdService,
+  env: string,
+  wadh: string,
+  device: DeviceInfo,
+  otp = "",
+): Promise<CaptureResult> {
   const started = Date.now();
   const tried: string[] = [];
   let lastCode = "";
   let lastInfo = "";
-  for (const shape of pidShapes(env, wadh, device)) {
+  for (const shape of pidShapes(env, wadh, device, otp)) {
     const xml = await captureXml(service, shape.xml);
     const errCode = attr(xml, "errCode");
     const errInfo = attr(xml, "errInfo");

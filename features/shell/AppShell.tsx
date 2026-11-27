@@ -7,8 +7,10 @@ import {
   LayoutDashboard, Users, Store, PieChart, Percent, Wallet, ArrowLeftRight,
   Landmark, LogOut, MessageSquare, Settings, Shield, ShieldCheck, Receipt, Scale, LayoutGrid,
   ClipboardList,
+  Fingerprint,
   HeartPulse,
   Banknote,
+  QrCode,
   ChevronDown, UserRound, Zap, Smartphone, Tv, CarFront, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -66,8 +68,10 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   "/agent/wallet": Wallet,
   "/agent/dmt": ArrowLeftRight,
   "/agent/bbps": Zap,
-  "/agent/aeps": Landmark,
-  "/agent/cash-out/upi": Landmark,
+  "/agent/cash": QrCode,
+  "/agent/aeps": Fingerprint,
+  "/agent/payout": Landmark,
+  "/agent/cash-out/upi": QrCode,
   "/agent/catalog": LayoutGrid,
   "/agent/sales": Receipt,
   "/distributor/overview": LayoutDashboard,

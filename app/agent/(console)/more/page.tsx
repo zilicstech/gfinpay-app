@@ -5,8 +5,10 @@ import { useMemo } from "react";
 import {
   ChevronRight,
   CreditCard,
+  Fingerprint,
   Landmark,
   PieChart,
+  QrCode,
   Receipt,
   ShieldCheck,
   Sparkles,
@@ -20,7 +22,8 @@ import { useSession } from "@/stores/session.store";
 
 const ICONS: Record<string, { icon: typeof Zap; color: string; bg: string }> = {
   "/agent/bbps": { icon: Zap, color: "text-amber-500", bg: "bg-amber-50" },
-  "/agent/cash": { icon: Landmark, color: "text-emerald-500", bg: "bg-emerald-50" },
+  "/agent/cash": { icon: QrCode, color: "text-emerald-600", bg: "bg-emerald-50" },
+  "/agent/aeps": { icon: Fingerprint, color: "text-teal-600", bg: "bg-teal-50" },
   "/agent/payout": { icon: Landmark, color: "text-blue-500", bg: "bg-blue-50" },
   "/agent/kyc": { icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
   "/agent/customers": { icon: Users, color: "text-purple-500", bg: "bg-purple-50" },
